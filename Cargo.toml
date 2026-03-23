@@ -15,6 +15,7 @@ crossterm = { version = "0.29", features = ["event-stream"] }
 futures = { version = "0.3" }
 itertools = { version = "0.14" }
 hostaddr = { version = "0.2", features = ["serde"] }
+humantime = { version = "2.3" }
 meshtastic = { version = "0.1", features = ["bluetooth-le"] }
 ratatui = { version = "0.30", features = ["unstable-rendered-line-info"] }
 strum = { version = "0.28", features = ["derive"] }

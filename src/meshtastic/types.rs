@@ -1,11 +1,12 @@
 use hostaddr::HostAddr;
+use meshtastic::protobufs::from_radio::PayloadVariant;
 
 #[derive(Debug, Clone)]
 pub enum MeshtasticEvent {
     Connected,
     ConnectionError(String),
     Disconnected,
-    MessageArrived,
+    IncomingPacket(PayloadVariant),
 }
 
 #[derive(Debug, Clone)]

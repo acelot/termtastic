@@ -31,7 +31,20 @@ impl ChatMessages {
 
 impl Component for ChatMessages {
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
-        self.input_component.handle_event(state, event, emit);
+        match event {
+            Event::Key(KeyEvent { code, .. }) => match code {
+                KeyCode::Up => self.list_state.previous(),
+                KeyCode::Down => self.list_state.next(),
+                KeyCode::Esc => emit(AppEvent::SwitchChannelRequested),
+                _ => self.input_component.handle_event(state, event, emit),
+            },
+            Event::Mouse(MouseEvent { kind, .. }) => match kind {
+                MouseEventKind::ScrollUp => self.list_state.previous(),
+                MouseEventKind::ScrollDown => self.list_state.next(),
+                _ => {}
+            },
+            _ => {}
+        }
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
@@ -43,20 +56,6 @@ impl Component for ChatMessages {
                 Constraint::Length(1),
             ])
             .split(area);
-
-        let active_chat = state.active_chat.as_ref().unwrap().clone();
-
-        let list_items: Vec<ListItem> = state.conversations[&active_chat]
-            .messages
-            .iter()
-            .map(|m| ListItem::new(Span::from(m.content.clone())))
-            .collect();
-
-        let list = List::new(list_items)
-            .direction(ListDirection::BottomToTop)
-            .highlight_style(Style::default().bg(Color::DarkGray));
-
-        frame.render_stateful_widget(list, v[0], &mut self.list_state);
 
         self.input_component.render(state, frame, v[1]);
         self.hotkeys_component.render(state, frame, v[2]);

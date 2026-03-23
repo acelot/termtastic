@@ -12,8 +12,8 @@ use crate::{
 };
 
 pub struct ConnectionService {
-    event_tx: broadcast::Sender<AppEvent>,
-    event_rx: broadcast::Receiver<AppEvent>,
+    app_event_tx: broadcast::Sender<AppEvent>,
+    app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
@@ -22,16 +22,16 @@ pub struct ConnectionService {
 
 impl ConnectionService {
     pub fn new(
-        event_tx: broadcast::Sender<AppEvent>,
-        event_rx: broadcast::Receiver<AppEvent>,
+        app_event_tx: broadcast::Sender<AppEvent>,
+        app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            event_tx,
-            event_rx,
+            app_event_tx,
+            app_event_rx,
             state_rx,
             state_action_tx,
             meshtastic_command_tx,
@@ -42,9 +42,10 @@ impl ConnectionService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Ok(event) = self.event_rx.recv() => self.handle_app_event(event).await,
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await,
                 Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = self.state_rx.changed() => self.handle_state_change(),
+
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -58,13 +59,13 @@ impl ConnectionService {
     async fn handle_app_event(&self, event: AppEvent) {
         match event {
             AppEvent::InitializationRequested => {
-                self.event_tx
+                self.app_event_tx
                     .send(AppEvent::DeviceRediscoverRequested)
                     .unwrap_or_log();
             }
             AppEvent::DeviceSelected(hardware) => {
                 self.state_action_tx
-                    .send(StateAction::SetSelectedConnection(hardware))
+                    .send(StateAction::SetSelectedDevice(hardware))
                     .unwrap_or_log();
             }
             AppEvent::DisconnectionRequested => {
@@ -143,6 +144,11 @@ impl ConnectionService {
 
                 self.state_action_tx
                     .send(StateAction::UnsetConnection)
+                    .unwrap_or_log();
+            }
+            MeshtasticEvent::IncomingPacket(_) => {
+                self.state_action_tx
+                    .send(StateAction::TriggerRx)
                     .unwrap_or_log();
             }
             _ => {}

@@ -4,7 +4,7 @@ use tracing::Level;
 use crate::ui::prelude::*;
 
 pub struct Logs {
-    list_state: tui_widget_list::ListState,
+    list_state: ListState,
     follow: bool,
     popup_record: Option<LogRecord>,
     popup_scroll_offset: u16,
@@ -15,7 +15,7 @@ pub struct Logs {
 impl Logs {
     pub fn new() -> Self {
         Self {
-            list_state: tui_widget_list::ListState::default(),
+            list_state: ListState::default(),
             follow: true,
             popup_record: None,
             popup_scroll_offset: 0,
@@ -34,11 +34,11 @@ impl Logs {
                 },
                 Hotkey {
                     key: "home".to_string(),
-                    label: "go first".to_string(),
+                    label: "to top".to_string(),
                 },
                 Hotkey {
                     key: "end".to_string(),
-                    label: "go last".to_string(),
+                    label: "to bottom".to_string(),
                 },
                 Hotkey {
                     key: "f".to_string(),
@@ -79,8 +79,8 @@ impl Logs {
 
 impl Component for Logs {
     fn handle_event(&mut self, state: &State, event: &Event, _emit: &impl Fn(AppEvent)) {
-        if let Event::Key(KeyEvent { code, .. }) = event {
-            match (code, self.popup_record.is_some()) {
+        match event {
+            Event::Key(KeyEvent { code, .. }) => match (code, self.popup_record.is_some()) {
                 (KeyCode::Up, false) => {
                     self.follow = false;
                     self.list_state.previous();
@@ -95,25 +95,17 @@ impl Component for Logs {
                         self.popup_scroll_offset = 0;
                     }
                 }
-                (KeyCode::Home, false) => {
-                    self.list_state.select(Some(0));
-                }
-                (KeyCode::End, false) => {
-                    self.list_state.select(Some(state.logs.len() - 1));
-                }
-                (KeyCode::Char('f'), false) => {
-                    self.follow = true;
-                }
+                (KeyCode::Home, false) => self.list_state.select(Some(0)),
+                (KeyCode::End, false) => self.list_state.select(Some(state.logs.len() - 1)),
+                (KeyCode::Char('f'), false) => self.follow = true,
                 // popup hotkeys
                 (KeyCode::Up, true) => {
-                    self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1);
+                    self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
                 }
                 (KeyCode::Down, true) => {
                     self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
                 }
-                (KeyCode::Esc, true) => {
-                    self.popup_record = None;
-                }
+                (KeyCode::Esc, true) => self.popup_record = None,
                 // general
                 (KeyCode::Char('c'), _) => {
                     if let Some(i) = self.list_state.selected {
@@ -121,7 +113,13 @@ impl Component for Logs {
                     }
                 }
                 _ => {}
-            };
+            },
+            Event::Mouse(MouseEvent { kind, .. }) => match kind {
+                MouseEventKind::ScrollUp => self.list_state.previous(),
+                MouseEventKind::ScrollDown => self.list_state.next(),
+                _ => {}
+            },
+            _ => {}
         }
     }
 
@@ -139,24 +137,29 @@ impl Component for Logs {
             ])
             .split(area);
 
-        let list_builder = tui_widget_list::ListBuilder::new(|context| {
-            let item = get_record_widget(
-                state.logs[context.index].clone(),
-                if context.is_selected {
-                    Span::from("> ").yellow()
-                } else {
-                    Span::from("  ")
-                },
-            );
+        let list_builder = ListBuilder::new(|context| {
+            let item = LogRecordWidget {
+                record: &state.logs[context.index],
+                is_selected: context.is_selected,
+                wrap: false,
+                scroll_offset: 0,
+            };
 
             (item, 1)
         });
 
-        let list = tui_widget_list::ListView::new(list_builder, state.logs.len()).block(
-            Block::new()
-                .borders(Borders::LEFT)
-                .border_style(Style::new().dark_gray()),
-        );
+        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+            .symbols(ScrollbarSet {
+                begin: "┬",
+                thumb: "█",
+                track: "│",
+                end: "┴",
+            })
+            .style(Style::new().dark_gray());
+
+        let list = ListView::new(list_builder, state.logs.len())
+            .scrollbar(scrollbar)
+            .infinite_scrolling(false);
 
         list.render(v[0], frame.buffer_mut(), &mut self.list_state);
 
@@ -168,20 +171,25 @@ impl Component for Logs {
                 height: v[0].height - v[0].height / 4,
             };
 
-            let popup = Paragraph::new(get_record_widget(r.clone(), Span::from("")))
-                .wrap(Wrap { trim: false })
-                .scroll((self.popup_scroll_offset, 0))
-                .block(
-                    Block::new()
-                        .title(" expanded view ")
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Rounded)
-                        .border_style(Style::new().dark_gray())
-                        .padding(Padding::uniform(1)),
-                );
+            let popup_block = Block::new()
+                .title(" expanded view ")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
+                .border_style(Style::new().white())
+                .padding(Padding::uniform(1));
 
-            frame.render_widget(Clear, popup_area);
-            frame.render_widget(popup, popup_area);
+            let popup_block_area = popup_block.inner(popup_area);
+
+            Clear.render(popup_area, frame.buffer_mut());
+            popup_block.render(popup_area, frame.buffer_mut());
+
+            LogRecordWidget {
+                record: r,
+                is_selected: false,
+                wrap: true,
+                scroll_offset: self.popup_scroll_offset,
+            }
+            .render(popup_block_area, frame.buffer_mut());
         }
 
         if self.popup_record.is_some() {
@@ -192,19 +200,52 @@ impl Component for Logs {
     }
 }
 
-fn get_record_widget(record: LogRecord, first_span: Span) -> Line {
-    Line::from(vec![
-        first_span,
-        Span::from(record.datetime.format("%H:%M:%S").to_string()).dark_gray(),
-        Span::from(" "),
-        Span::from(format!("{:<5}", record.level.to_string())).style(match record.level {
-            Level::TRACE | Level::DEBUG => Style::default().green(),
-            Level::INFO => Style::default().blue(),
-            Level::WARN => Style::default().yellow(),
-            Level::ERROR => Style::default().red(),
-        }),
-        Span::from(" "),
-        Span::from(format!("{}: ", record.source)).dark_gray(),
-        Span::from(record.message.clone()).white(),
-    ])
+struct LogRecordWidget<'a> {
+    pub record: &'a LogRecord,
+    pub is_selected: bool,
+    pub wrap: bool,
+    pub scroll_offset: u16,
+}
+
+impl<'a> Widget for LogRecordWidget<'a> {
+    fn render(self, area: Rect, buf: &mut Buffer)
+    where
+        Self: Sized,
+    {
+        let area = area.resize(Size {
+            width: area.width - 2,
+            height: area.height,
+        });
+
+        let mut p = Paragraph::new(Line::from(vec![
+            Span::from(self.record.datetime.format("%H:%M:%S").to_string()).dark_gray(),
+            Span::from(" ").dark_gray(),
+            Span::from(format!("{:<5}", self.record.level.to_string()))
+                .style(match self.record.level {
+                    Level::TRACE | Level::DEBUG => Style::default().green(),
+                    Level::INFO => Style::default().blue(),
+                    Level::WARN => Style::default().yellow(),
+                    Level::ERROR => Style::default().red(),
+                })
+                .patch_style(if self.is_selected {
+                    Style::new().bold()
+                } else {
+                    Style::new()
+                }),
+            Span::from(" ").dark_gray(),
+            Span::from(format!("{}: ", self.record.source)).dark_gray(),
+            Span::from(self.record.message.clone()),
+        ]))
+        .scroll((self.scroll_offset, 0));
+
+        if self.is_selected {
+            p = p.reversed();
+        }
+
+        if self.wrap {
+            p = p.wrap(Wrap { trim: false });
+        }
+
+        p.render(area, buf);
+    }
 }

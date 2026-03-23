@@ -18,20 +18,16 @@ impl Component for Header {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        let app_info_length = state.app_name.len() + state.app_version.len() + 1;
-
         let v = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length(app_info_length as u16),
-                Constraint::Min(1),
-            ])
+            .flex(layout::Flex::SpaceBetween)
+            .constraints([Constraint::Fill(1), Constraint::Fill(1)])
             .split(area);
 
         let app_info = vec![
             Span::from(state.app_name.clone()).magenta().bold(),
             Span::from(" "),
-            Span::from(state.app_version.clone()).dark_gray(),
+            Span::from(format!("v{}", state.app_version)).dark_gray(),
         ];
 
         frame.render_widget(Paragraph::new(Line::from(app_info)), v[0]);
@@ -45,13 +41,13 @@ impl Component for Header {
             ConnectionState::Connected => vec![
                 Span::from("online"),
                 Span::from(" "),
-                Span::from("10/200").yellow(),
+                Span::from(format!("{}/{}", state.online_nodes, state.nodes.len())).yellow(),
                 Span::from("  "),
-                Span::from("rx "),
-                Span::from("■").green(),
-                Span::from(" "),
-                Span::from("tx "),
-                Span::from("■").red(),
+                Span::from("■").style(if state.rx {
+                    Style::new().green()
+                } else {
+                    Style::new().dark_gray()
+                }),
             ],
         };
 

@@ -15,7 +15,7 @@ use tracing_unwrap::ResultExt;
 use crate::{
     log2state::LogToState,
     meshtastic::MeshtasticService,
-    service::{ConfigService, ConnectionService, UiService},
+    service::{ChatService, ConfigService, ConnectionService, NodesService, UiService},
     state::{State, Store},
     types::AppEvent,
     ui::Ui,
@@ -37,10 +37,11 @@ async fn main() {
     let file_logger_layer = tracing_subscriber::fmt::layer()
         .with_writer(file_writer)
         .with_ansi(false);
+
     let log_to_state_layer = LogToState::new(state_action_tx.clone());
 
     tracing_subscriber::registry()
-        //.with(filter)
+        .with(filter)
         .with(file_logger_layer)
         .with(log_to_state_layer)
         .init();
@@ -66,7 +67,25 @@ async fn main() {
         meshtastic_event_rx.resubscribe(),
     );
 
+    let nodes_service = NodesService::new(
+        event_tx.clone(),
+        event_rx.resubscribe(),
+        state_rx.clone(),
+        state_action_tx.clone(),
+        meshtastic_command_tx.clone(),
+        meshtastic_event_rx.resubscribe(),
+    );
+
     let connection_service = ConnectionService::new(
+        event_tx.clone(),
+        event_rx.resubscribe(),
+        state_rx.clone(),
+        state_action_tx.clone(),
+        meshtastic_command_tx.clone(),
+        meshtastic_event_rx.resubscribe(),
+    );
+
+    let chat_service = ChatService::new(
         event_tx.clone(),
         event_rx.resubscribe(),
         state_rx.clone(),
@@ -98,8 +117,18 @@ async fn main() {
         ));
 
         s.start(SubsystemBuilder::new(
+            "NodesService",
+            async |subsys: &mut SubsystemHandle| nodes_service.run(subsys).await,
+        ));
+
+        s.start(SubsystemBuilder::new(
             "ConnectionService",
             async |subsys: &mut SubsystemHandle| connection_service.run(subsys).await,
+        ));
+
+        s.start(SubsystemBuilder::new(
+            "ChatService",
+            async |subsys: &mut SubsystemHandle| chat_service.run(subsys).await,
         ));
 
         s.start(SubsystemBuilder::new(

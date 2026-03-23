@@ -1,8 +1,8 @@
 mod connection;
-mod radio_service;
-mod service;
+mod meshtastic;
+mod radio;
 pub mod types;
 
 pub use connection::*;
-pub use radio_service::*;
-pub use service::*;
+pub use meshtastic::*;
+pub use radio::*;

@@ -20,13 +20,15 @@ impl Component for TerminalSize {
                 Constraint::Min(0),
                 Constraint::Length(1),
                 Constraint::Length(1),
+                Constraint::Length(1),
                 Constraint::Min(0),
             ])
             .split(area);
 
-        let warning = Paragraph::new("TERMINAL SIZE IS TOO SMALL!")
-            .style(Style::new().red().bold())
-            .centered();
+        let warning = Paragraph::new(
+            Span::from(" TERMINAL SIZE IS TOO SMALL! ").style(Style::new().white().on_red()),
+        )
+        .centered();
 
         frame.render_widget(warning, v[1]);
 
@@ -36,6 +38,6 @@ impl Component for TerminalSize {
         ))
         .centered();
 
-        frame.render_widget(sizes, v[2]);
+        frame.render_widget(sizes, v[3]);
     }
 }

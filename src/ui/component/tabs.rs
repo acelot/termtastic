@@ -14,25 +14,26 @@ impl Tabs {
 #[allow(unstable_name_collisions)]
 impl Component for Tabs {
     fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
-        if let Event::Key(KeyEvent { code, .. }) = event {
-            match code {
+        match event {
+            Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Tab => emit(AppEvent::NextTabRequested),
                 KeyCode::BackTab => emit(AppEvent::PreviousTabRequested),
                 _ => {}
-            }
+            },
+            _ => {}
         }
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
         let spans: Vec<Span> = Tab::iter()
-            .map(|t| {
-                let mut tab = Span::from(t.to_string().to_lowercase());
+            .map(|tab| {
+                let mut span = Span::from(tab.to_string().to_lowercase());
 
-                if t == state.active_tab {
-                    tab = tab.style(Style::new().bold().yellow().underlined());
+                if tab == state.active_tab {
+                    span = span.style(Style::new().bold().yellow().underlined());
                 }
 
-                tab
+                span
             })
             .intersperse(Span::from("  ".to_string()))
             .collect();

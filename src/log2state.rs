@@ -35,7 +35,7 @@ impl<S: tracing::Subscriber + Send + Sync> Layer<S> for LogToState {
 
         let _ = self
             .state_action_tx
-            .send(StateAction::PushLogRecord(LogRecord {
+            .send(StateAction::AddLogRecord(LogRecord {
                 datetime: Utc::now(),
                 level,
                 source,

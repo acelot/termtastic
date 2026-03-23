@@ -62,8 +62,7 @@ impl Component for ChatInput {
             &self.placeholder
         })
         .scroll((0, scroll as u16))
-        .on_blue()
-        .white();
+        .on_blue();
 
         frame.render_widget(input, h[1]);
 
@@ -76,7 +75,6 @@ impl Component for ChatInput {
                 self.input_component.value().len(),
                 self.max_length
             ))]))
-            .white()
             .on_blue()
             .right_aligned(),
             h[2],

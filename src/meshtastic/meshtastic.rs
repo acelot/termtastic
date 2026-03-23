@@ -9,7 +9,6 @@ use crate::meshtastic::{
 };
 
 pub struct MeshtasticService {
-    command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
     command_rx: mpsc::UnboundedReceiver<MeshtasticCommand>,
     event_tx: broadcast::Sender<MeshtasticEvent>,
     stream_api: Option<ConnectedStreamApi>,
@@ -27,7 +26,6 @@ impl MeshtasticService {
 
         (
             Self {
-                command_tx: command_tx.clone(),
                 command_rx,
                 event_tx,
                 stream_api: None,
@@ -122,7 +120,6 @@ impl MeshtasticService {
                     .send(MeshtasticEvent::Disconnected)
                     .unwrap_or_log();
             }
-            _ => tracing::debug!("unhandled command {:?}", cmd),
         };
     }
 
@@ -134,14 +131,13 @@ impl MeshtasticService {
     ) {
         self.stream_api = Some(stream_api);
 
-        let command_tx = self.command_tx.clone();
         let event_tx = self.event_tx.clone();
 
         self.radio_subsys = Some(subsys.start(SubsystemBuilder::new(
             "RadioService",
-            async |nester_subsys: &mut SubsystemHandle| {
-                RadioService::new(command_tx, event_tx)
-                    .run(radio_rx, nester_subsys)
+            async |nested_subsys: &mut SubsystemHandle| {
+                RadioService::new(event_tx)
+                    .run(radio_rx, nested_subsys)
                     .await
             },
         )));

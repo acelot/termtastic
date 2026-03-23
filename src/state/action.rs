@@ -1,7 +1,8 @@
 use hostaddr::HostAddr;
 
 use crate::types::{
-    AppConfig, ConnectionState, Device, DevicesConfig, DevicesDiscoveringState, LogRecord,
+    AppConfig, Channel, ConnectionState, Device, DevicesConfig, DevicesDiscoveringState, LogRecord,
+    Node,
 };
 
 #[derive(Debug, Clone)]
@@ -10,12 +11,18 @@ pub enum StateAction {
     SetAppConfigDevices(DevicesConfig),
     NextTab,
     PrevTab,
-    SetSelectedConnection(Device),
+    SetSelectedDevice(Device),
     UnsetConnection,
     SetConnectionState(ConnectionState),
-    PushLogRecord(LogRecord),
+    AddLogRecord(LogRecord),
     SetDevicesDiscoveringState(DevicesDiscoveringState),
     SetDiscoveredDevices(Vec<Device>),
     AddTcpDevice(HostAddr<String>),
     RemoveTcpDevice(HostAddr<String>),
+    AddNode(Node),
+    SetChannel(i32, Channel),
+    SetActiveChannel(i32),
+    UnsetActiveChannel,
+    SetOnlineNodes(u16),
+    TriggerRx,
 }

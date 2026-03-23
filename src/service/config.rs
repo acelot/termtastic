@@ -10,8 +10,8 @@ use crate::{
 };
 
 pub struct ConfigService {
-    event_tx: broadcast::Sender<AppEvent>,
-    event_rx: broadcast::Receiver<AppEvent>,
+    app_event_tx: broadcast::Sender<AppEvent>,
+    app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     app_config_last_hash: u64,
@@ -20,14 +20,14 @@ pub struct ConfigService {
 
 impl ConfigService {
     pub fn new(
-        event_tx: broadcast::Sender<AppEvent>,
-        event_rx: broadcast::Receiver<AppEvent>,
+        app_event_tx: broadcast::Sender<AppEvent>,
+        app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
     ) -> Self {
         Self {
-            event_tx,
-            event_rx,
+            app_event_tx,
+            app_event_rx,
             state_rx,
             state_action_tx,
             app_config_last_hash: 0,
@@ -38,7 +38,7 @@ impl ConfigService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Ok(event) = self.event_rx.recv() => self.handle_app_event(event).await,
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await,
                 _ = self.state_rx.changed() => self.handle_state_change(),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
