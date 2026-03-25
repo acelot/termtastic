@@ -6,7 +6,7 @@ use tracing_unwrap::ResultExt;
 
 use crate::{
     state::{State, StateAction},
-    types::{AppConfig, AppEvent, DevicesConfig},
+    types::{AppConfig, AppEvent},
 };
 
 pub struct ConfigService {
@@ -15,7 +15,6 @@ pub struct ConfigService {
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     app_config_last_hash: u64,
-    device_config_last_hash: u64,
 }
 
 impl ConfigService {
@@ -31,7 +30,6 @@ impl ConfigService {
             state_rx,
             state_action_tx,
             app_config_last_hash: 0,
-            device_config_last_hash: 0,
         }
     }
 
@@ -58,16 +56,7 @@ impl ConfigService {
                 let app_config: AppConfig = confy::load(&state.app_name, "app").unwrap_or_log();
 
                 self.state_action_tx
-                    .send(StateAction::SetAppConfig(app_config))
-                    .unwrap_or_log();
-
-                let app_config_devices: DevicesConfig =
-                    confy::load(&state.app_name, "devices").unwrap_or_log();
-
-                self.device_config_last_hash = calculate_hash(&app_config_devices);
-
-                self.state_action_tx
-                    .send(StateAction::SetAppConfigDevices(app_config_devices))
+                    .send(StateAction::AppConfigApply(app_config))
                     .unwrap_or_log();
             }
             _ => {}
@@ -77,20 +66,12 @@ impl ConfigService {
     fn handle_state_change(&mut self) {
         let state = &self.state_rx.borrow();
 
-        let app_config_hash = calculate_hash(&state.app_config);
+        let app_config: AppConfig = state.into();
+        let app_config_hash = calculate_hash(&app_config);
 
         if app_config_hash != self.app_config_last_hash {
-            confy::store(&state.app_name, "app", &state.app_config).unwrap_or_log();
-
+            confy::store(&state.app_name, "app", &app_config).unwrap_or_log();
             self.app_config_last_hash = app_config_hash;
-        }
-
-        let device_config_hash = calculate_hash(&state.devices_config);
-
-        if device_config_hash != self.device_config_last_hash {
-            confy::store(&state.app_name, "devices", &state.devices_config).unwrap_or_log();
-
-            self.device_config_last_hash = device_config_hash;
         }
     }
 }

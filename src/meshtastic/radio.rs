@@ -21,9 +21,12 @@ impl RadioService {
     ) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Some(p) = radio_rx.recv() => self.handle_radio_packet(p),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
+                    break;
+                }
+                maybe_packet = radio_rx.recv() => if !self.handle_radio_packet(maybe_packet) {
+                    tracing::warn!("radio stopped");
                     break;
                 }
             }
@@ -32,11 +35,24 @@ impl RadioService {
         Ok(())
     }
 
-    fn handle_radio_packet(&self, packet: FromRadio) {
-        if let Some(payload) = packet.payload_variant {
-            self.event_tx
-                .send(MeshtasticEvent::IncomingPacket(payload))
-                .unwrap_or_log();
+    fn handle_radio_packet(&mut self, maybe_packet: Option<FromRadio>) -> bool {
+        match maybe_packet {
+            Some(packet) => {
+                if let Some(payload) = packet.payload_variant {
+                    self.event_tx
+                        .send(MeshtasticEvent::IncomingPacket(payload))
+                        .unwrap_or_log();
+                }
+
+                true
+            }
+            None => {
+                self.event_tx
+                    .send(MeshtasticEvent::RadioStopped)
+                    .unwrap_or_log();
+
+                false
+            }
         }
     }
 }

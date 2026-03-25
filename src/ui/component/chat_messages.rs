@@ -17,7 +17,7 @@ impl ChatMessages {
                     label: "send message".to_string(),
                 },
                 Hotkey {
-                    key: "\u{2191}\u{2193}".to_string(),
+                    key: "↑↓".to_string(),
                     label: "scroll".to_string(),
                 },
                 Hotkey {

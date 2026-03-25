@@ -16,7 +16,7 @@ impl ChatChannels {
             list_state: ListState::default(),
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
-                    key: "\u{2191}\u{2193}".to_string(),
+                    key: "↑↓".to_string(),
                     label: "navigate".to_string(),
                 },
                 Hotkey {
@@ -150,10 +150,10 @@ impl<'a> Widget for ChannelWidget<'a> {
         };
 
         Line::from(name_span)
-            .style(if self.is_selected {
-                Style::new().bold()
+            .add_modifier(if self.is_selected {
+                Modifier::BOLD
             } else {
-                Style::new()
+                Modifier::empty()
             })
             .render(v0_h[0], buf);
     }

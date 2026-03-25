@@ -41,13 +41,13 @@ impl Component for Header {
             ConnectionState::Connected => vec![
                 Span::from("online"),
                 Span::from(" "),
-                Span::from(format!("{}/{}", state.online_nodes, state.nodes.len())).yellow(),
+                Span::from(format!("{}/{}", state.online_nodes, state.nodes.len())).green(),
                 Span::from("  "),
-                Span::from("■").style(if state.rx {
-                    Style::new().green()
+                if state.rx {
+                    Span::from("●").green()
                 } else {
-                    Style::new().dark_gray()
-                }),
+                    Span::from("○").dark_gray()
+                },
             ],
         };
 

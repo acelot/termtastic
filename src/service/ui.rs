@@ -55,12 +55,12 @@ impl UiService {
         match event {
             AppEvent::NextTabRequested => {
                 self.state_action_tx
-                    .send(StateAction::NextTab)
+                    .send(StateAction::TabSwitchToNext)
                     .unwrap_or_log();
             }
             AppEvent::PreviousTabRequested => {
                 self.state_action_tx
-                    .send(StateAction::PrevTab)
+                    .send(StateAction::TabSwitchToPrevious)
                     .unwrap_or_log();
             }
             _ => {}

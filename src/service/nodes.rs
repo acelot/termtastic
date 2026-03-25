@@ -15,8 +15,8 @@ use crate::{
     types::{AppEvent, Node},
 };
 
-const TICK_INTERVAL_MILLIS: u64 = 1000;
-const ONLINE_THRESHOLD_MINUTES: i64 = 120;
+const UPDATE_ONLINE_NODES_INTERVAL_MILLIS: u64 = 1000;
+const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 pub struct NodesService {
     app_event_tx: broadcast::Sender<AppEvent>,
@@ -47,13 +47,14 @@ impl NodesService {
     }
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
-        let mut tick_interval = time::interval(Duration::from_millis(TICK_INTERVAL_MILLIS));
+        let mut online_nodes_interval =
+            time::interval(Duration::from_millis(UPDATE_ONLINE_NODES_INTERVAL_MILLIS));
 
         loop {
             tokio::select! {
                 Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event),
                 Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
-                _ = tick_interval.tick() => self.handle_tick(),
+                _ = online_nodes_interval.tick() => self.update_online_nodes(),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -79,7 +80,7 @@ impl NodesService {
                 match Node::try_from(&node_info) {
                     Ok(node) => self
                         .state_action_tx
-                        .send(StateAction::AddNode(node))
+                        .send(StateAction::NodeAdd(node))
                         .unwrap_or_log(),
                     Err(e) => {
                         tracing::debug!(
@@ -90,17 +91,28 @@ impl NodesService {
                     }
                 };
             }
+            PayloadVariant::Packet(packet) => {
+                self.state_action_tx
+                    .send(StateAction::NodeSetLastHeard(packet.from))
+                    .unwrap_or_log();
+
+                if packet.hop_start == packet.hop_limit {
+                    self.state_action_tx
+                        .send(StateAction::NodeSetSnr(packet.from, packet.rx_snr))
+                        .unwrap_or_log();
+                }
+            }
             _ => {}
         }
     }
 
-    fn handle_tick(&mut self) {
+    fn update_online_nodes(&mut self) {
         let state = &self.state_rx.borrow();
         let now = Utc::now();
 
         let online_nodes: u16 = state.nodes.iter().fold(0, |mut counter, (_, node)| {
             if let Some(last_heard) = node.last_heard
-                && (now - last_heard).num_minutes() > ONLINE_THRESHOLD_MINUTES
+                && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
             {
                 counter += 1;
             }
@@ -109,7 +121,7 @@ impl NodesService {
         });
 
         self.state_action_tx
-            .send(StateAction::SetOnlineNodes(online_nodes))
+            .send(StateAction::OnlineNodesSet(online_nodes))
             .unwrap_or_log();
     }
 }

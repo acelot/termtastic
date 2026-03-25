@@ -13,7 +13,7 @@ impl Nodes {
             list_state: ListState::default(),
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
-                    key: "\u{2191}\u{2193}".to_string(),
+                    key: "↑↓".to_string(),
                     label: "navigate".to_string(),
                 },
                 Hotkey {
@@ -21,8 +21,8 @@ impl Nodes {
                     label: "expand".to_string(),
                 },
                 Hotkey {
-                    key: "c".to_string(),
-                    label: "copy".to_string(),
+                    key: "s".to_string(),
+                    label: "sort by".to_string(),
                 },
                 Hotkey {
                     key: "home".to_string(),
@@ -55,7 +55,7 @@ impl Component for Nodes {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        if !state.nodes.is_empty() && self.list_state.selected.is_none() {
+        if !state.nodes_sort.is_empty() && self.list_state.selected.is_none() {
             self.list_state.select(Some(0));
         }
 
@@ -69,7 +69,7 @@ impl Component for Nodes {
             .split(area);
 
         let list_builder = ListBuilder::new(|context| {
-            let (_, node) = state.nodes.iter().nth(context.index).unwrap();
+            let node = &state.nodes[&state.nodes_sort[context.index as usize]];
 
             let item = NodeWidget {
                 node,
@@ -88,7 +88,7 @@ impl Component for Nodes {
             })
             .style(Style::new().dark_gray());
 
-        let list = ListView::new(list_builder, state.nodes.len())
+        let list = ListView::new(list_builder, state.nodes_sort.len())
             .infinite_scrolling(false)
             .scrollbar(scrollbar);
 
@@ -155,23 +155,30 @@ impl<'a> Widget for NodeWidget<'a> {
 
         // first line
         Line::from(vec![
-            Span::from(format!(" {:<4} ", self.node.short_name))
+            Span::from(format!("{:^6}", self.node.short_name))
                 .black()
                 .on_green(),
             Span::from(" "),
             Span::from(self.node.long_name.clone()),
         ])
-        .style(if self.is_selected {
-            Style::new().bold()
+        .add_modifier(if self.is_selected {
+            Modifier::BOLD
         } else {
-            Style::new()
+            Modifier::empty()
         })
         .render(v0_h[0], buf);
 
         Line::from(match self.node.hops_away {
-            Some(0) => Span::from(format!("direct {} dB", self.node.snr)).green(),
-            Some(hops) => Span::from(format!("hops away: {}", hops.to_string())),
-            None => Span::from("hops: ?".to_string()),
+            Some(0) => Span::from(format!("ᗐ {} dB", self.node.snr)).style(Style::new().fg(
+                match &self.node.snr {
+                    ..=-14.0 => Color::Red,
+                    -14.0..=-7.0 => Color::Yellow,
+                    -7.0.. => Color::Green,
+                    _ => Color::DarkGray,
+                },
+            )),
+            Some(hops) => Span::from("❯".repeat(hops as usize)),
+            None => Span::from("unknown".to_string()).dark_gray(),
         })
         .render(v0_h[1], buf);
 

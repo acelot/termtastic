@@ -56,12 +56,12 @@ impl ChatService {
         match event {
             AppEvent::ChannelSelected(number) => {
                 self.state_action_tx
-                    .send(StateAction::SetActiveChannel(number))
+                    .send(StateAction::ChannelActiveSet(number))
                     .unwrap_or_log();
             }
             AppEvent::SwitchChannelRequested => {
                 self.state_action_tx
-                    .send(StateAction::UnsetActiveChannel)
+                    .send(StateAction::ChannelActiveUnset)
                     .unwrap_or_log();
             }
             _ => {}
@@ -83,7 +83,7 @@ impl ChatService {
                 ..
             }) => {
                 self.state_action_tx
-                    .send(StateAction::SetChannel(index, Channel::disabled(index)))
+                    .send(StateAction::ChannelAdd(index, Channel::disabled(index)))
                     .unwrap_or_log();
             }
             PayloadVariant::Channel(ch) => {
@@ -91,7 +91,7 @@ impl ChatService {
 
                 if channel.role != ChannelRole::Disabled {
                     self.state_action_tx
-                        .send(StateAction::SetChannel(ch.index, channel))
+                        .send(StateAction::ChannelAdd(ch.index, channel))
                         .unwrap_or_log();
                 }
             }

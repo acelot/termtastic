@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use tokio::{
     sync::{
         mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
@@ -10,7 +12,10 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
-use crate::state::{State, StateAction};
+use crate::{
+    state::{State, StateAction},
+    types::{ConnectionState, DevicesDiscoveringState, NodesSortBy},
+};
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
 
@@ -59,71 +64,96 @@ impl Store {
         let prev_state = self.state.clone();
 
         match action {
-            StateAction::SetAppConfig(cfg) => {
-                self.state.app_config = cfg;
+            StateAction::AppConfigApply(cfg) => {
+                self.state.active_device = cfg.active_device;
+                self.state.tcp_devices = cfg.tcp_devices;
             }
-            StateAction::SetAppConfigDevices(cfg) => {
-                self.state.devices_config = cfg;
-            }
-            StateAction::NextTab => {
+            StateAction::TabSwitchToNext => {
                 self.state.active_tab = self.state.active_tab.next();
             }
-            StateAction::PrevTab => {
+            StateAction::TabSwitchToPrevious => {
                 self.state.active_tab = self.state.active_tab.prev();
             }
-            StateAction::SetSelectedDevice(device) => {
-                self.state.app_config.selected_device = Some(device);
+            StateAction::DeviceActiveSet(device) => {
+                self.state.active_device = Some(device);
             }
-            StateAction::UnsetConnection => {
-                self.state.app_config.selected_device = None;
+            StateAction::ConnectionStart => {
+                self.state.connection_state = ConnectionState::Connecting;
             }
-            StateAction::SetConnectionState(s) => {
-                self.state.connection_state = s;
+            StateAction::ConnectionFail(error) => {
+                self.state.connection_state = ConnectionState::ProblemDetected {
+                    since: Instant::now(),
+                    error,
+                };
             }
-            StateAction::AddLogRecord(r) => {
+            StateAction::ConnectionStop => {
+                self.state.connection_state = ConnectionState::NotConnected;
+                self.state.active_device = None;
+                self.state.channels.clear();
+                self.state.nodes_sort.clear();
+                self.state.nodes.clear();
+                self.state.online_nodes = 0;
+            }
+            StateAction::ConnectionSuccess => {
+                self.state.connection_state = ConnectionState::Connected;
+            }
+            StateAction::LogRecordAdd(r) => {
                 self.state.logs.push(r);
             }
-            StateAction::SetDevicesDiscoveringState(s) => {
-                self.state.device_discovering_state = s;
+            StateAction::DevicesDiscoveringStart => {
+                self.state.device_discovering_state = DevicesDiscoveringState::InProgress;
             }
-            StateAction::SetDiscoveredDevices(devices) => {
+            StateAction::DevicesDiscoveringFail(error) => {
+                self.state.device_discovering_state = DevicesDiscoveringState::Error(error);
+            }
+            StateAction::DevicesDiscoveringSuccess(devices) => {
+                self.state.device_discovering_state = DevicesDiscoveringState::Finished;
                 self.state.discovered_devices = devices;
             }
-            StateAction::AddTcpDevice(hostaddr) => {
-                if !self.state.devices_config.tcp_devices.contains(&hostaddr) {
-                    self.state.devices_config.tcp_devices.push(hostaddr);
+            StateAction::DevicesAddTcp(hostaddr) => {
+                if !self.state.tcp_devices.contains(&hostaddr) {
+                    self.state.tcp_devices.push(hostaddr);
                 }
             }
-            StateAction::RemoveTcpDevice(hostaddr) => {
-                let maybe_index = self
-                    .state
-                    .devices_config
-                    .tcp_devices
-                    .iter()
-                    .position(|h| h == &hostaddr);
+            StateAction::DevicesRemoveTcp(hostaddr) => {
+                let maybe_index = self.state.tcp_devices.iter().position(|h| h == &hostaddr);
 
                 if let Some(index) = maybe_index {
-                    self.state.devices_config.tcp_devices.remove(index);
+                    self.state.tcp_devices.remove(index);
                 }
             }
-            StateAction::AddNode(node) => {
+            StateAction::NodeAdd(node) => {
                 self.state.nodes.insert(node.number, node);
+                self.fill_nodes_sort();
             }
-            StateAction::SetChannel(index, channel) => {
+            StateAction::ChannelAdd(index, channel) => {
                 self.state.channels.insert(index, channel);
             }
-            StateAction::SetActiveChannel(id) => {
+            StateAction::ChannelActiveSet(id) => {
                 self.state.active_channel_id = Some(id);
             }
-            StateAction::UnsetActiveChannel => {
+            StateAction::ChannelActiveUnset => {
                 self.state.active_channel_id = None;
             }
-            StateAction::SetOnlineNodes(total) => {
+            StateAction::OnlineNodesSet(total) => {
                 self.state.online_nodes = total;
             }
-            StateAction::TriggerRx => {
+            StateAction::RxTrigger => {
                 self.state.rx_t = Instant::now();
                 self.state.rx = true;
+            }
+            StateAction::NodesSortBySet(sort_by) => {
+                self.state.nodes_sort_by = sort_by;
+            }
+            StateAction::NodeSetLastHeard(number) => {
+                if let Some(node) = self.state.nodes.get_mut(&number) {
+                    node.last_heard = Some(Utc::now());
+                }
+            }
+            StateAction::NodeSetSnr(number, snr) => {
+                if let Some(node) = self.state.nodes.get_mut(&number) {
+                    node.snr = snr;
+                }
             }
         }
 
@@ -137,5 +167,38 @@ impl Store {
             self.state.rx = false;
             self.state_tx.send(self.state.clone()).unwrap_or_log();
         }
+    }
+
+    fn fill_nodes_sort(&mut self) {
+        self.state.nodes_sort = self
+            .state
+            .nodes
+            .values()
+            .sorted_by(|n1, n2| match &self.state.nodes_sort_by {
+                NodesSortBy::Hops => n1
+                    .hops_away
+                    .unwrap_or(100)
+                    .cmp(&n2.hops_away.unwrap_or(100))
+                    .then(n1.snr.total_cmp(&n2.snr).reverse()),
+                NodesSortBy::LastHeard => n1
+                    .last_heard
+                    .unwrap_or(DateTime::default())
+                    .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
+                    .reverse(),
+                NodesSortBy::ShortName => n1.short_name.cmp(&n2.short_name),
+                NodesSortBy::LongName => n1.long_name.cmp(&n2.long_name),
+                NodesSortBy::HwModel => n1
+                    .hw_model
+                    .cmp(&n2.hw_model)
+                    .then(n1.short_name.cmp(&n2.short_name)),
+                NodesSortBy::Role => n1.role.cmp(&n2.role).then(
+                    n1.hops_away
+                        .unwrap_or(100)
+                        .cmp(&n2.hops_away.unwrap_or(100))
+                        .then(n1.snr.total_cmp(&n2.snr).reverse()),
+                ),
+            })
+            .map(|node| node.number)
+            .collect();
     }
 }

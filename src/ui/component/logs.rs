@@ -21,7 +21,7 @@ impl Logs {
             popup_scroll_offset: 0,
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
-                    key: "\u{2191}\u{2193}".to_string(),
+                    key: "↑↓".to_string(),
                     label: "navigate".to_string(),
                 },
                 Hotkey {
@@ -47,7 +47,7 @@ impl Logs {
             ]),
             popup_hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
-                    key: "\u{2191}\u{2193}".to_string(),
+                    key: "↑↓".to_string(),
                     label: "scroll".to_string(),
                 },
                 Hotkey {
@@ -227,10 +227,10 @@ impl<'a> Widget for LogRecordWidget<'a> {
                     Level::WARN => Style::default().yellow(),
                     Level::ERROR => Style::default().red(),
                 })
-                .patch_style(if self.is_selected {
-                    Style::new().bold()
+                .add_modifier(if self.is_selected {
+                    Modifier::BOLD
                 } else {
-                    Style::new()
+                    Modifier::empty()
                 }),
             Span::from(" ").dark_gray(),
             Span::from(format!("{}: ", self.record.source)).dark_gray(),

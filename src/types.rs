@@ -8,24 +8,39 @@ use meshtastic::protobufs::{
     channel::Role as MeshtasticChannelRole,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::watch::Ref;
 use tracing::Level;
 use tracing_unwrap::OptionExt;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
-pub struct AppConfig {
-    pub selected_device: Option<Device>,
-}
+use crate::{state::State, ui::types::Tab};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
-pub struct DevicesConfig {
+pub struct AppConfig {
+    #[serde(default)]
+    pub active_tab: Tab,
+    #[serde(default)]
+    pub active_device: Option<Device>,
+    #[serde(default)]
     pub tcp_devices: Vec<HostAddr<String>>,
+    #[serde(default)]
+    pub nodes_sort_by: NodesSortBy,
+}
+
+impl From<&Ref<'_, State>> for AppConfig {
+    fn from(value: &Ref<'_, State>) -> Self {
+        Self {
+            active_tab: value.active_tab,
+            active_device: value.active_device.clone(),
+            tcp_devices: value.tcp_devices.clone(),
+            nodes_sort_by: value.nodes_sort_by.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     ChannelSelected(i32),
     SwitchChannelRequested,
-    ChatMessageSubmitted(String),
     DeviceRediscoverRequested,
     DeviceSelected(Device),
     DisconnectionRequested,
@@ -34,14 +49,6 @@ pub enum AppEvent {
     PreviousTabRequested,
     TcpDeviceRemoved(HostAddr<String>),
     TcpDeviceSubmitted(HostAddr<String>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChatMessage {
-    pub node_id: String,
-    pub node_name: String,
-    pub datetime: DateTime<Utc>,
-    pub content: String,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -97,6 +104,22 @@ pub enum DevicesDiscoveringState {
     InProgress,
     Error(String),
     Finished,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash)]
+pub enum NodesSortBy {
+    Hops,
+    ShortName,
+    LongName,
+    LastHeard,
+    Role,
+    HwModel,
+}
+
+impl Default for NodesSortBy {
+    fn default() -> Self {
+        Self::Hops
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

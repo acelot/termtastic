@@ -24,7 +24,7 @@ impl Connection {
     }
 
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
-        if state.app_config.selected_device.is_some() {
+        if state.active_device.is_some() {
             return vec![Hotkey {
                 key: "esc".to_string(),
                 label: "disconnect".to_string(),
@@ -46,7 +46,7 @@ impl Connection {
 
         let mut hotkeys = vec![
             Hotkey {
-                key: "\u{2191}\u{2193}".to_string(),
+                key: "↑↓".to_string(),
                 label: "navigate".to_string(),
             },
             Hotkey {
@@ -58,8 +58,8 @@ impl Connection {
                 label: "add TCP".to_string(),
             },
             Hotkey {
-                key: "F5".to_string(),
-                label: "refresh".to_string(),
+                key: "r".to_string(),
+                label: "rediscover".to_string(),
             },
         ];
 
@@ -80,12 +80,12 @@ impl Component for Connection {
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
         match event {
             Event::Key(KeyEvent { code, .. }) => {
-                let is_device_selected = state.app_config.selected_device.is_some();
+                let is_device_active = state.active_device.is_some();
 
-                match (code, self.is_form_visible, is_device_selected) {
+                match (code, self.is_form_visible, is_device_active) {
                     (KeyCode::Up, false, false) => self.list_state.previous(),
                     (KeyCode::Down, false, false) => self.list_state.next(),
-                    (KeyCode::F(5), false, false) => emit(AppEvent::DeviceRediscoverRequested),
+                    (KeyCode::Char('r'), false, false) => emit(AppEvent::DeviceRediscoverRequested),
                     (KeyCode::Char('t'), false, false) => {
                         self.form_error = None;
                         self.is_form_visible = true;
@@ -140,7 +140,6 @@ impl Component for Connection {
             .split(area);
 
         self.devices = state
-            .devices_config
             .tcp_devices
             .iter()
             .map(|h| Device::Tcp(h.clone()))
@@ -167,7 +166,7 @@ impl Component for Connection {
                 device,
                 is_selected: context.is_selected,
                 centered: false,
-                dimmed: state.app_config.selected_device.is_some(),
+                dimmed: state.active_device.is_some(),
             };
 
             (item, 1)
@@ -198,11 +197,11 @@ impl Component for Connection {
 
             let popup_block = Block::bordered()
                 .border_type(BorderType::Rounded)
-                .border_style(if self.form_error.is_none() {
-                    Style::new()
+                .border_style(Style::new().fg(if self.form_error.is_none() {
+                    Color::Reset
                 } else {
-                    Style::new().red()
-                })
+                    Color::Red
+                }))
                 .padding(Padding::symmetric(1, 0))
                 .title(" new TCP ");
 
@@ -227,12 +226,12 @@ impl Component for Connection {
             frame.set_cursor_position((popup_block_area.x + x as u16, popup_block_area.y));
         }
 
-        if let Some(selected_device) = &state.app_config.selected_device {
+        if let Some(active_device) = &state.active_device {
             let popup_area = Rect {
                 x: v[0].x,
-                y: v[0].y + v[0].height / 2,
+                y: v[0].y + v[0].height / 3,
                 width: v[0].width,
-                height: v[0].height / 2,
+                height: v[0].height - v[0].height / 3,
             };
 
             let popup_block = Block::bordered()
@@ -256,7 +255,7 @@ impl Component for Connection {
                 .split(popup_block_area);
 
             let device_widget = DeviceWidget {
-                device: selected_device,
+                device: active_device,
                 is_selected: false,
                 centered: true,
                 dimmed: false,

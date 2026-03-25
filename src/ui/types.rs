@@ -1,6 +1,20 @@
+use serde::{Deserialize, Serialize};
 use strum::{Display, EnumCount, EnumIter, FromRepr};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Display, FromRepr, EnumIter, EnumCount)]
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Display,
+    FromRepr,
+    EnumIter,
+    EnumCount,
+    Serialize,
+    Deserialize,
+    Hash,
+)]
 pub enum Tab {
     #[default]
     #[strum(to_string = "Chat")]

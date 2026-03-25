@@ -5,6 +5,7 @@ use meshtastic::protobufs::from_radio::PayloadVariant;
 pub enum MeshtasticEvent {
     Connected,
     ConnectionError(String),
+    RadioStopped,
     Disconnected,
     IncomingPacket(PayloadVariant),
 }

@@ -24,9 +24,7 @@ impl Component for ChatInput {
     fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
         if let Event::Key(KeyEvent { code, .. }) = event {
             match code {
-                KeyCode::Enter => emit(AppEvent::ChatMessageSubmitted(
-                    self.input_component.value_and_reset(),
-                )),
+                KeyCode::Enter => {}
                 KeyCode::Esc => self.input_component.reset(),
                 _ => {}
             };

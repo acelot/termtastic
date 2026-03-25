@@ -1,11 +1,9 @@
-use std::time::Instant;
-
 use futures::stream::{self, StreamExt};
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
-use crate::types::{AppEvent, ConnectionState, Device, DevicesDiscoveringState};
+use crate::types::{AppEvent, ConnectionState, Device};
 use crate::{
     meshtastic::types::{MeshtasticCommand, MeshtasticEvent},
     state::{State, StateAction},
@@ -65,7 +63,7 @@ impl ConnectionService {
             }
             AppEvent::DeviceSelected(hardware) => {
                 self.state_action_tx
-                    .send(StateAction::SetSelectedDevice(hardware))
+                    .send(StateAction::DeviceActiveSet(hardware))
                     .unwrap_or_log();
             }
             AppEvent::DisconnectionRequested => {
@@ -75,28 +73,18 @@ impl ConnectionService {
             }
             AppEvent::DeviceRediscoverRequested => {
                 self.state_action_tx
-                    .send(StateAction::SetDevicesDiscoveringState(
-                        DevicesDiscoveringState::InProgress,
-                    ))
+                    .send(StateAction::DevicesDiscoveringStart)
                     .unwrap_or_log();
 
                 match discover_devices().await {
                     Ok(devices) => {
                         self.state_action_tx
-                            .send(StateAction::SetDiscoveredDevices(devices))
-                            .unwrap_or_log();
-
-                        self.state_action_tx
-                            .send(StateAction::SetDevicesDiscoveringState(
-                                DevicesDiscoveringState::Finished,
-                            ))
+                            .send(StateAction::DevicesDiscoveringSuccess(devices))
                             .unwrap_or_log();
                     }
                     Err(e) => self
                         .state_action_tx
-                        .send(StateAction::SetDevicesDiscoveringState(
-                            DevicesDiscoveringState::Error(e.to_string()),
-                        ))
+                        .send(StateAction::DevicesDiscoveringFail(e.to_string()))
                         .unwrap_or_log(),
                 };
             }
@@ -106,49 +94,46 @@ impl ConnectionService {
                 }
 
                 self.state_action_tx
-                    .send(StateAction::AddTcpDevice(hostaddr))
+                    .send(StateAction::DevicesAddTcp(hostaddr))
                     .unwrap_or_log();
             }
             AppEvent::TcpDeviceRemoved(hostaddr) => {
                 self.state_action_tx
-                    .send(StateAction::RemoveTcpDevice(hostaddr))
+                    .send(StateAction::DevicesRemoveTcp(hostaddr))
                     .unwrap_or_log();
             }
             _ => {}
         }
     }
 
+    #[allow(unreachable_patterns)]
     fn handle_meshtastic_event(&self, event: MeshtasticEvent) {
         match event {
             MeshtasticEvent::Connected => {
                 self.state_action_tx
-                    .send(StateAction::SetConnectionState(ConnectionState::Connected))
+                    .send(StateAction::ConnectionSuccess)
                     .unwrap_or_log();
             }
             MeshtasticEvent::ConnectionError(e) => {
                 self.state_action_tx
-                    .send(StateAction::SetConnectionState(
-                        ConnectionState::ProblemDetected {
-                            since: Instant::now(),
-                            error: e,
-                        },
+                    .send(StateAction::ConnectionFail(e))
+                    .unwrap_or_log();
+            }
+            MeshtasticEvent::RadioStopped => {
+                self.state_action_tx
+                    .send(StateAction::ConnectionFail(
+                        "device is not responding".to_owned(),
                     ))
                     .unwrap_or_log();
             }
             MeshtasticEvent::Disconnected => {
                 self.state_action_tx
-                    .send(StateAction::SetConnectionState(
-                        ConnectionState::NotConnected,
-                    ))
-                    .unwrap_or_log();
-
-                self.state_action_tx
-                    .send(StateAction::UnsetConnection)
+                    .send(StateAction::ConnectionStop)
                     .unwrap_or_log();
             }
             MeshtasticEvent::IncomingPacket(_) => {
                 self.state_action_tx
-                    .send(StateAction::TriggerRx)
+                    .send(StateAction::RxTrigger)
                     .unwrap_or_log();
             }
             _ => {}
@@ -158,11 +143,11 @@ impl ConnectionService {
     fn handle_state_change(&self) {
         let state = &self.state_rx.borrow();
 
-        if let Some(device) = &state.app_config.selected_device
+        if let Some(device) = &state.active_device
             && state.connection_state == ConnectionState::NotConnected
         {
             self.state_action_tx
-                .send(StateAction::SetConnectionState(ConnectionState::Connecting))
+                .send(StateAction::ConnectionStart)
                 .unwrap_or_log();
 
             match device {
