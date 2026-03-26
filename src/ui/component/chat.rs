@@ -1,32 +1,32 @@
-use crate::ui::component::{ChatChannels, ChatMessages};
+use crate::ui::component::{Channels, Messenger};
 use crate::ui::prelude::*;
 
 pub struct Chat {
-    messages_component: ChatMessages,
-    channels_component: ChatChannels,
+    messenger_component: Messenger,
+    channels_component: Channels,
 }
 
 impl Chat {
     pub fn new() -> Self {
         Self {
-            messages_component: ChatMessages::new(),
-            channels_component: ChatChannels::new(),
+            messenger_component: Messenger::new(),
+            channels_component: Channels::new(),
         }
     }
 }
 
 impl Component for Chat {
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
-        if state.active_channel_id.is_some() {
-            self.messages_component.handle_event(state, event, emit);
+        if state.active_channel_key.is_some() {
+            self.messenger_component.handle_event(state, event, emit);
         } else {
             self.channels_component.handle_event(state, event, emit);
         }
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        if state.active_channel_id.is_some() {
-            self.messages_component.render(state, frame, area);
+        if state.active_channel_key.is_some() {
+            self.messenger_component.render(state, frame, area);
         } else {
             self.channels_component.render(state, frame, area);
         }

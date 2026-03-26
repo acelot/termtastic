@@ -11,7 +11,7 @@ pub enum MeshtasticEvent {
 }
 
 #[derive(Debug, Clone)]
-pub enum MeshtasticCommand {
+pub enum CommandToMeshtastic {
     ConnectViaTcp(HostAddr<String>),
     ConnectViaBle(String),
     ConnectViaSerial(String),

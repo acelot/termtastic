@@ -10,13 +10,13 @@ use tracing_unwrap::ResultExt;
 
 use crate::meshtastic::{
     RadioService, connect_via_ble, connect_via_serial, connect_via_tcp,
-    types::{MeshtasticCommand, MeshtasticEvent},
+    types::{CommandToMeshtastic, MeshtasticEvent},
 };
 
 const CONNECTION_TIMEOUT_SECS: u64 = 5;
 
 pub struct MeshtasticService {
-    command_rx: mpsc::UnboundedReceiver<MeshtasticCommand>,
+    command_rx: mpsc::UnboundedReceiver<CommandToMeshtastic>,
     event_tx: broadcast::Sender<MeshtasticEvent>,
     stream_api: Option<ConnectedStreamApi>,
     radio_subsys: Option<NestedSubsystem>,
@@ -25,10 +25,10 @@ pub struct MeshtasticService {
 impl MeshtasticService {
     pub fn new() -> (
         Self,
-        mpsc::UnboundedSender<MeshtasticCommand>,
+        mpsc::UnboundedSender<CommandToMeshtastic>,
         broadcast::Receiver<MeshtasticEvent>,
     ) {
-        let (command_tx, command_rx) = mpsc::unbounded_channel::<MeshtasticCommand>();
+        let (command_tx, command_rx) = mpsc::unbounded_channel::<CommandToMeshtastic>();
         let (event_tx, event_rx) = broadcast::channel::<MeshtasticEvent>(100);
 
         (
@@ -57,9 +57,9 @@ impl MeshtasticService {
         Ok(())
     }
 
-    async fn handle_command(&mut self, cmd: MeshtasticCommand, subsys: &mut SubsystemHandle) {
+    async fn handle_command(&mut self, cmd: CommandToMeshtastic, subsys: &mut SubsystemHandle) {
         match cmd {
-            MeshtasticCommand::ConnectViaTcp(hostaddr) => {
+            CommandToMeshtastic::ConnectViaTcp(hostaddr) => {
                 match timeout(
                     Duration::from_secs(CONNECTION_TIMEOUT_SECS),
                     connect_via_tcp(hostaddr),
@@ -89,7 +89,7 @@ impl MeshtasticService {
                     }
                 };
             }
-            MeshtasticCommand::ConnectViaBle(address) => {
+            CommandToMeshtastic::ConnectViaBle(address) => {
                 match timeout(
                     Duration::from_secs(CONNECTION_TIMEOUT_SECS),
                     connect_via_ble(address),
@@ -119,7 +119,7 @@ impl MeshtasticService {
                     }
                 };
             }
-            MeshtasticCommand::ConnectViaSerial(address) => {
+            CommandToMeshtastic::ConnectViaSerial(address) => {
                 match timeout(
                     Duration::from_secs(CONNECTION_TIMEOUT_SECS),
                     connect_via_serial(address),
@@ -149,7 +149,7 @@ impl MeshtasticService {
                     }
                 };
             }
-            MeshtasticCommand::Disconnect => self.disconnect().await,
+            CommandToMeshtastic::Disconnect => self.disconnect().await,
         };
     }
 

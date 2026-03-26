@@ -1,13 +1,13 @@
 use hostaddr::HostAddr;
 
-use crate::types::{AppConfig, Channel, Device, LogRecord, Node, NodesSortBy};
+use crate::types::{AppConfig, Channel, Device, LogRecord, Message, Node, NodesSortBy};
 
 #[derive(Debug, Clone)]
 pub enum StateAction {
     AppConfigApply(AppConfig),
-    ChannelActiveSet(i32),
+    ChannelActiveSet(u32),
     ChannelActiveUnset,
-    ChannelAdd(i32, Channel),
+    ChannelEnsure(u32, Channel),
     ConnectionFail(String),
     ConnectionStart,
     ConnectionStop,
@@ -19,6 +19,14 @@ pub enum StateAction {
     DevicesDiscoveringSuccess(Vec<Device>),
     DevicesRemoveTcp(HostAddr<String>),
     LogRecordAdd(LogRecord),
+    MessageAdd(u32, Message),
+    MessageReactionAdd {
+        channel_key: u32,
+        message_id: u32,
+        emoji: char,
+        node_key: u32,
+    },
+    MyNodeNumberSet(u32),
     NodeAdd(Node),
     NodeSetLastHeard(u32),
     NodeSetSnr(u32, f32),

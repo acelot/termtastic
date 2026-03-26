@@ -1,4 +1,4 @@
-use chrono::{SubsecRound, Utc};
+use chrono::{SubsecRound, TimeDelta, Utc};
 
 use crate::ui::prelude::*;
 
@@ -157,7 +157,11 @@ impl<'a> Widget for NodeWidget<'a> {
         Line::from(vec![
             Span::from(format!("{:^6}", self.node.short_name))
                 .black()
-                .on_green(),
+                .bg(if self.node.my {
+                    Color::Blue
+                } else {
+                    Color::Green
+                }),
             Span::from(" "),
             Span::from(self.node.long_name.clone()),
         ])
@@ -169,7 +173,7 @@ impl<'a> Widget for NodeWidget<'a> {
         .render(v0_h[0], buf);
 
         Line::from(match self.node.hops_away {
-            Some(0) => Span::from(format!("ᗐ {} dB", self.node.snr)).style(Style::new().fg(
+            Some(0) => Span::from(format!("⁕ {} dB", self.node.snr)).style(Style::new().fg(
                 match &self.node.snr {
                     ..=-14.0 => Color::Red,
                     -14.0..=-7.0 => Color::Yellow,
@@ -178,24 +182,20 @@ impl<'a> Widget for NodeWidget<'a> {
                 },
             )),
             Some(hops) => Span::from("❯".repeat(hops as usize)),
+            None if self.node.my => Span::from("✔ connected".to_string()).blue(),
             None => Span::from("unknown".to_string()).dark_gray(),
         })
         .render(v0_h[1], buf);
 
-        let last_heard = match self.node.last_heard {
-            Some(dt) => match (Utc::now().round_subsecs(0) - dt).to_std() {
-                Ok(d) => humantime::format_duration(d).to_string(),
-                Err(_) => "?".to_owned(),
-            },
-            None => "?".to_owned(),
+        let last_heard_spans: Vec<Span> = match self.node.last_heard {
+            Some(_) if self.node.my => vec![Span::from("online".to_owned()).blue()],
+            Some(dt) => humanize_duration(Utc::now().round_subsecs(0) - dt),
+            None => vec![Span::from("?".to_owned()).dark_gray()],
         };
 
-        Line::from(vec![
-            Span::from(last_heard),
-            Span::from(" ago".to_owned()).dark_gray(),
-        ])
-        .right_aligned()
-        .render(v0_h[2], buf);
+        Line::from(last_heard_spans)
+            .right_aligned()
+            .render(v0_h[2], buf);
 
         // second line
         Line::from(vec![Span::from(self.node.hw_model.clone()).magenta()]).render(v1_h[0], buf);
@@ -206,4 +206,33 @@ impl<'a> Widget for NodeWidget<'a> {
             .right_aligned()
             .render(v1_h[2], buf);
     }
+}
+
+fn humanize_duration<'a>(d: TimeDelta) -> Vec<Span<'a>> {
+    if d.num_seconds() < 60 {
+        return vec![Span::from("now".to_owned()).green()];
+    }
+
+    if d.num_minutes() < 60 {
+        return vec![
+            Span::from(format!("{}m", d.num_minutes())),
+            Span::from(" ago".to_owned()).dark_gray(),
+        ];
+    }
+
+    if d.num_hours() < 24 {
+        let remaining_minutes = d.num_minutes() % 60;
+
+        return vec![
+            Span::from(format!("{}h {}m", d.num_hours(), remaining_minutes)),
+            Span::from(" ago".to_owned()).dark_gray(),
+        ];
+    }
+
+    let remaining_hours = d.num_hours() % 24;
+
+    vec![
+        Span::from(format!("{}d {}h", d.num_days(), remaining_hours)),
+        Span::from(" ago".to_owned()).dark_gray(),
+    ]
 }

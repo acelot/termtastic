@@ -1,16 +1,13 @@
-use std::time::Instant;
+use std::{collections::HashMap, time::Instant};
 
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{
-    Channel as MeshtasticChannel, NodeInfo as MeshtasticNodeInfo,
-    channel::Role as MeshtasticChannelRole,
-};
+use meshtastic::protobufs::{PortNum, mesh_packet::PayloadVariant};
 use serde::{Deserialize, Serialize};
+use strum::AsRefStr;
 use tokio::sync::watch::Ref;
 use tracing::Level;
-use tracing_unwrap::OptionExt;
 
 use crate::{state::State, ui::types::Tab};
 
@@ -39,7 +36,7 @@ impl From<&Ref<'_, State>> for AppConfig {
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
-    ChannelSelected(i32),
+    ChannelSelected(u32),
     SwitchChannelRequested,
     DeviceRediscoverRequested,
     DeviceSelected(Device),
@@ -125,7 +122,7 @@ impl Default for NodesSortBy {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
     pub id: String,
-    pub number: u32,
+    pub key: u32,
     pub short_name: String,
     pub long_name: String,
     pub hops_away: Option<u32>,
@@ -133,18 +130,36 @@ pub struct Node {
     pub snr: f32,
     pub role: String,
     pub hw_model: String,
+    pub my: bool,
 }
 
-impl TryFrom<&MeshtasticNodeInfo> for Node {
+impl Node {
+    pub fn unknown() -> Self {
+        Self {
+            id: "?".to_owned(),
+            key: 0,
+            short_name: "?".to_owned(),
+            long_name: "unknown".to_owned(),
+            hops_away: None,
+            last_heard: None,
+            snr: 0.0,
+            role: "?".to_owned(),
+            hw_model: "?".to_owned(),
+            my: false,
+        }
+    }
+}
+
+impl TryFrom<&meshtastic::protobufs::NodeInfo> for Node {
     type Error = anyhow::Error;
 
-    fn try_from(value: &MeshtasticNodeInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: &meshtastic::protobufs::NodeInfo) -> Result<Self, Self::Error> {
         let user = value.user.as_ref().ok_or(anyhow!("no user information"))?;
         let last_heard = DateTime::from_timestamp(value.last_heard as i64, 0);
 
         Ok(Self {
             id: user.id.clone(),
-            number: value.num,
+            key: value.num,
             short_name: user.short_name.clone(),
             long_name: user.long_name.clone(),
             hops_away: value.hops_away,
@@ -152,6 +167,7 @@ impl TryFrom<&MeshtasticNodeInfo> for Node {
             snr: value.snr,
             role: user.role().as_str_name().to_string(),
             hw_model: user.hw_model().as_str_name().to_string(),
+            my: false,
         })
     }
 }
@@ -161,52 +177,114 @@ pub enum ChannelRole {
     Disabled = 0,
     Primary = 1,
     Secondary = 2,
+    Direct = 3,
 }
 
 impl ChannelRole {
     pub fn is_disabled(&self) -> bool {
         self == &Self::Disabled
     }
+
+    pub fn is_direct(&self) -> bool {
+        self == &Self::Direct
+    }
 }
 
-impl From<MeshtasticChannelRole> for ChannelRole {
-    fn from(value: MeshtasticChannelRole) -> Self {
+impl From<meshtastic::protobufs::channel::Role> for ChannelRole {
+    fn from(value: meshtastic::protobufs::channel::Role) -> Self {
         match value {
-            MeshtasticChannelRole::Disabled => ChannelRole::Disabled,
-            MeshtasticChannelRole::Primary => ChannelRole::Primary,
-            MeshtasticChannelRole::Secondary => ChannelRole::Secondary,
+            meshtastic::protobufs::channel::Role::Disabled => ChannelRole::Disabled,
+            meshtastic::protobufs::channel::Role::Primary => ChannelRole::Primary,
+            meshtastic::protobufs::channel::Role::Secondary => ChannelRole::Secondary,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Channel {
-    pub index: i32,
+    pub key: u32,
     pub id: u32,
     pub role: ChannelRole,
     pub name: String,
 }
 
 impl Channel {
-    pub fn disabled(index: i32) -> Self {
+    pub fn disabled(index: u32) -> Self {
         Self {
-            index,
+            key: index,
             id: 0,
             role: ChannelRole::Disabled,
             name: String::default(),
         }
     }
+
+    pub fn direct(node_key: u32) -> Self {
+        Self {
+            key: node_key,
+            id: 0,
+            role: ChannelRole::Direct,
+            name: String::default(),
+        }
+    }
 }
 
-impl From<&MeshtasticChannel> for Channel {
-    fn from(value: &MeshtasticChannel) -> Self {
-        let settings = value.settings.as_ref().unwrap_or_log();
-
-        Self {
-            index: value.index,
-            id: settings.id,
-            role: value.role().into(),
-            name: settings.name.to_string(),
+impl From<&meshtastic::protobufs::Channel> for Channel {
+    fn from(value: &meshtastic::protobufs::Channel) -> Self {
+        match &value.settings {
+            Some(settings) => Self {
+                key: value.index as u32,
+                id: settings.id,
+                role: value.role().into(),
+                name: settings.name.to_string(),
+            },
+            None => Channel::disabled(value.index as u32),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Message {
+    pub id: u32,
+    pub reply_to: u32,
+    pub from: u32,
+    pub datetime: DateTime<Utc>,
+    pub text: String,
+    pub reactions: HashMap<char, Vec<u32>>,
+    pub hops: Option<u32>,
+}
+
+impl
+    TryFrom<(
+        &meshtastic::protobufs::MeshPacket,
+        &meshtastic::protobufs::Data,
+    )> for Message
+{
+    type Error = anyhow::Error;
+
+    fn try_from(
+        (packet, data): (
+            &meshtastic::protobufs::MeshPacket,
+            &meshtastic::protobufs::Data,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let text = match data.portnum() {
+            PortNum::TextMessageApp | PortNum::ReplyApp => String::from_utf8(data.payload.clone())?,
+            portnum => {
+                return Err(anyhow::anyhow!(
+                    "unsupported portnum: {}",
+                    portnum.as_str_name()
+                ));
+            }
+        };
+
+        Ok(Self {
+            id: packet.id,
+            reply_to: data.reply_id,
+            from: packet.from,
+            datetime: Utc::now(),
+            text,
+            reactions: HashMap::default(),
+            hops: Some(packet.hop_start - packet.hop_limit),
+        })
     }
 }

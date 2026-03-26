@@ -5,7 +5,7 @@ use tracing_unwrap::ResultExt;
 
 use crate::types::{AppEvent, ConnectionState, Device};
 use crate::{
-    meshtastic::types::{MeshtasticCommand, MeshtasticEvent},
+    meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
 };
 
@@ -14,7 +14,7 @@ pub struct ConnectionService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
-    meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+    meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
 }
 
@@ -24,7 +24,7 @@ impl ConnectionService {
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
-        meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+        meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
@@ -68,7 +68,7 @@ impl ConnectionService {
             }
             AppEvent::DisconnectionRequested => {
                 self.meshtastic_command_tx
-                    .send(MeshtasticCommand::Disconnect)
+                    .send(CommandToMeshtastic::Disconnect)
                     .unwrap_or_log();
             }
             AppEvent::DeviceRediscoverRequested => {
@@ -153,15 +153,15 @@ impl ConnectionService {
             match device {
                 Device::Tcp(hostaddr) => self
                     .meshtastic_command_tx
-                    .send(MeshtasticCommand::ConnectViaTcp(hostaddr.clone()))
+                    .send(CommandToMeshtastic::ConnectViaTcp(hostaddr.clone()))
                     .unwrap_or_log(),
                 Device::Ble { address, .. } => self
                     .meshtastic_command_tx
-                    .send(MeshtasticCommand::ConnectViaBle(address.to_owned()))
+                    .send(CommandToMeshtastic::ConnectViaBle(address.to_owned()))
                     .unwrap_or_log(),
                 Device::Serial(address) => self
                     .meshtastic_command_tx
-                    .send(MeshtasticCommand::ConnectViaSerial(address.to_owned()))
+                    .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned()))
                     .unwrap_or_log(),
             };
         }

@@ -1,4 +1,8 @@
-use std::time::{Duration, Instant};
+use std::{
+    cmp::Ordering,
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -122,18 +126,25 @@ impl Store {
                     self.state.tcp_devices.remove(index);
                 }
             }
-            StateAction::NodeAdd(node) => {
-                self.state.nodes.insert(node.number, node);
+            StateAction::NodeAdd(mut node) => {
+                if let Some(number) = self.state.my_node_number
+                    && node.key == number
+                {
+                    node.my = true;
+                }
+
+                self.state.nodes.insert(node.key, node);
+
                 self.fill_nodes_sort();
             }
-            StateAction::ChannelAdd(index, channel) => {
-                self.state.channels.insert(index, channel);
+            StateAction::ChannelEnsure(key, channel) => {
+                self.state.channels.entry(key).or_insert(channel);
             }
             StateAction::ChannelActiveSet(id) => {
-                self.state.active_channel_id = Some(id);
+                self.state.active_channel_key = Some(id);
             }
             StateAction::ChannelActiveUnset => {
-                self.state.active_channel_id = None;
+                self.state.active_channel_key = None;
             }
             StateAction::OnlineNodesSet(total) => {
                 self.state.online_nodes = total;
@@ -155,6 +166,37 @@ impl Store {
                     node.snr = snr;
                 }
             }
+            StateAction::MyNodeNumberSet(number) => {
+                self.state.my_node_number = Some(number);
+
+                if let Some(node) = self.state.nodes.get_mut(&number) {
+                    node.my = true;
+                }
+            }
+            StateAction::MessageAdd(channel_key, message) => {
+                if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
+                    messages_vec.push_back(message);
+                } else {
+                    self.state
+                        .messages
+                        .insert(channel_key, VecDeque::from(vec![message]));
+                }
+            }
+            StateAction::MessageReactionAdd {
+                channel_key,
+                message_id,
+                emoji,
+                node_key,
+            } => {
+                if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
+                    if let Some(message) = messages_vec.iter_mut().find(|msg| msg.id == message_id)
+                    {
+                        if let Some(reactions) = message.reactions.get_mut(&emoji) {
+                            reactions.push(node_key);
+                        }
+                    }
+                }
+            }
         }
 
         if self.state != prev_state {
@@ -174,31 +216,40 @@ impl Store {
             .state
             .nodes
             .values()
-            .sorted_by(|n1, n2| match &self.state.nodes_sort_by {
-                NodesSortBy::Hops => n1
-                    .hops_away
-                    .unwrap_or(100)
-                    .cmp(&n2.hops_away.unwrap_or(100))
-                    .then(n1.snr.total_cmp(&n2.snr).reverse()),
-                NodesSortBy::LastHeard => n1
-                    .last_heard
-                    .unwrap_or(DateTime::default())
-                    .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
-                    .reverse(),
-                NodesSortBy::ShortName => n1.short_name.cmp(&n2.short_name),
-                NodesSortBy::LongName => n1.long_name.cmp(&n2.long_name),
-                NodesSortBy::HwModel => n1
-                    .hw_model
-                    .cmp(&n2.hw_model)
-                    .then(n1.short_name.cmp(&n2.short_name)),
-                NodesSortBy::Role => n1.role.cmp(&n2.role).then(
-                    n1.hops_away
+            .sorted_by(|n1, n2| {
+                match (n1.my, n2.my) {
+                    (true, true) => return Ordering::Equal,
+                    (false, true) => return Ordering::Greater,
+                    (true, false) => return Ordering::Less,
+                    _ => {}
+                };
+
+                match &self.state.nodes_sort_by {
+                    NodesSortBy::Hops => n1
+                        .hops_away
                         .unwrap_or(100)
                         .cmp(&n2.hops_away.unwrap_or(100))
                         .then(n1.snr.total_cmp(&n2.snr).reverse()),
-                ),
+                    NodesSortBy::LastHeard => n1
+                        .last_heard
+                        .unwrap_or(DateTime::default())
+                        .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
+                        .reverse(),
+                    NodesSortBy::ShortName => n1.short_name.cmp(&n2.short_name),
+                    NodesSortBy::LongName => n1.long_name.cmp(&n2.long_name),
+                    NodesSortBy::HwModel => n1
+                        .hw_model
+                        .cmp(&n2.hw_model)
+                        .then(n1.short_name.cmp(&n2.short_name)),
+                    NodesSortBy::Role => n1.role.cmp(&n2.role).then(
+                        n1.hops_away
+                            .unwrap_or(100)
+                            .cmp(&n2.hops_away.unwrap_or(100))
+                            .then(n1.snr.total_cmp(&n2.snr).reverse()),
+                    ),
+                }
             })
-            .map(|node| node.number)
+            .map(|node| node.key)
             .collect();
     }
 }

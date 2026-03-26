@@ -1,15 +1,14 @@
 use itertools::Itertools;
-use tracing_unwrap::OptionExt;
 
 use crate::ui::prelude::*;
 
-pub struct ChatChannels {
+pub struct Channels {
     channels: Vec<Channel>,
     list_state: ListState,
     hotkeys_component: Hotkeys,
 }
 
-impl ChatChannels {
+impl Channels {
     pub fn new() -> Self {
         Self {
             channels: vec![],
@@ -28,8 +27,8 @@ impl ChatChannels {
     }
 }
 
-impl Component for ChatChannels {
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+impl Component for Channels {
+    fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Up => self.list_state.previous(),
@@ -38,7 +37,7 @@ impl Component for ChatChannels {
                     if let Some(i) = self.list_state.selected {
                         let channel = self.channels.get(i).unwrap();
 
-                        emit(AppEvent::ChannelSelected(channel.index));
+                        emit(AppEvent::ChannelSelected(channel.key));
                     }
                 }
                 _ => {}
@@ -57,7 +56,7 @@ impl Component for ChatChannels {
             .channels
             .values()
             .filter(|ch| !ch.role.is_disabled())
-            .sorted_by_key(|ch| ch.index)
+            .sorted_by_key(|ch| ch.key)
             .cloned()
             .collect();
 
@@ -73,8 +72,13 @@ impl Component for ChatChannels {
         let list_builder = ListBuilder::new(|context| {
             let channel = self.channels.get(context.index).unwrap();
 
-            let item = ChannelWidget {
+            let item = ConversationWidget {
                 channel,
+                direct_node: if channel.role.is_direct() {
+                    state.nodes.get(&channel.key)
+                } else {
+                    None
+                },
                 is_selected: context.is_selected,
             };
 
@@ -90,7 +94,7 @@ impl Component for ChatChannels {
             })
             .style(Style::new().dark_gray());
 
-        let list = ListView::new(list_builder, state.channels.len())
+        let list = ListView::new(list_builder, self.channels.len())
             .infinite_scrolling(false)
             .scrollbar(scrollbar);
 
@@ -100,12 +104,13 @@ impl Component for ChatChannels {
     }
 }
 
-struct ChannelWidget<'a> {
+struct ConversationWidget<'a> {
     pub channel: &'a Channel,
+    pub direct_node: Option<&'a Node>,
     pub is_selected: bool,
 }
 
-impl<'a> Widget for ChannelWidget<'a> {
+impl<'a> Widget for ConversationWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer)
     where
         Self: Sized,
@@ -141,11 +146,23 @@ impl<'a> Widget for ChannelWidget<'a> {
             .split(v[0]);
 
         // first line
-        let name_span = match (&self.channel.role, self.channel.name.is_empty()) {
-            (ChannelRole::Primary, false) => Span::from(self.channel.name.clone()),
-            (ChannelRole::Primary, true) => Span::from("Primary".to_string()),
-            (ChannelRole::Secondary, false) => Span::from(self.channel.name.clone()),
-            (ChannelRole::Secondary, true) => Span::from(format!("Secondary #{}", self.channel.id)),
+        let name_span = match (
+            &self.channel.role,
+            self.channel.name.is_empty(),
+            self.direct_node,
+        ) {
+            (ChannelRole::Primary, false, _) => Span::from(self.channel.name.clone()),
+            (ChannelRole::Primary, true, _) => Span::from("Primary".to_string()),
+            (ChannelRole::Secondary, false, _) => Span::from(self.channel.name.clone()),
+            (ChannelRole::Secondary, true, _) => {
+                Span::from(format!("Secondary #{}", self.channel.id))
+            }
+            (ChannelRole::Direct, true, Some(node)) => {
+                Span::from(format!("{} {}", node.short_name, node.long_name))
+            }
+            (ChannelRole::Direct, true, None) => {
+                Span::from(format!("Direct from {}", self.channel.key))
+            }
             _ => unreachable!(),
         };
 

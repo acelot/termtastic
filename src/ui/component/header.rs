@@ -44,9 +44,9 @@ impl Component for Header {
                 Span::from(format!("{}/{}", state.online_nodes, state.nodes.len())).green(),
                 Span::from("  "),
                 if state.rx {
-                    Span::from("●").green()
+                    Span::from("⏹").green()
                 } else {
-                    Span::from("○").dark_gray()
+                    Span::from("⏹").dark_gray()
                 },
             ],
         };

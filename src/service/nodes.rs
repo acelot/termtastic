@@ -10,7 +10,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
 use crate::{
-    meshtastic::types::{MeshtasticCommand, MeshtasticEvent},
+    meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
     types::{AppEvent, Node},
 };
@@ -23,7 +23,7 @@ pub struct NodesService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
-    meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+    meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
 }
 
@@ -33,7 +33,7 @@ impl NodesService {
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
-        meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+        meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
@@ -76,6 +76,11 @@ impl NodesService {
 
     fn handle_meshtastic_packet(&mut self, packet: PayloadVariant) {
         match packet {
+            PayloadVariant::MyInfo(my_info) => {
+                self.state_action_tx
+                    .send(StateAction::MyNodeNumberSet(my_info.my_node_num))
+                    .unwrap_or_log();
+            }
             PayloadVariant::NodeInfo(node_info) => {
                 match Node::try_from(&node_info) {
                     Ok(node) => self
@@ -84,7 +89,7 @@ impl NodesService {
                         .unwrap_or_log(),
                     Err(e) => {
                         tracing::debug!(
-                            node_id = node_info.num,
+                            node_key = node_info.num,
                             "can't convert NodeInfo into Node: {}",
                             e
                         );

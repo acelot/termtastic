@@ -4,7 +4,7 @@ use tracing_unwrap::ResultExt;
 
 use crate::ui::prelude::AppEvent;
 use crate::{
-    meshtastic::types::{MeshtasticCommand, MeshtasticEvent},
+    meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
 };
 
@@ -13,7 +13,7 @@ pub struct UiService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
-    meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+    meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
 }
 
@@ -23,7 +23,7 @@ impl UiService {
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
-        meshtastic_command_tx: mpsc::UnboundedSender<MeshtasticCommand>,
+        meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
