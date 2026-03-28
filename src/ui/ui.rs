@@ -107,12 +107,15 @@ fn setup_terminal() -> io::Result<Terminal<CrosstermBackend<Stdout>>> {
     }));
 
     enable_raw_mode()?;
+
     execute!(stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+
     Terminal::new(CrosstermBackend::new(stdout()))
 }
 
 fn restore_terminal() -> io::Result<()> {
     disable_raw_mode()?;
+
     execute!(stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
 
     Ok(())

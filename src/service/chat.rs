@@ -4,12 +4,12 @@ use meshtastic::{
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
+use tracing_unwrap::{OptionExt, ResultExt};
 
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
-    types::{AppEvent, Channel, Message},
+    types::{AppEvent, Channel, ChannelRole, Message},
 };
 
 pub struct ChatService {
@@ -56,6 +56,8 @@ impl ChatService {
     }
 
     fn handle_app_event(&self, event: AppEvent) {
+        let state = &self.state_rx.borrow();
+
         match event {
             AppEvent::ChannelSelected(number) => {
                 self.state_action_tx
@@ -67,6 +69,37 @@ impl ChatService {
                     .send(StateAction::ChannelActiveUnset)
                     .unwrap_or_log();
             }
+            AppEvent::ChatMessageSubmitted(text) => match state.get_active_channel() {
+                Some(Channel {
+                    key,
+                    role: ChannelRole::Primary | ChannelRole::Secondary,
+                    ..
+                }) => {
+                    self.meshtastic_command_tx
+                        .send(CommandToMeshtastic::SendBroadcastTextMessage {
+                            my_node_id: state.my_node_key.unwrap_or_log(),
+                            channel_id: *key,
+                            reply_message_id: None,
+                            text,
+                        })
+                        .unwrap_or_log();
+                }
+                Some(Channel {
+                    key,
+                    role: ChannelRole::Direct,
+                    ..
+                }) => {
+                    self.meshtastic_command_tx
+                        .send(CommandToMeshtastic::SendDirectTextMessage {
+                            my_node_id: state.my_node_key.unwrap_or_log(),
+                            node_id: *key,
+                            reply_message_id: None,
+                            text,
+                        })
+                        .unwrap_or_log();
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -100,7 +133,7 @@ impl ChatService {
                     PortNum::TextMessageApp | PortNum::ReplyApp => {
                         let state = &self.state_rx.borrow();
 
-                        let channel_key = match (packet.to, state.my_node_number) {
+                        let channel_key = match (packet.to, state.my_node_key) {
                             (0 | u32::MAX, _) => packet.channel,
                             (to, Some(my)) if to == my && to != packet.from => {
                                 self.state_action_tx
@@ -115,13 +148,14 @@ impl ChatService {
                             _ => return,
                         };
 
-                        if data.emoji != 0
-                            && let Some(emoji) = char::from_u32(data.emoji)
+                        if data.emoji > 0
+                            && let Ok(emoji) = String::from_utf8(data.payload.clone())
+                            && !emoji.is_empty()
                         {
                             self.state_action_tx
                                 .send(StateAction::MessageReactionAdd {
                                     channel_key,
-                                    message_id: packet.id,
+                                    message_id: data.reply_id,
                                     emoji,
                                     node_key: packet.from,
                                 })

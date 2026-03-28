@@ -1,6 +1,6 @@
 use std::{
     cmp::Ordering,
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     time::{Duration, Instant},
 };
 
@@ -127,7 +127,7 @@ impl Store {
                 }
             }
             StateAction::NodeAdd(mut node) => {
-                if let Some(number) = self.state.my_node_number
+                if let Some(number) = self.state.my_node_key
                     && node.key == number
                 {
                     node.my = true;
@@ -166,8 +166,8 @@ impl Store {
                     node.snr = snr;
                 }
             }
-            StateAction::MyNodeNumberSet(number) => {
-                self.state.my_node_number = Some(number);
+            StateAction::MyNodeKeySet(number) => {
+                self.state.my_node_key = Some(number);
 
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.my = true;
@@ -191,9 +191,11 @@ impl Store {
                 if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
                     if let Some(message) = messages_vec.iter_mut().find(|msg| msg.id == message_id)
                     {
-                        if let Some(reactions) = message.reactions.get_mut(&emoji) {
-                            reactions.push(node_key);
-                        }
+                        message
+                            .reactions
+                            .entry(emoji)
+                            .or_insert_with(HashMap::new)
+                            .insert(node_key, Utc::now());
                     }
                 }
             }

@@ -12,6 +12,7 @@ pub mod prelude {
     pub use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
     pub use ratatui::prelude::*;
     pub use ratatui::symbols::scrollbar::Set as ScrollbarSet;
+    pub use ratatui::text::ToSpan;
     pub use ratatui::widgets::{
         Block, BorderType, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         Wrap,

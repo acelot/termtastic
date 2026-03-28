@@ -78,7 +78,7 @@ impl NodesService {
         match packet {
             PayloadVariant::MyInfo(my_info) => {
                 self.state_action_tx
-                    .send(StateAction::MyNodeNumberSet(my_info.my_node_num))
+                    .send(StateAction::MyNodeKeySet(my_info.my_node_num))
                     .unwrap_or_log();
             }
             PayloadVariant::NodeInfo(node_info) => {

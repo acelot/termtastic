@@ -3,9 +3,8 @@ use std::{collections::HashMap, time::Instant};
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{PortNum, mesh_packet::PayloadVariant};
+use meshtastic::protobufs::PortNum;
 use serde::{Deserialize, Serialize};
-use strum::AsRefStr;
 use tokio::sync::watch::Ref;
 use tracing::Level;
 
@@ -46,6 +45,7 @@ pub enum AppEvent {
     PreviousTabRequested,
     TcpDeviceRemoved(HostAddr<String>),
     TcpDeviceSubmitted(HostAddr<String>),
+    ChatMessageSubmitted(String),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -249,7 +249,7 @@ pub struct Message {
     pub from: u32,
     pub datetime: DateTime<Utc>,
     pub text: String,
-    pub reactions: HashMap<char, Vec<u32>>,
+    pub reactions: HashMap<String, HashMap<u32, DateTime<Utc>>>,
     pub hops: Option<u32>,
 }
 

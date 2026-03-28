@@ -19,6 +19,7 @@ humantime = { version = "2.3" }
 meshtastic = { version = "0.1", features = ["bluetooth-le"] }
 ratatui = { version = "0.30", features = ["unstable-rendered-line-info"] }
 strum = { version = "0.28", features = ["derive"] }
+thiserror = { version = "2.0" }
 tokio = { version = "1.50", features = ["full"] }
 tokio-graceful-shutdown = { version = "0.19" }
 tracing = { version = "0.1" }

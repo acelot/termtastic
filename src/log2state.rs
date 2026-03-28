@@ -52,12 +52,20 @@ impl<'a> Visit for MessageVisitor<'a> {
     fn record_str(&mut self, field: &Field, value: &str) {
         if field.name() == "message" {
             self.message.push_str(value);
+            self.message.push(' ');
+        } else {
+            self.message.push_str(field.name());
+            self.message.push('=');
+            self.message.push_str(value);
+            self.message.push(' ');
         }
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            write!(self.message, "{:?}", value).expect("Failed to write message");
+            write!(self.message, "{:?} ", value).expect("failed to write message");
+        } else {
+            write!(self.message, "{}={:?} ", field.name(), value).expect("failed to write message");
         }
     }
 }

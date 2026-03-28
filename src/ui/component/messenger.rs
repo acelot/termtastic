@@ -1,21 +1,24 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
+use ratatui::text::ToSpan;
 use tracing_unwrap::OptionExt;
 use tui_input::backend::crossterm::EventHandler;
 
 use crate::ui::prelude::*;
 
+const INPUT_VALUE_MAX_LENGTH: usize = 200;
+
 pub struct Messenger {
-    list_state: ListState,
-    input_widget: TuiInput,
+    list_states: HashMap<u32, ListState>,
+    input_widgets: HashMap<u32, TuiInput>,
     hotkeys_component: Hotkeys,
 }
 
 impl Messenger {
     pub fn new() -> Self {
         Self {
-            list_state: ListState::default(),
-            input_widget: TuiInput::default(),
+            list_states: HashMap::default(),
+            input_widgets: HashMap::default(),
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
                     key: "enter".to_string(),
@@ -35,19 +38,37 @@ impl Messenger {
 }
 
 impl Component for Messenger {
-    fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+        let active_channel_key = state.active_channel_key.unwrap_or_log();
+
+        let list_state = self
+            .list_states
+            .entry(active_channel_key)
+            .or_insert(ListState::default());
+
+        let input_widget = self
+            .input_widgets
+            .entry(active_channel_key)
+            .or_insert(TuiInput::default());
+
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Up => self.list_state.previous(),
-                KeyCode::Down => self.list_state.next(),
+                KeyCode::Up => list_state.previous(),
+                KeyCode::Down => list_state.next(),
                 KeyCode::Esc => emit(AppEvent::SwitchChannelRequested),
+                KeyCode::Enter => {
+                    if input_widget.value().len() <= INPUT_VALUE_MAX_LENGTH {
+                        let text = input_widget.value_and_reset();
+                        emit(AppEvent::ChatMessageSubmitted(text));
+                    }
+                }
                 _ => {
-                    self.input_widget.handle_event(event);
+                    input_widget.handle_event(event);
                 }
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
-                MouseEventKind::ScrollUp => self.list_state.previous(),
-                MouseEventKind::ScrollDown => self.list_state.next(),
+                MouseEventKind::ScrollUp => list_state.previous(),
+                MouseEventKind::ScrollDown => list_state.next(),
                 _ => {}
             },
             _ => {}
@@ -55,21 +76,23 @@ impl Component for Messenger {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        let v = ratatui::layout::Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(0),
-                Constraint::Length(3),
-                Constraint::Length(1),
-            ])
-            .split(area);
-
+        let active_channel_key = state.active_channel_key.unwrap_or_log();
         let unknown_node = Node::unknown();
         let empty_messages_vec: VecDeque<Message> = VecDeque::default();
 
+        let list_state = self
+            .list_states
+            .entry(active_channel_key)
+            .or_insert(ListState::default());
+
+        let input_widget = self
+            .input_widgets
+            .entry(active_channel_key)
+            .or_insert(TuiInput::default());
+
         let messages = state
             .messages
-            .get(&state.active_channel_key.unwrap_or_log())
+            .get(&active_channel_key)
             .unwrap_or(&empty_messages_vec);
 
         // list
@@ -83,7 +106,11 @@ impl Component for Messenger {
                 is_selected: context.is_selected,
             };
 
-            let height = item.height(area.width);
+            let mut height = item.height(area.width);
+
+            if context.index < messages.len() - 1 {
+                height += 1;
+            }
 
             (item, height)
         });
@@ -101,7 +128,16 @@ impl Component for Messenger {
             .infinite_scrolling(false)
             .scrollbar(scrollbar);
 
-        list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+        let v = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(0),
+                Constraint::Length(3),
+                Constraint::Length(1),
+            ])
+            .split(area);
+
+        list.render(v[0], frame.buffer_mut(), list_state);
 
         // input
         let input_block = Block::bordered()
@@ -111,22 +147,55 @@ impl Component for Messenger {
 
         let input_block_area = input_block.inner(v[1]);
 
+        let input_block_area_h = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(6),
+                Constraint::Length(1),
+                Constraint::Min(1),
+                Constraint::Length(8),
+            ])
+            .split(input_block_area);
+
         input_block.render(v[1], frame.buffer_mut());
 
-        let input_width = input_block_area.width.max(1);
-        let scroll = self.input_widget.visual_scroll(input_width as usize);
+        let my_node = state.get_my_node().unwrap_or(&unknown_node);
 
-        let input = Paragraph::new(if !self.input_widget.value().is_empty() {
-            Span::from(self.input_widget.value())
+        Line::from(
+            Span::from(format!("{:^6}", my_node.short_name))
+                .white()
+                .on_blue(),
+        )
+        .render(input_block_area_h[0], frame.buffer_mut());
+
+        let input_width = input_block_area_h[2].width.max(1);
+        let scroll = input_widget.visual_scroll(input_width as usize);
+
+        let input = Paragraph::new(if !input_widget.value().is_empty() {
+            Span::from(input_widget.value())
         } else {
             Span::from("type message...".to_owned()).dark_gray()
         })
         .scroll((0, scroll as u16));
 
-        frame.render_widget(input, input_block_area);
+        frame.render_widget(input, input_block_area_h[2]);
 
-        let x = self.input_widget.visual_cursor().max(scroll) - scroll;
-        frame.set_cursor_position((input_block_area.x + x as u16, input_block_area.y));
+        let x = input_widget.visual_cursor().max(scroll) - scroll;
+        frame.set_cursor_position((input_block_area_h[2].x + x as u16, input_block_area_h[2].y));
+
+        let input_value_len = input_widget.value().len();
+
+        Line::from(
+            Span::from(format!(" {}/{}", input_value_len, INPUT_VALUE_MAX_LENGTH)).style(
+                Style::new().fg(if input_value_len > INPUT_VALUE_MAX_LENGTH {
+                    Color::Red
+                } else {
+                    Color::DarkGray
+                }),
+            ),
+        )
+        .right_aligned()
+        .render(input_block_area_h[3], frame.buffer_mut());
 
         self.hotkeys_component.render(state, frame, v[2]);
     }
@@ -144,7 +213,7 @@ impl MessageWidget<'_> {
             .wrap(Wrap { trim: false })
             .line_count(width - 2) as u16;
 
-        text_height + 2
+        1 + text_height + !self.message.reactions.is_empty() as u16
     }
 }
 
@@ -158,14 +227,18 @@ impl<'a> Widget for MessageWidget<'a> {
 
         let area = Rect {
             x: area.x,
-            y: area.y + 1,
+            y: area.y,
             width: area.width - 2,
-            height: text_height + 1,
+            height: 1 + text_height + !self.message.reactions.is_empty() as u16,
         };
 
         let block = Block::bordered()
             .borders(Borders::LEFT)
-            .border_type(BorderType::Thick)
+            .border_type(if self.is_selected {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
             .border_style(Style::new().fg(if self.is_selected {
                 Color::Yellow
             } else {
@@ -176,9 +249,14 @@ impl<'a> Widget for MessageWidget<'a> {
         let block_area = block.inner(area);
         block.render(area, buf);
 
+        let mut v_constraints = vec![Constraint::Length(1), Constraint::Length(text_height)];
+        if !self.message.reactions.is_empty() {
+            v_constraints.push(Constraint::Length(1));
+        }
+
         let v = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(text_height)])
+            .constraints(v_constraints)
             .split(block_area);
 
         let v0_h = Layout::default()
@@ -195,9 +273,14 @@ impl<'a> Widget for MessageWidget<'a> {
                 } else {
                     Color::Green
                 }),
-            Span::from(" "),
-            Span::from(self.node.long_name.clone()).bold(),
+            " ".to_span(),
+            self.node.long_name.clone().to_span(),
         ])
+        .add_modifier(if self.is_selected {
+            Modifier::BOLD
+        } else {
+            Modifier::empty()
+        })
         .render(v0_h[0], buf);
 
         Line::from(
@@ -214,5 +297,23 @@ impl<'a> Widget for MessageWidget<'a> {
         .render(v0_h[1], buf);
 
         text_paragraph.render(v[1], buf);
+
+        if !self.message.reactions.is_empty() {
+            Line::from(
+                self.message
+                    .reactions
+                    .iter()
+                    .map(|(emoji, nodes)| {
+                        vec![
+                            emoji.to_span(),
+                            Span::from(format!("'{}", nodes.len())).dark_gray(),
+                            " ".to_span(),
+                        ]
+                    })
+                    .flatten()
+                    .collect::<Vec<Span>>(),
+            )
+            .render(v[2], buf);
+        }
     }
 }

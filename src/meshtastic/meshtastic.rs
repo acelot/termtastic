@@ -1,8 +1,17 @@
 use std::time::Duration;
 
-use meshtastic::{api::ConnectedStreamApi, protobufs::FromRadio};
+use meshtastic::{
+    Message,
+    api::ConnectedStreamApi,
+    packet::{PacketDestination, PacketRouter},
+    protobufs::{FromRadio, PortNum, from_radio::PayloadVariant},
+    types::{EncodedMeshPacketData, MeshChannel, NodeId},
+};
 use tokio::{
-    sync::{broadcast, mpsc},
+    sync::{
+        broadcast::{self, error::SendError},
+        mpsc,
+    },
     time::timeout,
 };
 use tokio_graceful_shutdown::{NestedSubsystem, SubsystemBuilder, SubsystemHandle};
@@ -34,7 +43,7 @@ impl MeshtasticService {
         (
             Self {
                 command_rx,
-                event_tx,
+                event_tx: event_tx.clone(),
                 stream_api: None,
                 radio_subsys: None,
             },
@@ -150,6 +159,80 @@ impl MeshtasticService {
                 };
             }
             CommandToMeshtastic::Disconnect => self.disconnect().await,
+            CommandToMeshtastic::SendBroadcastTextMessage {
+                my_node_id,
+                channel_id,
+                reply_message_id,
+                text,
+            } => {
+                match self
+                    .stream_api
+                    .as_mut()
+                    .unwrap()
+                    .send_mesh_packet(
+                        &mut LocalPacketRouter {
+                            my_node_id,
+                            event_tx: &self.event_tx,
+                        },
+                        EncodedMeshPacketData::new(text.into_bytes()),
+                        PortNum::TextMessageApp,
+                        PacketDestination::Broadcast,
+                        MeshChannel::from(channel_id),
+                        true,             // want_ack
+                        false,            // want_response
+                        true,             // echo_response
+                        reply_message_id, // reply_id
+                        None,             // emoji
+                    )
+                    .await
+                {
+                    Ok(()) => self
+                        .event_tx
+                        .send(MeshtasticEvent::MessageAccepted)
+                        .unwrap_or_log(),
+                    Err(e) => self
+                        .event_tx
+                        .send(MeshtasticEvent::MessageRejected(e.to_string()))
+                        .unwrap_or_log(),
+                };
+            }
+            CommandToMeshtastic::SendDirectTextMessage {
+                my_node_id,
+                node_id,
+                reply_message_id,
+                text,
+            } => {
+                match self
+                    .stream_api
+                    .as_mut()
+                    .unwrap()
+                    .send_mesh_packet(
+                        &mut LocalPacketRouter {
+                            my_node_id,
+                            event_tx: &self.event_tx,
+                        },
+                        EncodedMeshPacketData::new(text.encode_to_vec()),
+                        PortNum::TextMessageApp,
+                        PacketDestination::Node(NodeId::from(node_id)),
+                        MeshChannel::from(0),
+                        true,             // want_ack
+                        false,            // want_response
+                        true,             // echo_response
+                        reply_message_id, // reply_id
+                        None,             // emoji
+                    )
+                    .await
+                {
+                    Ok(()) => self
+                        .event_tx
+                        .send(MeshtasticEvent::MessageAccepted)
+                        .unwrap_or_log(),
+                    Err(e) => self
+                        .event_tx
+                        .send(MeshtasticEvent::MessageRejected(e.to_string()))
+                        .unwrap_or_log(),
+                };
+            }
         };
     }
 
@@ -190,5 +273,41 @@ impl MeshtasticService {
         ));
 
         self.radio_subsys = Some(subsys);
+    }
+}
+
+struct LocalPacketRouter<'a> {
+    pub my_node_id: u32,
+    pub event_tx: &'a broadcast::Sender<MeshtasticEvent>,
+}
+
+#[derive(thiserror::Error, Debug)]
+enum LocalPacketRouterErr {
+    #[error("event send error: {0}")]
+    EventSendError(#[from] SendError<MeshtasticEvent>),
+}
+
+impl<'a> PacketRouter<(), LocalPacketRouterErr> for LocalPacketRouter<'a> {
+    fn handle_packet_from_radio(
+        &mut self,
+        _packet: meshtastic::protobufs::FromRadio,
+    ) -> Result<(), LocalPacketRouterErr> {
+        todo!("not implemented")
+    }
+
+    fn handle_mesh_packet(
+        &mut self,
+        packet: meshtastic::protobufs::MeshPacket,
+    ) -> Result<(), LocalPacketRouterErr> {
+        self.event_tx
+            .send(MeshtasticEvent::IncomingPacket(PayloadVariant::Packet(
+                packet,
+            )))?;
+
+        Ok(())
+    }
+
+    fn source_node_id(&self) -> meshtastic::types::NodeId {
+        NodeId::new(self.my_node_id)
     }
 }

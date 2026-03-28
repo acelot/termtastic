@@ -28,7 +28,7 @@ pub struct State {
     pub device_discovering_state: DevicesDiscoveringState,
     pub discovered_devices: Vec<Device>,
     pub logs: Vec<LogRecord>,
-    pub my_node_number: Option<u32>,
+    pub my_node_key: Option<u32>,
     pub messages: HashMap<u32, VecDeque<Message>>,
     pub nodes_sort_by: NodesSortBy,
     pub nodes_sort: Vec<u32>,
@@ -54,7 +54,7 @@ impl Default for State {
             device_discovering_state: DevicesDiscoveringState::NeverStarted,
             discovered_devices: Vec::default(),
             logs: Vec::with_capacity(1000),
-            my_node_number: None,
+            my_node_key: None,
             messages: HashMap::default(),
             nodes_sort_by: NodesSortBy::Hops,
             nodes_sort: Vec::with_capacity(200),
@@ -64,5 +64,16 @@ impl Default for State {
             rx: false,
             tcp_devices: Vec::default(),
         }
+    }
+}
+
+impl State {
+    pub fn get_my_node(&self) -> Option<&Node> {
+        self.my_node_key.and_then(|key| self.nodes.get(&key))
+    }
+
+    pub fn get_active_channel(&self) -> Option<&Channel> {
+        self.active_channel_key
+            .and_then(|key| self.channels.get(&key))
     }
 }

@@ -1,3 +1,6 @@
+use std::collections::VecDeque;
+
+use chrono::{DateTime, Local, Utc};
 use itertools::Itertools;
 
 use crate::ui::prelude::*;
@@ -69,8 +72,18 @@ impl Component for Channels {
             .constraints([Constraint::Min(1), Constraint::Length(1)])
             .split(area);
 
+        let empty_messages_vec: VecDeque<Message> = VecDeque::default();
+
         let list_builder = ListBuilder::new(|context| {
             let channel = self.channels.get(context.index).unwrap();
+
+            let messages = state
+                .messages
+                .get(&channel.key)
+                .unwrap_or(&empty_messages_vec);
+
+            let last_message = messages.iter().last();
+            let last_message_node = last_message.and_then(|message| state.nodes.get(&message.from));
 
             let item = ConversationWidget {
                 channel,
@@ -79,6 +92,8 @@ impl Component for Channels {
                 } else {
                     None
                 },
+                last_message,
+                last_message_node,
                 is_selected: context.is_selected,
             };
 
@@ -107,6 +122,8 @@ impl Component for Channels {
 struct ConversationWidget<'a> {
     pub channel: &'a Channel,
     pub direct_node: Option<&'a Node>,
+    pub last_message: Option<&'a Message>,
+    pub last_message_node: Option<&'a Node>,
     pub is_selected: bool,
 }
 
@@ -142,7 +159,11 @@ impl<'a> Widget for ConversationWidget<'a> {
 
         let v0_h = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(1)])
+            .constraints([
+                Constraint::Fill(3),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
+            ])
             .split(v[0]);
 
         // first line
@@ -151,17 +172,23 @@ impl<'a> Widget for ConversationWidget<'a> {
             self.channel.name.is_empty(),
             self.direct_node,
         ) {
-            (ChannelRole::Primary, false, _) => Span::from(self.channel.name.clone()),
-            (ChannelRole::Primary, true, _) => Span::from("Primary".to_string()),
-            (ChannelRole::Secondary, false, _) => Span::from(self.channel.name.clone()),
+            (ChannelRole::Primary, false, _) => vec![Span::from(self.channel.name.clone())],
+            (ChannelRole::Primary, true, _) => vec![Span::from("Primary".to_owned())],
+            (ChannelRole::Secondary, false, _) => vec![Span::from(self.channel.name.clone())],
             (ChannelRole::Secondary, true, _) => {
-                Span::from(format!("Secondary #{}", self.channel.id))
+                vec![Span::from(format!("Secondary #{}", self.channel.id))]
             }
             (ChannelRole::Direct, true, Some(node)) => {
-                Span::from(format!("{} {}", node.short_name, node.long_name))
+                vec![
+                    Span::from(format!("{:^6}", node.short_name))
+                        .black()
+                        .on_green(),
+                    Span::from(" ".to_owned()),
+                    Span::from(node.long_name.clone()),
+                ]
             }
             (ChannelRole::Direct, true, None) => {
-                Span::from(format!("Direct from {}", self.channel.key))
+                vec![Span::from(format!("Direct from {}", self.channel.key))]
             }
             _ => unreachable!(),
         };
@@ -173,5 +200,74 @@ impl<'a> Widget for ConversationWidget<'a> {
                 Modifier::empty()
             })
             .render(v0_h[0], buf);
+
+        let type_span = match &self.channel.role {
+            ChannelRole::Primary => Span::from("PRIMARY".to_owned()).dark_gray(),
+            ChannelRole::Secondary => Span::from("SECONDARY".to_owned()).dark_gray(),
+            ChannelRole::Direct => Span::from("DIRECT".to_owned()).dark_gray(),
+            _ => unreachable!(),
+        };
+
+        Line::from(type_span)
+            .add_modifier(if self.is_selected {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            })
+            .render(v0_h[1], buf);
+
+        Line::from(if let Some(message) = self.last_message {
+            Span::from(
+                message
+                    .datetime
+                    .with_timezone(&Local)
+                    .format("%H:%M")
+                    .to_string(),
+            )
+        } else {
+            Span::from("no messages".to_owned()).dark_gray()
+        })
+        .add_modifier(if self.is_selected {
+            Modifier::BOLD
+        } else {
+            Modifier::empty()
+        })
+        .right_aligned()
+        .render(v0_h[2], buf);
+
+        // second line
+        let second_line_spans = match (
+            &self.channel.role,
+            self.last_message_node,
+            self.last_message,
+        ) {
+            (ChannelRole::Direct, _, Some(message)) => {
+                vec![Span::from(message.text.clone()).dark_gray()]
+            }
+            (_, None, Some(message)) => {
+                vec![
+                    Span::from(format!("{:^6}", Node::unknown().short_name.clone()))
+                        .black()
+                        .on_dark_gray(),
+                    Span::from(" ".to_owned()),
+                    Span::from(message.text.clone()).dark_gray(),
+                ]
+            }
+            (_, Some(node), Some(message)) => {
+                vec![
+                    Span::from(format!("{:^6}", node.short_name.clone()))
+                        .black()
+                        .on_dark_gray(),
+                    Span::from(" ".to_owned()),
+                    Span::from(message.text.clone()).dark_gray(),
+                ]
+            }
+            (_, _, None) => {
+                vec![]
+            }
+            _ => unreachable!(),
+        };
+
+        Line::from(second_line_spans).render(v[1], buf);
     }
 }

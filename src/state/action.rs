@@ -23,10 +23,10 @@ pub enum StateAction {
     MessageReactionAdd {
         channel_key: u32,
         message_id: u32,
-        emoji: char,
+        emoji: String,
         node_key: u32,
     },
-    MyNodeNumberSet(u32),
+    MyNodeKeySet(u32),
     NodeAdd(Node),
     NodeSetLastHeard(u32),
     NodeSetSnr(u32, f32),

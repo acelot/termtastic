@@ -14,7 +14,7 @@ impl Nodes {
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
                     key: "↑↓".to_string(),
-                    label: "navigate".to_string(),
+                    label: "scroll".to_string(),
                 },
                 Hotkey {
                     key: "enter".to_string(),
@@ -23,14 +23,6 @@ impl Nodes {
                 Hotkey {
                     key: "s".to_string(),
                     label: "sort by".to_string(),
-                },
-                Hotkey {
-                    key: "home".to_string(),
-                    label: "to top".to_string(),
-                },
-                Hotkey {
-                    key: "end".to_string(),
-                    label: "to bottom".to_string(),
                 },
             ]),
         }
@@ -76,7 +68,7 @@ impl Component for Nodes {
                 is_selected: context.is_selected,
             };
 
-            (item, 4)
+            (item, 3)
         });
 
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
@@ -112,18 +104,22 @@ impl<'a> Widget for NodeWidget<'a> {
             x: area.x,
             y: area.y,
             width: area.width - 2,
-            height: area.height,
+            height: area.height - 1,
         };
 
-        let mut block = Block::bordered()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::new().dark_gray())
+        let block = Block::bordered()
+            .borders(Borders::LEFT)
+            .border_type(if self.is_selected {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
+            .border_style(Style::new().fg(if self.is_selected {
+                Color::Yellow
+            } else {
+                Color::DarkGray
+            }))
             .padding(Padding::symmetric(1, 0));
-
-        if self.is_selected {
-            block = block.border_style(Style::new().yellow());
-        }
 
         let block_area = block.inner(area);
         block.render(area, buf);
@@ -157,10 +153,10 @@ impl<'a> Widget for NodeWidget<'a> {
         Line::from(vec![
             Span::from(format!("{:^6}", self.node.short_name))
                 .black()
-                .bg(if self.node.my {
-                    Color::Blue
+                .patch_style(if self.node.my {
+                    Style::new().white().on_blue()
                 } else {
-                    Color::Green
+                    Style::new().on_green()
                 }),
             Span::from(" "),
             Span::from(self.node.long_name.clone()),
@@ -175,8 +171,8 @@ impl<'a> Widget for NodeWidget<'a> {
         Line::from(match self.node.hops_away {
             Some(0) => Span::from(format!("⁕ {} dB", self.node.snr)).style(Style::new().fg(
                 match &self.node.snr {
-                    ..=-14.0 => Color::Red,
-                    -14.0..=-7.0 => Color::Yellow,
+                    ..=-10.0 => Color::Red,
+                    -10.0..=-7.0 => Color::Yellow,
                     -7.0.. => Color::Green,
                     _ => Color::DarkGray,
                 },
@@ -184,6 +180,11 @@ impl<'a> Widget for NodeWidget<'a> {
             Some(hops) => Span::from("❯".repeat(hops as usize)),
             None if self.node.my => Span::from("✔ connected".to_string()).blue(),
             None => Span::from("unknown".to_string()).dark_gray(),
+        })
+        .add_modifier(if self.is_selected {
+            Modifier::BOLD
+        } else {
+            Modifier::empty()
         })
         .render(v0_h[1], buf);
 
@@ -194,6 +195,11 @@ impl<'a> Widget for NodeWidget<'a> {
         };
 
         Line::from(last_heard_spans)
+            .add_modifier(if self.is_selected {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            })
             .right_aligned()
             .render(v0_h[2], buf);
 
