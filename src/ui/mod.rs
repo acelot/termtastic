@@ -10,6 +10,7 @@ pub mod prelude {
     pub use crate::ui::component::{Component, Hotkeys};
     pub use crate::ui::types::*;
     pub use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+    pub use ratatui::layout::Flex;
     pub use ratatui::prelude::*;
     pub use ratatui::symbols::scrollbar::Set as ScrollbarSet;
     pub use ratatui::text::ToSpan;

@@ -28,11 +28,12 @@ pub enum StateAction {
     },
     MyNodeKeySet(u32),
     NodeAdd(Node),
-    NodeSetLastHeard(u32),
+    NodeUpdateLastHeard(u32),
     NodeSetSnr(u32, f32),
     NodesSortBySet(NodesSortBy),
     OnlineNodesSet(u16),
     RxTrigger,
     TabSwitchToNext,
     TabSwitchToPrevious,
+    FrameCleared,
 }

@@ -40,10 +40,6 @@ impl Logs {
                     key: "end".to_string(),
                     label: "to bottom".to_string(),
                 },
-                Hotkey {
-                    key: "f".to_string(),
-                    label: "follow".to_string(),
-                },
             ]),
             popup_hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
@@ -86,8 +82,11 @@ impl Component for Logs {
                     self.list_state.previous();
                 }
                 (KeyCode::Down, false) => {
-                    self.follow = false;
                     self.list_state.next();
+
+                    if let Some(index) = self.list_state.selected {
+                        self.follow = index == state.logs.len() - 1;
+                    }
                 }
                 (KeyCode::Enter, false) => {
                     if let Some(i) = self.list_state.selected {
@@ -95,9 +94,14 @@ impl Component for Logs {
                         self.popup_scroll_offset = 0;
                     }
                 }
-                (KeyCode::Home, false) => self.list_state.select(Some(0)),
-                (KeyCode::End, false) => self.list_state.select(Some(state.logs.len() - 1)),
-                (KeyCode::Char('f'), false) => self.follow = true,
+                (KeyCode::Home, false) => {
+                    self.follow = false;
+                    self.list_state.select(Some(0));
+                }
+                (KeyCode::End, false) => {
+                    self.follow = true;
+                    self.list_state.select(Some(state.logs.len() - 1));
+                }
                 // popup hotkeys
                 (KeyCode::Up, true) => {
                     self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
@@ -115,8 +119,17 @@ impl Component for Logs {
                 _ => {}
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
-                MouseEventKind::ScrollUp => self.list_state.previous(),
-                MouseEventKind::ScrollDown => self.list_state.next(),
+                MouseEventKind::ScrollUp => {
+                    self.follow = false;
+                    self.list_state.previous();
+                }
+                MouseEventKind::ScrollDown => {
+                    self.list_state.next();
+
+                    if let Some(index) = self.list_state.selected {
+                        self.follow = index == state.logs.len() - 1;
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -124,7 +137,7 @@ impl Component for Logs {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        if self.follow {
+        if self.follow && !state.logs.is_empty() {
             self.list_state.select(Some(state.logs.len() - 1));
         }
 
@@ -220,18 +233,14 @@ impl<'a> Widget for LogRecordWidget<'a> {
         let mut p = Paragraph::new(Line::from(vec![
             Span::from(self.record.datetime.format("%H:%M:%S").to_string()).dark_gray(),
             Span::from(" ").dark_gray(),
-            Span::from(format!("{:<5}", self.record.level.to_string()))
-                .style(match self.record.level {
+            Span::from(format!("{:<5}", self.record.level.to_string())).style(
+                match self.record.level {
                     Level::TRACE | Level::DEBUG => Style::default().green(),
                     Level::INFO => Style::default().blue(),
                     Level::WARN => Style::default().yellow(),
                     Level::ERROR => Style::default().red(),
-                })
-                .add_modifier(if self.is_selected {
-                    Modifier::BOLD
-                } else {
-                    Modifier::empty()
-                }),
+                },
+            ),
             Span::from(" ").dark_gray(),
             Span::from(format!("{}: ", self.record.source)).dark_gray(),
             Span::from(self.record.message.clone()),

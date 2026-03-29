@@ -37,6 +37,7 @@ pub struct State {
     pub rx_t: Instant,
     pub rx: bool,
     pub tcp_devices: Vec<HostAddr<String>>,
+    pub need_clear_frame: bool,
 }
 
 impl Default for State {
@@ -63,6 +64,7 @@ impl Default for State {
             rx_t: Instant::now(),
             rx: false,
             tcp_devices: Vec::default(),
+            need_clear_frame: false,
         }
     }
 }

@@ -74,9 +74,11 @@ impl Store {
             }
             StateAction::TabSwitchToNext => {
                 self.state.active_tab = self.state.active_tab.next();
+                self.state.need_clear_frame = true;
             }
             StateAction::TabSwitchToPrevious => {
                 self.state.active_tab = self.state.active_tab.prev();
+                self.state.need_clear_frame = true;
             }
             StateAction::DeviceActiveSet(device) => {
                 self.state.active_device = Some(device);
@@ -156,7 +158,7 @@ impl Store {
             StateAction::NodesSortBySet(sort_by) => {
                 self.state.nodes_sort_by = sort_by;
             }
-            StateAction::NodeSetLastHeard(number) => {
+            StateAction::NodeUpdateLastHeard(number) => {
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.last_heard = Some(Utc::now());
                 }
@@ -198,6 +200,9 @@ impl Store {
                             .insert(node_key, Utc::now());
                     }
                 }
+            }
+            StateAction::FrameCleared => {
+                self.state.need_clear_frame = false;
             }
         }
 

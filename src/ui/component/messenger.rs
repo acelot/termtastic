@@ -3,6 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use ratatui::text::ToSpan;
 use tracing_unwrap::OptionExt;
 use tui_input::backend::crossterm::EventHandler;
+use tui_widget_list::ScrollDirection;
 
 use crate::ui::prelude::*;
 
@@ -11,7 +12,7 @@ const INPUT_VALUE_MAX_LENGTH: usize = 200;
 pub struct Messenger {
     list_states: HashMap<u32, ListState>,
     input_widgets: HashMap<u32, TuiInput>,
-    hotkeys_component: Hotkeys,
+    follow_chat: HashMap<u32, bool>,
 }
 
 impl Messenger {
@@ -19,21 +20,54 @@ impl Messenger {
         Self {
             list_states: HashMap::default(),
             input_widgets: HashMap::default(),
-            hotkeys_component: Hotkeys::new(vec![
-                Hotkey {
-                    key: "enter".to_string(),
-                    label: "send message".to_string(),
-                },
-                Hotkey {
-                    key: "↑↓".to_string(),
-                    label: "scroll".to_string(),
-                },
-                Hotkey {
-                    key: "esc".to_string(),
-                    label: "switch channel".to_string(),
-                },
-            ]),
+            follow_chat: HashMap::default(),
         }
+    }
+
+    fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
+        let active_channel_key = state.active_channel_key.unwrap_or_log();
+
+        let is_message_selected = self
+            .list_states
+            .get(&active_channel_key)
+            .and_then(|s| Some(s.selected.is_some()))
+            .unwrap_or(false);
+
+        let has_input_value = self
+            .input_widgets
+            .get(&active_channel_key)
+            .and_then(|input| Some(input.value().len() > 0))
+            .unwrap_or(false);
+
+        vec![
+            Some(Hotkey {
+                key: "↑↓".to_string(),
+                label: "scroll".to_string(),
+            }),
+            if is_message_selected {
+                Some(Hotkey {
+                    key: "F2".to_string(),
+                    label: "reply".to_string(),
+                })
+            } else {
+                None
+            },
+            Some(Hotkey {
+                key: "esc".to_string(),
+                label: "switch channel".to_string(),
+            }),
+            if has_input_value {
+                Some(Hotkey {
+                    key: "enter".to_string(),
+                    label: "send".to_string(),
+                })
+            } else {
+                None
+            },
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -51,10 +85,26 @@ impl Component for Messenger {
             .entry(active_channel_key)
             .or_insert(TuiInput::default());
 
+        let messages_len = state
+            .messages
+            .get(&active_channel_key)
+            .and_then(|m| Some(m.len()))
+            .unwrap_or(0);
+
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Up => list_state.previous(),
-                KeyCode::Down => list_state.next(),
+                KeyCode::Up => {
+                    self.follow_chat.insert(active_channel_key, false);
+                    list_state.previous()
+                }
+                KeyCode::Down => {
+                    list_state.next();
+
+                    if let Some(index) = list_state.selected {
+                        self.follow_chat
+                            .insert(active_channel_key, index == messages_len - 1);
+                    }
+                }
                 KeyCode::Esc => emit(AppEvent::SwitchChannelRequested),
                 KeyCode::Enter => {
                     if input_widget.value().len() <= INPUT_VALUE_MAX_LENGTH {
@@ -67,8 +117,18 @@ impl Component for Messenger {
                 }
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
-                MouseEventKind::ScrollUp => list_state.previous(),
-                MouseEventKind::ScrollDown => list_state.next(),
+                MouseEventKind::ScrollUp => {
+                    self.follow_chat.insert(active_channel_key, false);
+                    list_state.previous();
+                }
+                MouseEventKind::ScrollDown => {
+                    list_state.next();
+
+                    if let Some(index) = list_state.selected {
+                        self.follow_chat
+                            .insert(active_channel_key, index == messages_len - 1);
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -94,6 +154,11 @@ impl Component for Messenger {
             .messages
             .get(&active_channel_key)
             .unwrap_or(&empty_messages_vec);
+
+        let follow_chat = self.follow_chat.entry(active_channel_key).or_insert(true);
+        if *follow_chat && !messages.is_empty() {
+            list_state.select(Some(messages.len() - 1));
+        }
 
         // list
         let list_builder = ListBuilder::new(|context| {
@@ -126,6 +191,7 @@ impl Component for Messenger {
 
         let list = ListView::new(list_builder, messages.len())
             .infinite_scrolling(false)
+            .scroll_direction(ScrollDirection::Backward)
             .scrollbar(scrollbar);
 
         let v = Layout::default()
@@ -197,7 +263,7 @@ impl Component for Messenger {
         .right_aligned()
         .render(input_block_area_h[3], frame.buffer_mut());
 
-        self.hotkeys_component.render(state, frame, v[2]);
+        Hotkeys::new(self.get_hotkeys(state)).render(state, frame, v[2]);
     }
 }
 
@@ -276,11 +342,6 @@ impl<'a> Widget for MessageWidget<'a> {
             " ".to_span(),
             self.node.long_name.clone().to_span(),
         ])
-        .add_modifier(if self.is_selected {
-            Modifier::BOLD
-        } else {
-            Modifier::empty()
-        })
         .render(v0_h[0], buf);
 
         Line::from(
@@ -304,11 +365,15 @@ impl<'a> Widget for MessageWidget<'a> {
                     .reactions
                     .iter()
                     .map(|(emoji, nodes)| {
-                        vec![
-                            emoji.to_span(),
-                            Span::from(format!("'{}", nodes.len())).dark_gray(),
-                            " ".to_span(),
-                        ]
+                        if nodes.len() > 1 {
+                            vec![
+                                emoji.to_span(),
+                                Span::from(format!("'{}", nodes.len())).dark_gray(),
+                                " ".to_span(),
+                            ]
+                        } else {
+                            vec![emoji.to_span(), " ".to_span()]
+                        }
                     })
                     .flatten()
                     .collect::<Vec<Span>>(),

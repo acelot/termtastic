@@ -193,13 +193,7 @@ impl<'a> Widget for ConversationWidget<'a> {
             _ => unreachable!(),
         };
 
-        Line::from(name_span)
-            .add_modifier(if self.is_selected {
-                Modifier::BOLD
-            } else {
-                Modifier::empty()
-            })
-            .render(v0_h[0], buf);
+        Line::from(name_span).render(v0_h[0], buf);
 
         let type_span = match &self.channel.role {
             ChannelRole::Primary => Span::from("PRIMARY".to_owned()).dark_gray(),
@@ -208,13 +202,7 @@ impl<'a> Widget for ConversationWidget<'a> {
             _ => unreachable!(),
         };
 
-        Line::from(type_span)
-            .add_modifier(if self.is_selected {
-                Modifier::BOLD
-            } else {
-                Modifier::empty()
-            })
-            .render(v0_h[1], buf);
+        Line::from(type_span).render(v0_h[1], buf);
 
         Line::from(if let Some(message) = self.last_message {
             Span::from(
@@ -226,11 +214,6 @@ impl<'a> Widget for ConversationWidget<'a> {
             )
         } else {
             Span::from("no messages".to_owned()).dark_gray()
-        })
-        .add_modifier(if self.is_selected {
-            Modifier::BOLD
-        } else {
-            Modifier::empty()
         })
         .right_aligned()
         .render(v0_h[2], buf);

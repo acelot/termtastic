@@ -29,5 +29,5 @@ tracing-unwrap = { version = "1.0" }
 tui-input = { version = "0.15", features = [
     "crossterm",
 ], default-features = false }
-tui-widget-list = { version = "0.15" }
+tui-widget-list = { version = "0.15.2" }
 serde = { version = "1.0" }

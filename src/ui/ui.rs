@@ -12,15 +12,19 @@ use std::{
     io::{self, Stdout, stdout},
     panic::{set_hook, take_hook},
 };
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
-use crate::ui::{component::Component, component::Layout};
 use crate::{state::State, types::AppEvent};
+use crate::{
+    state::StateAction,
+    ui::component::{Component, Layout},
+};
 
 pub struct Ui {
     state_rx: watch::Receiver<State>,
+    state_action_tx: mpsc::UnboundedSender<StateAction>,
     event_tx: broadcast::Sender<AppEvent>,
     terminal: Terminal<CrosstermBackend<Stdout>>,
     crossterm_events: EventStream,
@@ -28,9 +32,14 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(state_rx: watch::Receiver<State>, event_tx: broadcast::Sender<AppEvent>) -> Self {
+    pub fn new(
+        state_rx: watch::Receiver<State>,
+        state_action_tx: mpsc::UnboundedSender<StateAction>,
+        event_tx: broadcast::Sender<AppEvent>,
+    ) -> Self {
         Self {
             state_rx,
+            state_action_tx,
             event_tx,
             terminal: setup_terminal().unwrap_or_log(),
             crossterm_events: EventStream::new(),
@@ -89,11 +98,19 @@ impl Ui {
     }
 
     fn redraw(&mut self) {
+        let state = &self.state_rx.borrow();
+
+        if state.need_clear_frame {
+            self.terminal.clear().unwrap_or_log();
+            self.state_action_tx
+                .send(StateAction::FrameCleared)
+                .unwrap_or_log();
+
+            return;
+        }
+
         self.terminal
-            .draw(|frame| {
-                self.layout
-                    .render(&self.state_rx.borrow(), frame, frame.area())
-            })
+            .draw(|frame| self.layout.render(state, frame, frame.area()))
             .unwrap_or_log();
     }
 }

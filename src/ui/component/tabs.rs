@@ -27,13 +27,13 @@ impl Component for Tabs {
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
         let spans: Vec<Span> = Tab::iter()
             .map(|tab| {
-                let mut span = Span::from(tab.to_string().to_lowercase());
-
                 if tab == state.active_tab {
-                    span = span.style(Style::new().bold().yellow().underlined());
+                    Span::from(format!(" {} ", tab.to_string().to_lowercase()))
+                        .black()
+                        .on_yellow()
+                } else {
+                    Span::from(tab.to_string().to_lowercase())
                 }
-
-                span
             })
             .intersperse(Span::from("  ".to_string()))
             .collect();

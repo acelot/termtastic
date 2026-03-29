@@ -30,11 +30,17 @@ impl Nodes {
 }
 
 impl Component for Nodes {
-    fn handle_event(&mut self, _state: &State, event: &Event, _emit: &impl Fn(AppEvent)) {
+    fn handle_event(&mut self, state: &State, event: &Event, _emit: &impl Fn(AppEvent)) {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Up => self.list_state.previous(),
                 KeyCode::Down => self.list_state.next(),
+                KeyCode::Home => {
+                    self.list_state.select(Some(0));
+                }
+                KeyCode::End => {
+                    self.list_state.select(Some(state.nodes_sort.len() - 1));
+                }
                 _ => {}
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
@@ -161,11 +167,6 @@ impl<'a> Widget for NodeWidget<'a> {
             Span::from(" "),
             Span::from(self.node.long_name.clone()),
         ])
-        .add_modifier(if self.is_selected {
-            Modifier::BOLD
-        } else {
-            Modifier::empty()
-        })
         .render(v0_h[0], buf);
 
         Line::from(match self.node.hops_away {
@@ -181,11 +182,6 @@ impl<'a> Widget for NodeWidget<'a> {
             None if self.node.my => Span::from("✔ connected".to_string()).blue(),
             None => Span::from("unknown".to_string()).dark_gray(),
         })
-        .add_modifier(if self.is_selected {
-            Modifier::BOLD
-        } else {
-            Modifier::empty()
-        })
         .render(v0_h[1], buf);
 
         let last_heard_spans: Vec<Span> = match self.node.last_heard {
@@ -195,11 +191,6 @@ impl<'a> Widget for NodeWidget<'a> {
         };
 
         Line::from(last_heard_spans)
-            .add_modifier(if self.is_selected {
-                Modifier::BOLD
-            } else {
-                Modifier::empty()
-            })
             .right_aligned()
             .render(v0_h[2], buf);
 

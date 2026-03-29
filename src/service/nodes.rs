@@ -1,7 +1,13 @@
 use std::time::Duration;
 
 use chrono::Utc;
-use meshtastic::protobufs::from_radio::PayloadVariant;
+use meshtastic::{
+    Message,
+    protobufs::{
+        NeighborInfo, NodeInfo, NodeInfoLite, PortNum, User, from_radio::PayloadVariant,
+        mesh_packet,
+    },
+};
 use tokio::{
     sync::{broadcast, mpsc, watch},
     time,
@@ -98,7 +104,7 @@ impl NodesService {
             }
             PayloadVariant::Packet(packet) => {
                 self.state_action_tx
-                    .send(StateAction::NodeSetLastHeard(packet.from))
+                    .send(StateAction::NodeUpdateLastHeard(packet.from))
                     .unwrap_or_log();
 
                 if packet.hop_start == packet.hop_limit {

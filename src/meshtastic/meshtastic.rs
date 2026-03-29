@@ -58,6 +58,7 @@ impl MeshtasticService {
                 Some(cmd) = self.command_rx.recv() => self.handle_command(cmd, subsys).await,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
+                    self.disconnect().await;
                     break;
                 }
             }

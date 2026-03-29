@@ -96,6 +96,7 @@ async fn main() {
     );
 
     let event_tx_clone = event_tx.clone();
+    let state_action_tx_clone = state_action_tx.clone();
 
     event_tx_clone
         .send(AppEvent::InitializationRequested)
@@ -140,7 +141,9 @@ async fn main() {
         s.start(SubsystemBuilder::new(
             "UI",
             async |subsys: &mut SubsystemHandle| {
-                Ui::new(state_rx, event_tx_clone).run(subsys).await
+                Ui::new(state_rx, state_action_tx_clone, event_tx_clone)
+                    .run(subsys)
+                    .await
             },
         ));
     })

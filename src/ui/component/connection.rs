@@ -245,13 +245,9 @@ impl Component for Connection {
             frame.render_widget(popup_block, popup_area);
 
             let block_v = Layout::default()
+                .flex(Flex::SpaceAround)
                 .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Min(1),
-                    Constraint::Length(2),
-                    Constraint::Max(4),
-                    Constraint::Min(1),
-                ])
+                .constraints([Constraint::Fill(1), Constraint::Fill(1)])
                 .split(popup_block_area);
 
             let device_widget = DeviceWidget {
@@ -261,22 +257,22 @@ impl Component for Connection {
                 dimmed: false,
             };
 
-            device_widget.render(block_v[1], frame.buffer_mut());
+            device_widget.render(block_v[0], frame.buffer_mut());
 
             let conn_info: Vec<Line> = match &state.connection_state {
                 ConnectionState::NotConnected => {
-                    vec![Line::from(Span::from(" not connected ").dark_gray())]
+                    vec![Line::from(Span::from("not connected").dark_gray())]
                 }
                 ConnectionState::ProblemDetected { error, .. } => vec![
-                    Line::from(Span::from(" connection problem ").red()),
+                    Line::from(Span::from("connection problem").red()),
                     Line::from(""),
                     Line::from(Span::from(error).dark_gray()),
                 ],
                 ConnectionState::Connecting => {
-                    vec![Line::from(Span::from(" connecting... ").yellow())]
+                    vec![Line::from(Span::from("connecting...").yellow())]
                 }
                 ConnectionState::Connected => {
-                    vec![Line::from(Span::from(" connected ").green())]
+                    vec![Line::from(Span::from("connected").green())]
                 }
             };
 
@@ -284,7 +280,7 @@ impl Component for Connection {
                 Paragraph::new(conn_info)
                     .alignment(HorizontalAlignment::Center)
                     .wrap(Wrap { trim: false }),
-                block_v[2],
+                block_v[1],
             );
         }
 
