@@ -2,6 +2,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, VecDeque},
     time::{Duration, Instant},
+    u32,
 };
 
 use chrono::{DateTime, Utc};
@@ -18,10 +19,11 @@ use tracing_unwrap::ResultExt;
 
 use crate::{
     state::{State, StateAction},
-    types::{ConnectionState, DevicesDiscoveringState, NodesSortBy},
+    types::{ConnectionState, NodesSortBy},
 };
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
+const RX_TIMEOUT_MILLIS: u128 = 200;
 
 pub struct Store {
     state: State,
@@ -106,14 +108,7 @@ impl Store {
             StateAction::LogRecordAdd(r) => {
                 self.state.logs.push(r);
             }
-            StateAction::DevicesDiscoveringStart => {
-                self.state.device_discovering_state = DevicesDiscoveringState::InProgress;
-            }
-            StateAction::DevicesDiscoveringFail(error) => {
-                self.state.device_discovering_state = DevicesDiscoveringState::Error(error);
-            }
-            StateAction::DevicesDiscoveringSuccess(devices) => {
-                self.state.device_discovering_state = DevicesDiscoveringState::Finished;
+            StateAction::DiscoveredDevicesSet(devices) => {
                 self.state.discovered_devices = devices;
             }
             StateAction::DevicesAddTcp(hostaddr) => {
@@ -137,7 +132,7 @@ impl Store {
 
                 self.state.nodes.insert(node.key, node);
 
-                self.fill_nodes_sort();
+                self.update_nodes_sort();
             }
             StateAction::ChannelEnsure(key, channel) => {
                 self.state.channels.entry(key).or_insert(channel);
@@ -161,11 +156,13 @@ impl Store {
             StateAction::NodeUpdateLastHeard(number) => {
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.last_heard = Some(Utc::now());
+                    self.update_nodes_sort();
                 }
             }
             StateAction::NodeSetSnr(number, snr) => {
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.snr = snr;
+                    self.update_nodes_sort();
                 }
             }
             StateAction::MyNodeKeySet(number) => {
@@ -204,6 +201,9 @@ impl Store {
             StateAction::FrameCleared => {
                 self.state.need_clear_frame = false;
             }
+            StateAction::Toast(toast) => {
+                self.state.toast_queue.push_back(toast);
+            }
         }
 
         if self.state != prev_state {
@@ -212,13 +212,28 @@ impl Store {
     }
 
     fn handle_tick(&mut self) {
-        if self.state.rx_t.elapsed().as_millis() > 200 && self.state.rx {
+        if self.state.rx && self.state.rx_t.elapsed().as_millis() > RX_TIMEOUT_MILLIS {
             self.state.rx = false;
+            self.state_tx.send(self.state.clone()).unwrap_or_log();
+        }
+
+        if let Some(toast) = &self.state.toast
+            && self.state.toast_t.elapsed().as_millis() > toast.kind.timeout()
+        {
+            self.state.toast = None;
+            self.state_tx.send(self.state.clone()).unwrap_or_log();
+        }
+
+        if !self.state.toast_queue.is_empty()
+            && self.state.toast.as_ref().map_or(true, |t| t.skippable)
+        {
+            self.state.toast = self.state.toast_queue.pop_front();
+            self.state.toast_t = Instant::now();
             self.state_tx.send(self.state.clone()).unwrap_or_log();
         }
     }
 
-    fn fill_nodes_sort(&mut self) {
+    fn update_nodes_sort(&mut self) {
         self.state.nodes_sort = self
             .state
             .nodes
@@ -234,8 +249,8 @@ impl Store {
                 match &self.state.nodes_sort_by {
                     NodesSortBy::Hops => n1
                         .hops_away
-                        .unwrap_or(100)
-                        .cmp(&n2.hops_away.unwrap_or(100))
+                        .unwrap_or(u32::MAX)
+                        .cmp(&n2.hops_away.unwrap_or(u32::MAX))
                         .then(n1.snr.total_cmp(&n2.snr).reverse()),
                     NodesSortBy::LastHeard => n1
                         .last_heard
@@ -250,8 +265,8 @@ impl Store {
                         .then(n1.short_name.cmp(&n2.short_name)),
                     NodesSortBy::Role => n1.role.cmp(&n2.role).then(
                         n1.hops_away
-                            .unwrap_or(100)
-                            .cmp(&n2.hops_away.unwrap_or(100))
+                            .unwrap_or(u32::MAX)
+                            .cmp(&n2.hops_away.unwrap_or(u32::MAX))
                             .then(n1.snr.total_cmp(&n2.snr).reverse()),
                     ),
                 }

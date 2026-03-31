@@ -136,26 +136,26 @@ impl Component for Messenger {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        let active_channel_key = state.active_channel_key.unwrap_or_log();
+        let active_channel = state.get_active_channel().unwrap_or_log();
         let unknown_node = Node::unknown();
         let empty_messages_vec: VecDeque<Message> = VecDeque::default();
 
         let list_state = self
             .list_states
-            .entry(active_channel_key)
+            .entry(active_channel.key)
             .or_insert(ListState::default());
 
         let input_widget = self
             .input_widgets
-            .entry(active_channel_key)
+            .entry(active_channel.key)
             .or_insert(TuiInput::default());
 
         let messages = state
             .messages
-            .get(&active_channel_key)
+            .get(&active_channel.key)
             .unwrap_or(&empty_messages_vec);
 
-        let follow_chat = self.follow_chat.entry(active_channel_key).or_insert(true);
+        let follow_chat = self.follow_chat.entry(active_channel.key).or_insert(true);
         if *follow_chat && !messages.is_empty() {
             list_state.select(Some(messages.len() - 1));
         }
@@ -213,10 +213,35 @@ impl Component for Messenger {
 
         let input_block_area = input_block.inner(v[1]);
 
+        let channel_name = match &active_channel.role {
+            ChannelRole::Primary => {
+                if !active_channel.name.is_empty() {
+                    Span::from(active_channel.name.clone()).yellow()
+                } else {
+                    Span::from("Primary").yellow()
+                }
+            }
+            ChannelRole::Secondary => {
+                if !active_channel.name.is_empty() {
+                    Span::from(active_channel.name.clone()).yellow()
+                } else {
+                    Span::from("Secondary").yellow()
+                }
+            }
+            ChannelRole::Direct => {
+                if let Some(node) = state.nodes.get(&active_channel.key) {
+                    Span::from(node.short_name.clone()).green()
+                } else {
+                    Span::from("?").dark_gray()
+                }
+            }
+            _ => unreachable!(),
+        };
+
         let input_block_area_h = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Length(6),
+                Constraint::Length(channel_name.width() as u16 + 2),
                 Constraint::Length(1),
                 Constraint::Min(1),
                 Constraint::Length(8),
@@ -225,14 +250,8 @@ impl Component for Messenger {
 
         input_block.render(v[1], frame.buffer_mut());
 
-        let my_node = state.get_my_node().unwrap_or(&unknown_node);
-
-        Line::from(
-            Span::from(format!("{:^6}", my_node.short_name))
-                .white()
-                .on_blue(),
-        )
-        .render(input_block_area_h[0], frame.buffer_mut());
+        Line::from(vec![channel_name, Span::from(" ← ").dark_gray()])
+            .render(input_block_area_h[0], frame.buffer_mut());
 
         let input_width = input_block_area_h[2].width.max(1);
         let scroll = input_widget.visual_scroll(input_width as usize);
@@ -240,7 +259,7 @@ impl Component for Messenger {
         let input = Paragraph::new(if !input_widget.value().is_empty() {
             Span::from(input_widget.value())
         } else {
-            Span::from("type message...".to_owned()).dark_gray()
+            Span::from("type message...").dark_gray()
         })
         .scroll((0, scroll as u16));
 
@@ -328,21 +347,25 @@ impl<'a> Widget for MessageWidget<'a> {
         let v0_h = Layout::default()
             .direction(Direction::Horizontal)
             .flex(layout::Flex::SpaceBetween)
-            .constraints([Constraint::Fill(2), Constraint::Fill(1)])
+            .constraints([
+                Constraint::Fill(4),
+                Constraint::Fill(1),
+                Constraint::Fill(1),
+            ])
             .split(v[0]);
 
         Line::from(vec![
-            Span::from(format!("{:^6}", self.node.short_name))
-                .black()
-                .bg(if self.node.my {
-                    Color::Blue
-                } else {
-                    Color::Green
-                }),
+            self.node.to_span(),
             " ".to_span(),
             self.node.long_name.clone().to_span(),
         ])
         .render(v0_h[0], buf);
+
+        if let Some(hops) = self.node.hops_away {
+            Span::from("❯".repeat(hops as usize))
+                .dark_gray()
+                .render(v0_h[1], buf);
+        }
 
         Line::from(
             Span::from(
@@ -355,7 +378,7 @@ impl<'a> Widget for MessageWidget<'a> {
             .dark_gray(),
         )
         .right_aligned()
-        .render(v0_h[1], buf);
+        .render(v0_h[2], buf);
 
         text_paragraph.render(v[1], buf);
 

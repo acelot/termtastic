@@ -72,5 +72,39 @@ impl Component for Layout {
             Tab::Logs => self.logs_component.render(state, frame, v[3]),
             _ => {}
         }
+
+        if let Some(Toast { kind, text, .. }) = &state.toast {
+            let toast_width = text.len() as u16 + 4;
+
+            let toast_area = Rect {
+                x: area.x + area.width / 2 - toast_width / 2,
+                y: area.y + area.height - area.height / 6,
+                width: toast_width,
+                height: 3,
+            };
+
+            let (border_color, text_color) = match kind {
+                ToastKind::Success => (Color::Green, Color::Green),
+                ToastKind::Normal => (Color::DarkGray, Color::White),
+                ToastKind::Warning => (Color::DarkGray, Color::Yellow),
+                ToastKind::Error => (Color::Red, Color::Red),
+            };
+
+            let toast_block = Block::new()
+                .borders(Borders::ALL)
+                .border_type(BorderType::Thick)
+                .border_style(Style::new().fg(border_color))
+                .padding(Padding::symmetric(1, 0));
+
+            let toast_block_area = toast_block.inner(toast_area);
+
+            Clear.render(toast_area, frame.buffer_mut());
+            toast_block.render(toast_area, frame.buffer_mut());
+
+            Paragraph::new(Span::from(text))
+                .fg(text_color)
+                .centered()
+                .render(toast_block_area, frame.buffer_mut());
+        }
     }
 }

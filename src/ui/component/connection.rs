@@ -151,14 +151,6 @@ impl Component for Connection {
             self.list_state.select(Some(0));
         }
 
-        let list_title_extra = match state.device_discovering_state {
-            DevicesDiscoveringState::NeverStarted | DevicesDiscoveringState::Finished => {
-                Span::from("")
-            }
-            DevicesDiscoveringState::InProgress => Span::from("(loading...) ").yellow(),
-            DevicesDiscoveringState::Error(_) => Span::from("(error) ").red(),
-        };
-
         let list_builder = ListBuilder::new(|context| {
             let device = self.devices.iter().nth(context.index).unwrap();
 
@@ -189,7 +181,7 @@ impl Component for Connection {
 
         if self.is_form_visible {
             let popup_area = Rect {
-                x: v[0].x + v[0].width / 4,
+                x: v[0].x + v[0].width / 2 - 20,
                 y: v[0].y + v[0].height / 2 - 2,
                 width: 40,
                 height: 3,
@@ -203,7 +195,7 @@ impl Component for Connection {
                     Color::Red
                 }))
                 .padding(Padding::symmetric(1, 0))
-                .title(" new TCP ");
+                .title(" TCP connection ");
 
             let popup_block_area = popup_block.inner(popup_area);
 
@@ -216,7 +208,7 @@ impl Component for Connection {
             let form_input = Paragraph::new(if !self.form_input.value().is_empty() {
                 Span::from(self.form_input.value())
             } else {
-                Span::from("host[:port=4403]".to_string()).dark_gray()
+                Span::from("host[:port=4403]").dark_gray()
             })
             .scroll((0, input_scroll as u16));
 
@@ -308,27 +300,24 @@ impl<'a> Widget for DeviceWidget<'a> {
 
         let spans = match self.device {
             Device::Ble { name, .. } => vec![
-                Span::from(" BLE ".to_string())
-                    .black()
-                    .on_blue()
-                    .patch_style(dim_style),
-                Span::from(" ".to_string()),
+                Span::from(" BLE ").black().on_blue().patch_style(dim_style),
+                Span::from(" "),
                 Span::from(name).patch_style(dim_style),
             ],
             Device::Tcp(hostaddr) => vec![
-                Span::from(" TCP ".to_string())
+                Span::from(" TCP ")
                     .black()
                     .on_green()
                     .patch_style(dim_style),
-                Span::from(" ".to_string()),
+                Span::from(" "),
                 Span::from(hostaddr.to_string()).patch_style(dim_style),
             ],
             Device::Serial(address) => vec![
-                Span::from(" COM ".to_string())
+                Span::from(" COM ")
                     .black()
                     .on_magenta()
                     .patch_style(dim_style),
-                Span::from(" ".to_string()),
+                Span::from(" "),
                 Span::from(address).patch_style(dim_style),
             ],
         };

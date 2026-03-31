@@ -1,8 +1,5 @@
 use crossterm::{
-    event::{
-        DisableMouseCapture, EnableMouseCapture, Event, EventStream, KeyCode, KeyEvent,
-        KeyModifiers,
-    },
+    event::{DisableMouseCapture, EnableMouseCapture, Event, EventStream, KeyCode, KeyModifiers},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -76,13 +73,15 @@ impl Ui {
     ) {
         match maybe_event {
             Some(Ok(event)) => {
-                if let Event::Key(KeyEvent {
-                    code, modifiers, ..
-                }) = event
-                    && code == KeyCode::Char('c')
-                    && modifiers.contains(KeyModifiers::CONTROL)
+                if let Event::Key(key_event) = event
+                    && key_event.code == KeyCode::Char('c')
+                    && key_event.modifiers.contains(KeyModifiers::CONTROL)
                 {
                     subsys.request_shutdown();
+                }
+
+                if let Event::Resize(_, _) = event {
+                    self.terminal.clear().unwrap_or_log();
                 }
 
                 self.layout

@@ -4,11 +4,16 @@ use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use hostaddr::HostAddr;
 use meshtastic::protobufs::PortNum;
+use ratatui::{
+    style::{self, Stylize as _},
+    text,
+};
 use serde::{Deserialize, Serialize};
+use strum::{Display, EnumCount, EnumIter, FromRepr};
 use tokio::sync::watch::Ref;
 use tracing::Level;
 
-use crate::{state::State, ui::types::Tab};
+use crate::state::State;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
 pub struct AppConfig {
@@ -95,12 +100,157 @@ pub struct LogRecord {
     pub message: String,
 }
 
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Display,
+    FromRepr,
+    EnumIter,
+    EnumCount,
+    Serialize,
+    Deserialize,
+    Hash,
+)]
+pub enum Tab {
+    #[default]
+    #[strum(to_string = "Chat")]
+    Chat,
+    #[strum(to_string = "Nodes")]
+    Nodes,
+    #[strum(to_string = "Settings")]
+    Settings,
+    #[strum(to_string = "Connection")]
+    Connection,
+    #[strum(to_string = "Logs")]
+    Logs,
+}
+
+impl Tab {
+    pub fn prev(self) -> Self {
+        let current_index: usize = self as usize;
+        let (previous_index, overflowed) = current_index.overflowing_sub(1);
+
+        Self::from_repr(if overflowed {
+            Tab::COUNT - 1
+        } else {
+            previous_index
+        })
+        .unwrap_or(self)
+    }
+
+    pub fn next(self) -> Self {
+        let current_index = self as usize;
+        let next_index = current_index.saturating_add(1);
+
+        Self::from_repr(if next_index > Tab::COUNT - 1 {
+            0
+        } else {
+            next_index
+        })
+        .unwrap_or(self)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
-pub enum DevicesDiscoveringState {
-    NeverStarted,
-    InProgress,
-    Error(String),
-    Finished,
+pub struct Hotkey {
+    pub key: String,
+    pub label: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[repr(u128)]
+pub enum ToastKind {
+    Success,
+    Normal,
+    Warning,
+    Error,
+}
+
+impl ToastKind {
+    pub fn timeout(&self) -> u128 {
+        match self {
+            Self::Success => 1500,
+            Self::Normal => 1500,
+            Self::Warning => 2000,
+            Self::Error => 3000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Toast {
+    pub kind: ToastKind,
+    pub text: String,
+    pub skippable: bool,
+}
+
+impl Toast {
+    pub fn success<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Success,
+            text: text.into(),
+            skippable: false,
+        }
+    }
+
+    pub fn success_skippable<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Success,
+            text: text.into(),
+            skippable: true,
+        }
+    }
+
+    pub fn normal<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Normal,
+            text: text.into(),
+            skippable: false,
+        }
+    }
+
+    pub fn normal_skippable<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Normal,
+            text: text.into(),
+            skippable: true,
+        }
+    }
+
+    pub fn warning<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Warning,
+            text: text.into(),
+            skippable: false,
+        }
+    }
+
+    pub fn warning_skippable<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Warning,
+            text: text.into(),
+            skippable: true,
+        }
+    }
+
+    pub fn error<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Error,
+            text: text.into(),
+            skippable: false,
+        }
+    }
+
+    pub fn error_skippable<S: Into<String>>(text: S) -> Self {
+        Self {
+            kind: ToastKind::Error,
+            text: text.into(),
+            skippable: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash)]
@@ -147,6 +297,16 @@ impl Node {
             hw_model: "?".to_owned(),
             my: false,
         }
+    }
+
+    pub fn to_span(&self) -> text::Span<'_> {
+        text::Span::from(format!("{:^6}", self.short_name))
+            .black()
+            .patch_style(if self.my {
+                style::Style::new().white().on_blue()
+            } else {
+                style::Style::new().on_green()
+            })
     }
 }
 

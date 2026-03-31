@@ -35,7 +35,7 @@ impl Component for Tabs {
                     Span::from(tab.to_string().to_lowercase())
                 }
             })
-            .intersperse(Span::from("  ".to_string()))
+            .intersperse(Span::from("  "))
             .collect();
 
         frame.render_widget(Line::from(spans), area);

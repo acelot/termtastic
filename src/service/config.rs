@@ -6,7 +6,7 @@ use tracing_unwrap::ResultExt;
 
 use crate::{
     state::{State, StateAction},
-    types::{AppConfig, AppEvent},
+    types::{AppConfig, AppEvent, Toast},
 };
 
 pub struct ConfigService {
@@ -57,6 +57,10 @@ impl ConfigService {
 
                 self.state_action_tx
                     .send(StateAction::AppConfigApply(app_config))
+                    .unwrap_or_log();
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::normal("config loaded")))
                     .unwrap_or_log();
             }
             _ => {}

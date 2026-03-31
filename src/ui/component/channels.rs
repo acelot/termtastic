@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use chrono::{DateTime, Local, Utc};
+use chrono::Local;
 use itertools::Itertools;
 
 use crate::ui::prelude::*;
@@ -173,7 +173,7 @@ impl<'a> Widget for ConversationWidget<'a> {
             self.direct_node,
         ) {
             (ChannelRole::Primary, false, _) => vec![Span::from(self.channel.name.clone())],
-            (ChannelRole::Primary, true, _) => vec![Span::from("Primary".to_owned())],
+            (ChannelRole::Primary, true, _) => vec![Span::from("Primary")],
             (ChannelRole::Secondary, false, _) => vec![Span::from(self.channel.name.clone())],
             (ChannelRole::Secondary, true, _) => {
                 vec![Span::from(format!("Secondary #{}", self.channel.id))]
@@ -183,7 +183,7 @@ impl<'a> Widget for ConversationWidget<'a> {
                     Span::from(format!("{:^6}", node.short_name))
                         .black()
                         .on_green(),
-                    Span::from(" ".to_owned()),
+                    Span::from(" "),
                     Span::from(node.long_name.clone()),
                 ]
             }
@@ -196,9 +196,9 @@ impl<'a> Widget for ConversationWidget<'a> {
         Line::from(name_span).render(v0_h[0], buf);
 
         let type_span = match &self.channel.role {
-            ChannelRole::Primary => Span::from("PRIMARY".to_owned()).dark_gray(),
-            ChannelRole::Secondary => Span::from("SECONDARY".to_owned()).dark_gray(),
-            ChannelRole::Direct => Span::from("DIRECT".to_owned()).dark_gray(),
+            ChannelRole::Primary => Span::from("PRIMARY").dark_gray(),
+            ChannelRole::Secondary => Span::from("SECONDARY").dark_gray(),
+            ChannelRole::Direct => Span::from("DIRECT").dark_gray(),
             _ => unreachable!(),
         };
 
@@ -213,7 +213,7 @@ impl<'a> Widget for ConversationWidget<'a> {
                     .to_string(),
             )
         } else {
-            Span::from("no messages".to_owned()).dark_gray()
+            Span::from("no messages").dark_gray()
         })
         .right_aligned()
         .render(v0_h[2], buf);
@@ -232,7 +232,7 @@ impl<'a> Widget for ConversationWidget<'a> {
                     Span::from(format!("{:^6}", Node::unknown().short_name.clone()))
                         .black()
                         .on_dark_gray(),
-                    Span::from(" ".to_owned()),
+                    Span::from(" "),
                     Span::from(message.text.clone()).dark_gray(),
                 ]
             }
@@ -241,14 +241,13 @@ impl<'a> Widget for ConversationWidget<'a> {
                     Span::from(format!("{:^6}", node.short_name.clone()))
                         .black()
                         .on_dark_gray(),
-                    Span::from(" ".to_owned()),
+                    Span::from(" "),
                     Span::from(message.text.clone()).dark_gray(),
                 ]
             }
             (_, _, None) => {
                 vec![]
             }
-            _ => unreachable!(),
         };
 
         Line::from(second_line_spans).render(v[1], buf);

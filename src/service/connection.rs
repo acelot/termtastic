@@ -3,7 +3,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
-use crate::types::{AppEvent, ConnectionState, Device};
+use crate::types::{AppEvent, ConnectionState, Device, Toast, ToastKind};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
@@ -43,7 +43,6 @@ impl ConnectionService {
                 Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await,
                 Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = self.state_rx.changed() => self.handle_state_change(),
-
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -73,19 +72,33 @@ impl ConnectionService {
             }
             AppEvent::DeviceRediscoverRequested => {
                 self.state_action_tx
-                    .send(StateAction::DevicesDiscoveringStart)
+                    .send(StateAction::Toast(Toast::normal_skippable(
+                        "discovering...",
+                    )))
                     .unwrap_or_log();
 
                 match discover_devices().await {
                     Ok(devices) => {
+                        let devices_count = devices.len();
+
                         self.state_action_tx
-                            .send(StateAction::DevicesDiscoveringSuccess(devices))
+                            .send(StateAction::DiscoveredDevicesSet(devices))
+                            .unwrap_or_log();
+
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::normal(format!(
+                                "devices discovered: {}",
+                                devices_count
+                            ))))
                             .unwrap_or_log();
                     }
-                    Err(e) => self
-                        .state_action_tx
-                        .send(StateAction::DevicesDiscoveringFail(e.to_string()))
-                        .unwrap_or_log(),
+                    Err(e) => {
+                        tracing::error!("device discovering failed: {}", e);
+
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::error("discovering failed")))
+                            .unwrap_or_log();
+                    }
                 };
             }
             AppEvent::TcpDeviceSubmitted(mut hostaddr) => {
@@ -113,6 +126,10 @@ impl ConnectionService {
                 self.state_action_tx
                     .send(StateAction::ConnectionSuccess)
                     .unwrap_or_log();
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::success("connected")))
+                    .unwrap_or_log();
             }
             MeshtasticEvent::ConnectionError(e) => {
                 self.state_action_tx
@@ -129,6 +146,10 @@ impl ConnectionService {
             MeshtasticEvent::Disconnected => {
                 self.state_action_tx
                     .send(StateAction::ConnectionStop)
+                    .unwrap_or_log();
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::normal("disconnected")))
                     .unwrap_or_log();
             }
             MeshtasticEvent::IncomingPacket(_) => {

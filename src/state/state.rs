@@ -6,13 +6,7 @@ use std::{
 use chrono::Duration;
 use hostaddr::HostAddr;
 
-use crate::{
-    types::{
-        Channel, ConnectionState, Device, DevicesDiscoveringState, LogRecord, Message, Node,
-        NodesSortBy,
-    },
-    ui::types::Tab,
-};
+use crate::types::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct State {
@@ -25,7 +19,6 @@ pub struct State {
     pub connection_attempt: u16,
     pub connection_backoff: Duration,
     pub connection_state: ConnectionState,
-    pub device_discovering_state: DevicesDiscoveringState,
     pub discovered_devices: Vec<Device>,
     pub logs: Vec<LogRecord>,
     pub my_node_key: Option<u32>,
@@ -38,6 +31,9 @@ pub struct State {
     pub rx: bool,
     pub tcp_devices: Vec<HostAddr<String>>,
     pub need_clear_frame: bool,
+    pub toast_queue: VecDeque<Toast>,
+    pub toast: Option<Toast>,
+    pub toast_t: Instant,
 }
 
 impl Default for State {
@@ -52,7 +48,6 @@ impl Default for State {
             connection_attempt: 0,
             connection_backoff: Duration::zero(),
             connection_state: ConnectionState::NotConnected,
-            device_discovering_state: DevicesDiscoveringState::NeverStarted,
             discovered_devices: Vec::default(),
             logs: Vec::with_capacity(1000),
             my_node_key: None,
@@ -65,6 +60,9 @@ impl Default for State {
             rx: false,
             tcp_devices: Vec::default(),
             need_clear_frame: false,
+            toast_queue: VecDeque::default(),
+            toast: None,
+            toast_t: Instant::now(),
         }
     }
 }

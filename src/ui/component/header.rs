@@ -32,6 +32,16 @@ impl Component for Header {
 
         frame.render_widget(Paragraph::new(Line::from(app_info)), v[0]);
 
+        let my_node_info = if let Some(my_node) = state.get_my_node() {
+            vec![
+                Span::from("node ").dark_gray(),
+                my_node.to_span(),
+                Span::from("  "),
+            ]
+        } else {
+            vec![]
+        };
+
         let conn_info = match state.connection_state {
             ConnectionState::NotConnected => vec![Span::from("not connected").dark_gray()],
             ConnectionState::ProblemDetected { since, .. } => {
@@ -39,7 +49,7 @@ impl Component for Header {
             }
             ConnectionState::Connecting => vec![Span::from("connecting...").yellow()],
             ConnectionState::Connected => vec![
-                Span::from("online"),
+                Span::from("online").dark_gray(),
                 Span::from(" "),
                 Span::from(format!("{}/{}", state.online_nodes, state.nodes.len())).green(),
                 Span::from("  "),
@@ -51,6 +61,9 @@ impl Component for Header {
             ],
         };
 
-        frame.render_widget(Line::from(conn_info).right_aligned(), v[1]);
+        frame.render_widget(
+            Line::from([my_node_info.as_slice(), conn_info.as_slice()].concat()).right_aligned(),
+            v[1],
+        );
     }
 }

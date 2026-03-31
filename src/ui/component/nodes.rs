@@ -157,13 +157,7 @@ impl<'a> Widget for NodeWidget<'a> {
 
         // first line
         Line::from(vec![
-            Span::from(format!("{:^6}", self.node.short_name))
-                .black()
-                .patch_style(if self.node.my {
-                    Style::new().white().on_blue()
-                } else {
-                    Style::new().on_green()
-                }),
+            self.node.to_span(),
             Span::from(" "),
             Span::from(self.node.long_name.clone()),
         ])
@@ -179,15 +173,15 @@ impl<'a> Widget for NodeWidget<'a> {
                 },
             )),
             Some(hops) => Span::from("❯".repeat(hops as usize)),
-            None if self.node.my => Span::from("✔ connected".to_string()).blue(),
-            None => Span::from("unknown".to_string()).dark_gray(),
+            None if self.node.my => Span::from("✔ connected").blue(),
+            None => Span::from("unknown").dark_gray(),
         })
         .render(v0_h[1], buf);
 
         let last_heard_spans: Vec<Span> = match self.node.last_heard {
-            Some(_) if self.node.my => vec![Span::from("online".to_owned()).blue()],
+            Some(_) if self.node.my => vec![Span::from("now").blue()],
             Some(dt) => humanize_duration(Utc::now().round_subsecs(0) - dt),
-            None => vec![Span::from("?".to_owned()).dark_gray()],
+            None => vec![Span::from("?").dark_gray()],
         };
 
         Line::from(last_heard_spans)
@@ -207,13 +201,13 @@ impl<'a> Widget for NodeWidget<'a> {
 
 fn humanize_duration<'a>(d: TimeDelta) -> Vec<Span<'a>> {
     if d.num_seconds() < 60 {
-        return vec![Span::from("now".to_owned()).green()];
+        return vec![Span::from("now").green()];
     }
 
     if d.num_minutes() < 60 {
         return vec![
             Span::from(format!("{}m", d.num_minutes())),
-            Span::from(" ago".to_owned()).dark_gray(),
+            Span::from(" ago").dark_gray(),
         ];
     }
 
@@ -222,7 +216,7 @@ fn humanize_duration<'a>(d: TimeDelta) -> Vec<Span<'a>> {
 
         return vec![
             Span::from(format!("{}h {}m", d.num_hours(), remaining_minutes)),
-            Span::from(" ago".to_owned()).dark_gray(),
+            Span::from(" ago").dark_gray(),
         ];
     }
 
@@ -230,6 +224,6 @@ fn humanize_duration<'a>(d: TimeDelta) -> Vec<Span<'a>> {
 
     vec![
         Span::from(format!("{}d {}h", d.num_days(), remaining_hours)),
-        Span::from(" ago".to_owned()).dark_gray(),
+        Span::from(" ago").dark_gray(),
     ]
 }
