@@ -5,7 +5,7 @@ use tracing_unwrap::OptionExt;
 use tui_input::backend::crossterm::EventHandler;
 use tui_widget_list::ScrollDirection;
 
-use crate::ui::prelude::*;
+use crate::ui::{helpers::snr_to_color, prelude::*};
 
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 
@@ -349,7 +349,7 @@ impl<'a> Widget for MessageWidget<'a> {
             .flex(layout::Flex::SpaceBetween)
             .constraints([
                 Constraint::Fill(4),
-                Constraint::Fill(1),
+                Constraint::Fill(2),
                 Constraint::Fill(1),
             ])
             .split(v[0]);
@@ -361,10 +361,21 @@ impl<'a> Widget for MessageWidget<'a> {
         ])
         .render(v0_h[0], buf);
 
-        if let Some(hops) = self.node.hops_away {
+        if let Some(hops) = self.node.hops_away
+            && hops > 0
+        {
             Span::from("❯".repeat(hops as usize))
                 .dark_gray()
                 .render(v0_h[1], buf);
+        } else {
+            Line::from(vec![
+                Span::from("SNR ").dark_gray(),
+                Span::from(self.message.snr.to_string()).fg(snr_to_color(self.message.snr)),
+                Span::from("  RSSI ").dark_gray(),
+                Span::from(self.message.rssi.to_string()).dark_gray(),
+            ])
+            .dark_gray()
+            .render(v0_h[1], buf);
         }
 
         Line::from(

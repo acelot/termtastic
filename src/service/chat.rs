@@ -9,7 +9,7 @@ use tracing_unwrap::{OptionExt, ResultExt};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
-    types::{AppEvent, Channel, ChannelRole, Message},
+    types::{AppEvent, Channel, ChannelRole, Message, Node},
 };
 
 pub struct ChatService {
@@ -178,6 +178,28 @@ impl ChatService {
                                 e
                             ),
                         };
+                    }
+                    PortNum::RangeTestApp => {
+                        let state = &self.state_rx.borrow();
+                        let text = String::from_utf8(data.payload.clone())
+                            .unwrap_or("can't decoded payload".to_owned());
+                        let unknown_node = Node::unknown();
+                        let node = state.nodes.get(&packet.from).unwrap_or(&unknown_node);
+
+                        tracing::info!(
+                            packet_id = packet.id,
+                            node_from = packet.from,
+                            node_to = packet.to,
+                            channel = packet.channel,
+                            "range test packet from [{}] {} ({}), text: \"{}\", hops: {}, snr: {}, rssi: {}",
+                            node.short_name,
+                            node.long_name,
+                            node.hw_model,
+                            text,
+                            packet.hop_start - packet.hop_limit,
+                            packet.rx_snr,
+                            packet.rx_rssi,
+                        );
                     }
                     portnum => {
                         tracing::info!(

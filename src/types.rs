@@ -411,6 +411,8 @@ pub struct Message {
     pub text: String,
     pub reactions: HashMap<String, HashMap<u32, DateTime<Utc>>>,
     pub hops: Option<u32>,
+    pub snr: f32,
+    pub rssi: i32,
 }
 
 impl
@@ -427,24 +429,16 @@ impl
             &meshtastic::protobufs::Data,
         ),
     ) -> Result<Self, Self::Error> {
-        let text = match data.portnum() {
-            PortNum::TextMessageApp | PortNum::ReplyApp => String::from_utf8(data.payload.clone())?,
-            portnum => {
-                return Err(anyhow::anyhow!(
-                    "unsupported portnum: {}",
-                    portnum.as_str_name()
-                ));
-            }
-        };
-
         Ok(Self {
             id: packet.id,
             reply_to: data.reply_id,
             from: packet.from,
             datetime: Utc::now(),
-            text,
+            text: String::from_utf8(data.payload.clone())?,
             reactions: HashMap::default(),
             hops: Some(packet.hop_start - packet.hop_limit),
+            snr: packet.rx_snr,
+            rssi: packet.rx_rssi,
         })
     }
 }
