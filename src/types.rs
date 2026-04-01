@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Instant};
 
 use anyhow::anyhow;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use hostaddr::HostAddr;
 use ratatui::{
     style::{self, Stylize as _},
@@ -414,6 +414,7 @@ pub struct Message {
     pub hops: Option<u32>,
     pub snr: f32,
     pub rssi: i32,
+    pub acks: u32,
 }
 
 impl
@@ -434,12 +435,16 @@ impl
             id: packet.id,
             reply_to: data.reply_id,
             from: packet.from,
-            datetime: Utc::now(),
+            datetime: Utc
+                .timestamp_opt(packet.rx_time as i64, 0)
+                .single()
+                .unwrap_or(Utc::now()),
             text: String::from_utf8(data.payload.clone())?,
             reactions: HashMap::default(),
             hops: Some(packet.hop_start - packet.hop_limit),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
+            acks: 0,
         })
     }
 }

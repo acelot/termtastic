@@ -383,19 +383,28 @@ impl<'a> Widget for MessageWidget<'a> {
             if let Some(hops) = self.node.hops_away
                 && hops > 0
             {
-                Span::from("❯".repeat(hops as usize))
+                Span::from(format!("hops: {}", hops))
                     .dark_gray()
                     .render(v0_h[1], buf);
             } else {
                 Line::from(vec![
-                    Span::from("S: ").dark_gray(),
-                    Span::from(format!("{} dB", self.message.snr))
+                    Span::from(format!("⁕ {}dB", self.message.snr))
                         .fg(snr_to_color(self.message.snr)),
-                    Span::from("  R: ").dark_gray(),
-                    Span::from(format!("{} dBm", self.message.rssi)).dark_gray(),
+                    Span::from("  ").dark_gray(),
+                    Span::from(format!("RSSI {}dBm", self.message.rssi)).dark_gray(),
                 ])
                 .dark_gray()
                 .render(v0_h[1], buf);
+            }
+        } else {
+            if self.message.acks > 0 {
+                Line::from(vec![
+                    Span::from("ACKs: ").dark_gray(),
+                    Span::from(self.message.acks.to_string()).green(),
+                ])
+                .render(v0_h[1], buf);
+            } else {
+                Span::from("no ack").dark_gray().render(v0_h[1], buf);
             }
         }
 

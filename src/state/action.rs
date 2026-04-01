@@ -27,6 +27,7 @@ pub enum StateAction {
         emoji: String,
         node_key: u32,
     },
+    MessageAck(u32, u32),
     MyNodeKeySet(u32),
     NodeAdd(Node),
     NodeUpdateLastHeard(u32),

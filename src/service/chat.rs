@@ -1,6 +1,11 @@
 use meshtastic::{
     Message as _,
-    protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
+    protobufs::{
+        MeshPacket, PortNum, Routing,
+        from_radio::PayloadVariant,
+        mesh_packet::{self, TransportMechanism},
+        routing,
+    },
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
@@ -124,10 +129,26 @@ impl ChatService {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
                     PortNum::RoutingApp => match Routing::decode(&*data.payload) {
                         Ok(Routing {
-                            variant: Some(routing::Variant::RouteReply(reply)),
-                        }) => {}
-                        Ok(Routing { variant: _ }) => {}
-                        Err(_) => {}
+                            variant: Some(routing::Variant::ErrorReason(e)),
+                        }) if e == routing::Error::None as i32 => {
+                            tracing::debug!("ACK: {:?}", packet);
+
+                            let state = &self.state_rx.borrow();
+
+                            if let Some(my) = state.my_node_key
+                                && packet.to == my
+                            {
+                                let channel_key = if packet.to == packet.from {
+                                    0
+                                } else {
+                                    packet.from
+                                };
+
+                                self.state_action_tx
+                                    .send(StateAction::MessageAck(channel_key, data.request_id))?;
+                            }
+                        }
+                        _ => {}
                     },
                     PortNum::TextMessageApp | PortNum::ReplyApp => {
                         let state = &self.state_rx.borrow();
@@ -192,7 +213,7 @@ impl ChatService {
                             node_from = packet.from,
                             node_to = packet.to,
                             channel = packet.channel,
-                            "range test packet from [{}] {} ({}), text: \"{}\", hops: {}, snr: {}, rssi: {}",
+                            "RANGE TEST from [{}] {} ({}), text: \"{}\", hops: {}, snr: {}, rssi: {}",
                             node.short_name,
                             node.long_name,
                             node.hw_model,
@@ -202,15 +223,8 @@ impl ChatService {
                             packet.rx_rssi,
                         );
                     }
-                    portnum => {
-                        tracing::info!(
-                            packet_id = packet.id,
-                            node_from = packet.from,
-                            node_to = packet.to,
-                            channel = packet.channel,
-                            "unhandled portnum: {}",
-                            portnum.as_str_name()
-                        );
+                    _ => {
+                        tracing::info!("unhandled packet app: {:?}", packet);
                     }
                 },
                 Some(mesh_packet::PayloadVariant::Encrypted(_)) => {
@@ -224,9 +238,20 @@ impl ChatService {
                 }
                 None => {}
             },
-            _ => {}
+            variant => {
+                tracing::debug!("unhandled payload variant: {:?}", variant);
+            }
         }
 
         Ok(())
+    }
+
+    fn packet_to_channel_key(&self, packet: &MeshPacket, my_node_key: Option<u32>) -> u32 {
+        match (packet.from, packet.to, my_node_key) {
+            (_, 0 | u32::MAX, _) => packet.channel,
+            (from, to, Some(my)) if to == my => from,
+            (from, to, Some(my)) if from == my => to,
+            _ => unreachable!(),
+        }
     }
 }

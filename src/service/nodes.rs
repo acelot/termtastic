@@ -14,7 +14,7 @@ use crate::{
     types::{AppEvent, Node},
 };
 
-const UPDATE_ONLINE_NODES_INTERVAL_MILLIS: u64 = 1000;
+const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 15;
 const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 pub struct NodesService {
@@ -47,7 +47,7 @@ impl NodesService {
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         let mut online_nodes_interval =
-            time::interval(Duration::from_millis(UPDATE_ONLINE_NODES_INTERVAL_MILLIS));
+            time::interval(Duration::from_secs(UPDATE_ONLINE_NODES_INTERVAL_SECS));
 
         loop {
             tokio::select! {

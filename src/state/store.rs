@@ -198,15 +198,27 @@ impl Store {
                 emoji,
                 node_key,
             } => {
-                if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
-                    if let Some(message) = messages_vec.iter_mut().find(|msg| msg.id == message_id)
-                    {
-                        message
-                            .reactions
-                            .entry(emoji)
-                            .or_insert_with(HashMap::new)
-                            .insert(node_key, Utc::now());
-                    }
+                if let Some(message) = self
+                    .state
+                    .messages
+                    .get_mut(&channel_key)
+                    .and_then(|messages| messages.iter_mut().find(|msg| msg.id == message_id))
+                {
+                    message
+                        .reactions
+                        .entry(emoji)
+                        .or_insert_with(HashMap::new)
+                        .insert(node_key, Utc::now());
+                }
+            }
+            StateAction::MessageAck(channel_key, message_id) => {
+                if let Some(message) = self
+                    .state
+                    .messages
+                    .get_mut(&channel_key)
+                    .and_then(|messages| messages.iter_mut().find(|msg| msg.id == message_id))
+                {
+                    message.acks += 1;
                 }
             }
             StateAction::FrameCleared => {
