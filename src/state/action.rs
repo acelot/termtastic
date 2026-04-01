@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use hostaddr::HostAddr;
 
 use crate::types::{AppConfig, Channel, Device, LogRecord, Message, Node, NodesSortBy, Toast};
@@ -12,6 +14,7 @@ pub enum StateAction {
     ConnectionStart,
     ConnectionStop,
     ConnectionSuccess,
+    ReconnectionBackoffSet(Duration),
     DeviceActiveSet(Device),
     DevicesAddTcp(HostAddr<String>),
     DiscoveredDevicesSet(Vec<Device>),

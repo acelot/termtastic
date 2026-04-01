@@ -237,9 +237,14 @@ impl Component for Connection {
             frame.render_widget(popup_block, popup_area);
 
             let block_v = Layout::default()
-                .flex(Flex::SpaceAround)
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Fill(1), Constraint::Fill(1)])
+                .constraints([
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                    Constraint::Length(1),
+                    Constraint::Min(1),
+                    Constraint::Fill(1),
+                ])
                 .split(popup_block_area);
 
             let device_widget = DeviceWidget {
@@ -249,7 +254,7 @@ impl Component for Connection {
                 dimmed: false,
             };
 
-            device_widget.render(block_v[0], frame.buffer_mut());
+            device_widget.render(block_v[1], frame.buffer_mut());
 
             let conn_info: Vec<Line> = match &state.connection_state {
                 ConnectionState::NotConnected => {
@@ -272,7 +277,7 @@ impl Component for Connection {
                 Paragraph::new(conn_info)
                     .alignment(HorizontalAlignment::Center)
                     .wrap(Wrap { trim: false }),
-                block_v[1],
+                block_v[3],
             );
         }
 

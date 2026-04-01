@@ -1,5 +1,5 @@
 use meshtastic::protobufs::FromRadio;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::ResultExt;
 
@@ -22,17 +22,13 @@ impl RadioService {
         loop {
             tokio::select! {
                 _ = subsys.on_shutdown_requested() => {
-                    tracing::info!("shutdown");
-                    break;
+                    return Ok(());
                 }
                 maybe_packet = radio_rx.recv() => if !self.handle_radio_packet(maybe_packet) {
-                    tracing::warn!("radio stopped");
-                    break;
+                    return Err(anyhow::anyhow!("radio stopped unexpectedly"));
                 }
             }
         }
-
-        Ok(())
     }
 
     fn handle_radio_packet(&mut self, maybe_packet: Option<FromRadio>) -> bool {
@@ -46,13 +42,7 @@ impl RadioService {
 
                 true
             }
-            None => {
-                self.event_tx
-                    .send(MeshtasticEvent::RadioStopped)
-                    .unwrap_or_log();
-
-                false
-            }
+            None => false,
         }
     }
 }

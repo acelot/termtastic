@@ -2,7 +2,6 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::{
     state::{State, StateAction},
@@ -36,8 +35,8 @@ impl ConfigService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await,
-                _ = self.state_rx.changed() => self.handle_state_change(),
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await?,
+                _ = self.state_rx.changed() => self.handle_state_change()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -48,35 +47,37 @@ impl ConfigService {
         Ok(())
     }
 
-    async fn handle_app_event(&mut self, event: AppEvent) {
+    async fn handle_app_event(&mut self, event: AppEvent) -> anyhow::Result<()> {
         match event {
             AppEvent::InitializationRequested => {
                 let state = &self.state_rx.borrow();
 
-                let app_config: AppConfig = confy::load(&state.app_name, "app").unwrap_or_log();
+                let app_config: AppConfig = confy::load(&state.app_name, "app")?;
 
                 self.state_action_tx
-                    .send(StateAction::AppConfigApply(app_config))
-                    .unwrap_or_log();
+                    .send(StateAction::AppConfigApply(app_config))?;
 
                 self.state_action_tx
-                    .send(StateAction::Toast(Toast::normal("config loaded")))
-                    .unwrap_or_log();
+                    .send(StateAction::Toast(Toast::normal("config loaded")))?;
             }
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn handle_state_change(&mut self) {
+    fn handle_state_change(&mut self) -> anyhow::Result<()> {
         let state = &self.state_rx.borrow();
 
         let app_config: AppConfig = state.into();
         let app_config_hash = calculate_hash(&app_config);
 
         if app_config_hash != self.app_config_last_hash {
-            confy::store(&state.app_name, "app", &app_config).unwrap_or_log();
+            confy::store(&state.app_name, "app", &app_config)?;
             self.app_config_last_hash = app_config_hash;
         }
+
+        Ok(())
     }
 }
 

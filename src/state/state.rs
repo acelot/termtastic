@@ -1,9 +1,8 @@
 use std::{
     collections::{HashMap, VecDeque},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
-use chrono::Duration;
 use hostaddr::HostAddr;
 
 use crate::types::*;
@@ -17,8 +16,8 @@ pub struct State {
     pub app_version: String,
     pub channels: HashMap<u32, Channel>,
     pub connection_attempt: u16,
-    pub connection_backoff: Duration,
     pub connection_state: ConnectionState,
+    pub reconnection_backoff: Option<Duration>,
     pub discovered_devices: Vec<Device>,
     pub logs: Vec<LogRecord>,
     pub my_node_key: Option<u32>,
@@ -46,8 +45,8 @@ impl Default for State {
             app_version: crate::APP_VERSION.to_owned(),
             channels: HashMap::with_capacity(10),
             connection_attempt: 0,
-            connection_backoff: Duration::zero(),
             connection_state: ConnectionState::NotConnected,
+            reconnection_backoff: None,
             discovered_devices: Vec::default(),
             logs: Vec::with_capacity(1000),
             my_node_key: None,

@@ -44,8 +44,17 @@ impl Component for Header {
 
         let conn_info = match state.connection_state {
             ConnectionState::NotConnected => vec![Span::from("not connected").dark_gray()],
-            ConnectionState::ProblemDetected { since, .. } => {
-                vec![Span::from(format!("on pause {} secs", since.elapsed().as_secs())).red()]
+            ConnectionState::ProblemDetected { .. } => {
+                vec![
+                    Span::from(format!(
+                        "reconnecting in {} sec...",
+                        state
+                            .reconnection_backoff
+                            .and_then(|b| Some(b.as_secs().to_string()))
+                            .unwrap_or("?".to_owned())
+                    ))
+                    .red(),
+                ]
             }
             ConnectionState::Connecting => vec![Span::from("connecting...").yellow()],
             ConnectionState::Connected => vec![

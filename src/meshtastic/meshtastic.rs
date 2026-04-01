@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use meshtastic::{
-    Message,
     api::ConnectedStreamApi,
     packet::{PacketDestination, PacketRouter},
     protobufs::{FromRadio, PortNum, from_radio::PayloadVariant},
@@ -14,7 +13,7 @@ use tokio::{
     },
     time::timeout,
 };
-use tokio_graceful_shutdown::{NestedSubsystem, SubsystemBuilder, SubsystemHandle};
+use tokio_graceful_shutdown::{ErrorAction, NestedSubsystem, SubsystemBuilder, SubsystemHandle};
 use tracing_unwrap::ResultExt;
 
 use crate::meshtastic::{
@@ -22,7 +21,7 @@ use crate::meshtastic::{
     types::{CommandToMeshtastic, MeshtasticEvent},
 };
 
-const CONNECTION_TIMEOUT_SECS: u64 = 5;
+const CONNECTION_TIMEOUT_SECS: u64 = 2;
 
 pub struct MeshtasticService {
     command_rx: mpsc::UnboundedReceiver<CommandToMeshtastic>,
@@ -55,10 +54,14 @@ impl MeshtasticService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Some(cmd) = self.command_rx.recv() => self.handle_command(cmd, subsys).await,
+                Some(cmd) = self.command_rx.recv() => {
+                    self.handle_command(cmd, subsys).await?;
+                },
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
-                    self.disconnect().await;
+                    self.disconnect().await?;
+                    self.event_tx.send(MeshtasticEvent::Disconnected)?;
+
                     break;
                 }
             }
@@ -67,7 +70,11 @@ impl MeshtasticService {
         Ok(())
     }
 
-    async fn handle_command(&mut self, cmd: CommandToMeshtastic, subsys: &mut SubsystemHandle) {
+    async fn handle_command(
+        &mut self,
+        cmd: CommandToMeshtastic,
+        subsys: &mut SubsystemHandle,
+    ) -> anyhow::Result<()> {
         match cmd {
             CommandToMeshtastic::ConnectViaTcp(hostaddr) => {
                 match timeout(
@@ -78,24 +85,19 @@ impl MeshtasticService {
                 {
                     Ok(Ok((radio_rx, stream_api))) => {
                         self.handle_connection(radio_rx, stream_api, subsys);
-
-                        self.event_tx
-                            .send(MeshtasticEvent::Connected)
-                            .unwrap_or_log();
+                        self.event_tx.send(MeshtasticEvent::Connected)?;
                     }
                     Ok(Err(e)) => {
                         tracing::error!("can't connect via TCP: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                     Err(e) => {
                         tracing::error!("connection timeout: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                 };
             }
@@ -109,23 +111,19 @@ impl MeshtasticService {
                     Ok(Ok((radio_rx, stream_api))) => {
                         self.handle_connection(radio_rx, stream_api, subsys);
 
-                        self.event_tx
-                            .send(MeshtasticEvent::Connected)
-                            .unwrap_or_log();
+                        self.event_tx.send(MeshtasticEvent::Connected)?;
                     }
                     Ok(Err(e)) => {
                         tracing::error!("can't connect via BLE: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                     Err(e) => {
                         tracing::error!("connection timeout: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                 };
             }
@@ -147,19 +145,20 @@ impl MeshtasticService {
                         tracing::error!("can't connect via serial: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                     Err(e) => {
                         tracing::error!("connection timeout: {:?}", e);
 
                         self.event_tx
-                            .send(MeshtasticEvent::ConnectionError(e.to_string()))
-                            .unwrap_or_log();
+                            .send(MeshtasticEvent::ConnectionError(e.to_string()))?;
                     }
                 };
             }
-            CommandToMeshtastic::Disconnect => self.disconnect().await,
+            CommandToMeshtastic::Disconnect => {
+                self.disconnect().await?;
+                self.event_tx.send(MeshtasticEvent::Disconnected)?;
+            }
             CommandToMeshtastic::SendBroadcastTextMessage {
                 my_node_id,
                 channel_id,
@@ -187,14 +186,10 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self
-                        .event_tx
-                        .send(MeshtasticEvent::MessageAccepted)
-                        .unwrap_or_log(),
+                    Ok(()) => self.event_tx.send(MeshtasticEvent::MessageAccepted)?,
                     Err(e) => self
                         .event_tx
-                        .send(MeshtasticEvent::MessageRejected(e.to_string()))
-                        .unwrap_or_log(),
+                        .send(MeshtasticEvent::MessageRejected(e.to_string()))?,
                 };
             }
             CommandToMeshtastic::SendDirectTextMessage {
@@ -212,7 +207,7 @@ impl MeshtasticService {
                             my_node_id,
                             event_tx: &self.event_tx,
                         },
-                        EncodedMeshPacketData::new(text.encode_to_vec()),
+                        EncodedMeshPacketData::new(text.into_bytes()),
                         PortNum::TextMessageApp,
                         PacketDestination::Node(NodeId::from(node_id)),
                         MeshChannel::from(0),
@@ -224,34 +219,30 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self
-                        .event_tx
-                        .send(MeshtasticEvent::MessageAccepted)
-                        .unwrap_or_log(),
+                    Ok(()) => self.event_tx.send(MeshtasticEvent::MessageAccepted)?,
                     Err(e) => self
                         .event_tx
-                        .send(MeshtasticEvent::MessageRejected(e.to_string()))
-                        .unwrap_or_log(),
+                        .send(MeshtasticEvent::MessageRejected(e.to_string()))?,
                 };
             }
         };
+
+        Ok(())
     }
 
-    async fn disconnect(&mut self) {
+    async fn disconnect(&mut self) -> anyhow::Result<()> {
         if let Some(subsys) = self.radio_subsys.take() {
             if !subsys.is_finished() {
                 subsys.initiate_shutdown();
-                subsys.join().await.unwrap_or_log();
+                subsys.join().await?;
             }
         }
 
         if let Some(stream_api) = self.stream_api.take() {
-            stream_api.disconnect().await.ok_or_log();
+            stream_api.disconnect().await?;
         }
 
-        self.event_tx
-            .send(MeshtasticEvent::Disconnected)
-            .unwrap_or_log();
+        Ok(())
     }
 
     fn handle_connection(
@@ -272,6 +263,8 @@ impl MeshtasticService {
                     .await
             },
         ));
+
+        subsys.change_failure_action(ErrorAction::CatchAndLocalShutdown);
 
         self.radio_subsys = Some(subsys);
     }

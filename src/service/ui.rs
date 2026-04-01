@@ -1,6 +1,5 @@
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::ui::prelude::AppEvent;
 use crate::{
@@ -39,8 +38,8 @@ impl UiService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event),
-                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event)?,
+                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -51,25 +50,26 @@ impl UiService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: AppEvent) {
+    fn handle_app_event(&self, event: AppEvent) -> anyhow::Result<()> {
         match event {
             AppEvent::NextTabRequested => {
-                self.state_action_tx
-                    .send(StateAction::TabSwitchToNext)
-                    .unwrap_or_log();
+                self.state_action_tx.send(StateAction::TabSwitchToNext)?;
             }
             AppEvent::PreviousTabRequested => {
                 self.state_action_tx
-                    .send(StateAction::TabSwitchToPrevious)
-                    .unwrap_or_log();
+                    .send(StateAction::TabSwitchToPrevious)?;
             }
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn handle_meshtastic_event(&self, event: MeshtasticEvent) {
+    fn handle_meshtastic_event(&self, event: MeshtasticEvent) -> anyhow::Result<()> {
         match event {
             _ => {}
         }
+
+        Ok(())
     }
 }

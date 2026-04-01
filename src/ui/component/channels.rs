@@ -219,6 +219,8 @@ impl<'a> Widget for ConversationWidget<'a> {
         .render(v0_h[2], buf);
 
         // second line
+        let unknown_node = &Node::unknown();
+
         let second_line_spans = match (
             &self.channel.role,
             self.last_message_node,
@@ -229,18 +231,14 @@ impl<'a> Widget for ConversationWidget<'a> {
             }
             (_, None, Some(message)) => {
                 vec![
-                    Span::from(format!("{:^6}", Node::unknown().short_name.clone()))
-                        .black()
-                        .on_dark_gray(),
+                    unknown_node.to_span(),
                     Span::from(" "),
                     Span::from(message.text.clone()).dark_gray(),
                 ]
             }
             (_, Some(node), Some(message)) => {
                 vec![
-                    Span::from(format!("{:^6}", node.short_name.clone()))
-                        .black()
-                        .on_dark_gray(),
+                    node.to_span(),
                     Span::from(" "),
                     Span::from(message.text.clone()).dark_gray(),
                 ]

@@ -87,6 +87,10 @@ impl Store {
             }
             StateAction::ConnectionStart => {
                 self.state.connection_state = ConnectionState::Connecting;
+                self.state.connection_attempt += 1;
+                self.state.reconnection_backoff = None;
+
+                tracing::debug!("connection attempt #{}", self.state.connection_attempt);
             }
             StateAction::ConnectionFail(error) => {
                 self.state.connection_state = ConnectionState::ProblemDetected {
@@ -96,6 +100,8 @@ impl Store {
             }
             StateAction::ConnectionStop => {
                 self.state.connection_state = ConnectionState::NotConnected;
+                self.state.connection_attempt = 0;
+                self.state.reconnection_backoff = None;
                 self.state.active_device = None;
                 self.state.channels.clear();
                 self.state.nodes_sort.clear();
@@ -104,6 +110,11 @@ impl Store {
             }
             StateAction::ConnectionSuccess => {
                 self.state.connection_state = ConnectionState::Connected;
+                self.state.connection_attempt = 0;
+                self.state.reconnection_backoff = None;
+            }
+            StateAction::ReconnectionBackoffSet(duration) => {
+                self.state.reconnection_backoff = Some(duration);
             }
             StateAction::LogRecordAdd(r) => {
                 self.state.logs.push(r);
@@ -117,11 +128,11 @@ impl Store {
                 }
             }
             StateAction::DevicesRemoveTcp(hostaddr) => {
-                let maybe_index = self.state.tcp_devices.iter().position(|h| h == &hostaddr);
-
-                if let Some(index) = maybe_index {
-                    self.state.tcp_devices.remove(index);
-                }
+                self.state
+                    .tcp_devices
+                    .iter()
+                    .position(|h| h == &hostaddr)
+                    .map(|index| self.state.tcp_devices.remove(index));
             }
             StateAction::NodeAdd(mut node) => {
                 if let Some(number) = self.state.my_node_key

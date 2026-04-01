@@ -33,10 +33,12 @@ impl Messenger {
             .and_then(|s| Some(s.selected.is_some()))
             .unwrap_or(false);
 
+        let valid_input_len = 1..=INPUT_VALUE_MAX_LENGTH;
+
         let has_input_value = self
             .input_widgets
             .get(&active_channel_key)
-            .and_then(|input| Some(input.value().len() > 0))
+            .and_then(|input| Some(valid_input_len.contains(&input.value().len())))
             .unwrap_or(false);
 
         vec![
@@ -160,40 +162,6 @@ impl Component for Messenger {
             list_state.select(Some(messages.len() - 1));
         }
 
-        // list
-        let list_builder = ListBuilder::new(|context| {
-            let message = &messages[context.index as usize];
-            let node = state.nodes.get(&message.from).unwrap_or(&unknown_node);
-
-            let item = MessageWidget {
-                node: &node,
-                message,
-                is_selected: context.is_selected,
-            };
-
-            let mut height = item.height(area.width);
-
-            if context.index < messages.len() - 1 {
-                height += 1;
-            }
-
-            (item, height)
-        });
-
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .symbols(ScrollbarSet {
-                begin: "┬",
-                thumb: "█",
-                track: "│",
-                end: "┴",
-            })
-            .style(Style::new().dark_gray());
-
-        let list = ListView::new(list_builder, messages.len())
-            .infinite_scrolling(false)
-            .scroll_direction(ScrollDirection::Backward)
-            .scrollbar(scrollbar);
-
         let v = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -203,7 +171,57 @@ impl Component for Messenger {
             ])
             .split(area);
 
-        list.render(v[0], frame.buffer_mut(), list_state);
+        // list
+        if !messages.is_empty() {
+            let list_builder = ListBuilder::new(|context| {
+                let message = &messages[context.index as usize];
+                let node = state.nodes.get(&message.from).unwrap_or(&unknown_node);
+
+                let item = MessageWidget {
+                    node: &node,
+                    message,
+                    is_selected: context.is_selected,
+                };
+
+                let mut height = item.height(area.width);
+
+                if context.index < messages.len() - 1 {
+                    height += 1;
+                }
+
+                (item, height)
+            });
+
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .symbols(ScrollbarSet {
+                    begin: "┬",
+                    thumb: "█",
+                    track: "│",
+                    end: "┴",
+                })
+                .style(Style::new().dark_gray());
+
+            let list = ListView::new(list_builder, messages.len())
+                .infinite_scrolling(false)
+                .scroll_direction(ScrollDirection::Backward)
+                .scrollbar(scrollbar);
+
+            list.render(v[0], frame.buffer_mut(), list_state);
+        } else {
+            let v0_v = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                    Constraint::Fill(1),
+                ])
+                .split(v[0]);
+
+            Line::from(Span::from("no messages"))
+                .dark_gray()
+                .centered()
+                .render(v0_v[1], frame.buffer_mut());
+        }
 
         // input
         let input_block = Block::bordered()
@@ -361,21 +379,24 @@ impl<'a> Widget for MessageWidget<'a> {
         ])
         .render(v0_h[0], buf);
 
-        if let Some(hops) = self.node.hops_away
-            && hops > 0
-        {
-            Span::from("❯".repeat(hops as usize))
+        if !self.node.my {
+            if let Some(hops) = self.node.hops_away
+                && hops > 0
+            {
+                Span::from("❯".repeat(hops as usize))
+                    .dark_gray()
+                    .render(v0_h[1], buf);
+            } else {
+                Line::from(vec![
+                    Span::from("S: ").dark_gray(),
+                    Span::from(format!("{} dB", self.message.snr))
+                        .fg(snr_to_color(self.message.snr)),
+                    Span::from("  R: ").dark_gray(),
+                    Span::from(format!("{} dBm", self.message.rssi)).dark_gray(),
+                ])
                 .dark_gray()
                 .render(v0_h[1], buf);
-        } else {
-            Line::from(vec![
-                Span::from("SNR ").dark_gray(),
-                Span::from(self.message.snr.to_string()).fg(snr_to_color(self.message.snr)),
-                Span::from("  RSSI ").dark_gray(),
-                Span::from(self.message.rssi.to_string()).dark_gray(),
-            ])
-            .dark_gray()
-            .render(v0_h[1], buf);
+            }
         }
 
         Line::from(

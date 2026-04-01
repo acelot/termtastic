@@ -3,7 +3,6 @@ use std::{collections::HashMap, time::Instant};
 use anyhow::anyhow;
 use chrono::{DateTime, Utc};
 use hostaddr::HostAddr;
-use meshtastic::protobufs::PortNum;
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -160,6 +159,7 @@ pub struct Hotkey {
     pub label: String,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq)]
 #[repr(u128)]
 pub enum ToastKind {
@@ -187,6 +187,7 @@ pub struct Toast {
     pub skippable: bool,
 }
 
+#[allow(dead_code)]
 impl Toast {
     pub fn success<S: Into<String>>(text: S) -> Self {
         Self {

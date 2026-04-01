@@ -43,8 +43,8 @@ impl ChatService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event),
-                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event)?,
+                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -55,19 +55,16 @@ impl ChatService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: AppEvent) {
+    fn handle_app_event(&self, event: AppEvent) -> anyhow::Result<()> {
         let state = &self.state_rx.borrow();
 
         match event {
             AppEvent::ChannelSelected(number) => {
                 self.state_action_tx
-                    .send(StateAction::ChannelActiveSet(number))
-                    .unwrap_or_log();
+                    .send(StateAction::ChannelActiveSet(number))?;
             }
             AppEvent::SwitchChannelRequested => {
-                self.state_action_tx
-                    .send(StateAction::ChannelActiveUnset)
-                    .unwrap_or_log();
+                self.state_action_tx.send(StateAction::ChannelActiveUnset)?;
             }
             AppEvent::ChatMessageSubmitted(text) => match state.get_active_channel() {
                 Some(Channel {
@@ -75,51 +72,53 @@ impl ChatService {
                     role: ChannelRole::Primary | ChannelRole::Secondary,
                     ..
                 }) => {
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::SendBroadcastTextMessage {
+                    self.meshtastic_command_tx.send(
+                        CommandToMeshtastic::SendBroadcastTextMessage {
                             my_node_id: state.my_node_key.unwrap_or_log(),
                             channel_id: *key,
                             reply_message_id: None,
                             text,
-                        })
-                        .unwrap_or_log();
+                        },
+                    )?;
                 }
                 Some(Channel {
                     key,
                     role: ChannelRole::Direct,
                     ..
                 }) => {
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::SendDirectTextMessage {
+                    self.meshtastic_command_tx.send(
+                        CommandToMeshtastic::SendDirectTextMessage {
                             my_node_id: state.my_node_key.unwrap_or_log(),
                             node_id: *key,
                             reply_message_id: None,
                             text,
-                        })
-                        .unwrap_or_log();
+                        },
+                    )?;
                 }
                 _ => {}
             },
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) {
+    fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) -> anyhow::Result<()> {
         match event {
-            MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet),
+            MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet)?,
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, payload_variant: PayloadVariant) {
+    fn handle_meshtastic_packet(&mut self, payload_variant: PayloadVariant) -> anyhow::Result<()> {
         match payload_variant {
             PayloadVariant::Channel(ch) => {
-                self.state_action_tx
-                    .send(StateAction::ChannelEnsure(
-                        ch.index as u32,
-                        Channel::from(&ch),
-                    ))
-                    .unwrap_or_log();
+                self.state_action_tx.send(StateAction::ChannelEnsure(
+                    ch.index as u32,
+                    Channel::from(&ch),
+                ))?;
             }
             PayloadVariant::Packet(packet) => match &packet.payload_variant {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
@@ -133,35 +132,37 @@ impl ChatService {
                     PortNum::TextMessageApp | PortNum::ReplyApp => {
                         let state = &self.state_rx.borrow();
 
-                        let channel_key = match (packet.to, state.my_node_key) {
-                            (0 | u32::MAX, _) => packet.channel,
-                            (to, Some(my)) if to == my && to != packet.from => {
-                                self.state_action_tx
-                                    .send(StateAction::ChannelEnsure(
-                                        packet.from,
-                                        Channel::direct(packet.from),
-                                    ))
-                                    .unwrap_or_log();
+                        let channel_key = match (packet.from, packet.to, state.my_node_key) {
+                            (_, 0 | u32::MAX, _) => packet.channel,
+                            (from, to, Some(my)) if to == my => {
+                                self.state_action_tx.send(StateAction::ChannelEnsure(
+                                    from,
+                                    Channel::direct(from),
+                                ))?;
 
-                                packet.from
+                                from
                             }
-                            _ => return,
+                            (from, to, Some(my)) if from == my => {
+                                self.state_action_tx
+                                    .send(StateAction::ChannelEnsure(to, Channel::direct(to)))?;
+
+                                to
+                            }
+                            _ => return Ok(()),
                         };
 
                         if data.emoji > 0
                             && let Ok(emoji) = String::from_utf8(data.payload.clone())
                             && !emoji.is_empty()
                         {
-                            self.state_action_tx
-                                .send(StateAction::MessageReactionAdd {
-                                    channel_key,
-                                    message_id: data.reply_id,
-                                    emoji,
-                                    node_key: packet.from,
-                                })
-                                .unwrap_or_log();
+                            self.state_action_tx.send(StateAction::MessageReactionAdd {
+                                channel_key,
+                                message_id: data.reply_id,
+                                emoji,
+                                node_key: packet.from,
+                            })?;
 
-                            return;
+                            return Ok(());
                         }
 
                         match Message::try_from((&packet, data)) {
@@ -225,5 +226,7 @@ impl ChatService {
             },
             _ => {}
         }
+
+        Ok(())
     }
 }

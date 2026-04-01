@@ -1269,12 +1269,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humantime"
-version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135b12329e5e3ce057a9f972339ea52bc954fe1e9358ef27f95e89716fbc5424"
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3024,7 +3018,6 @@ dependencies = [
  "crossterm",
  "futures",
  "hostaddr",
- "humantime",
  "itertools 0.14.0",
  "meshtastic",
  "ratatui",

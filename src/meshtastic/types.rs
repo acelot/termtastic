@@ -1,8 +1,6 @@
 use hostaddr::HostAddr;
 use meshtastic::protobufs::from_radio::PayloadVariant;
 
-use crate::types::{Channel, Node};
-
 #[derive(Debug, Clone)]
 pub enum MeshtasticEvent {
     Connected,

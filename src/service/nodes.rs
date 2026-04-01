@@ -7,7 +7,6 @@ use tokio::{
     time,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -52,9 +51,9 @@ impl NodesService {
 
         loop {
             tokio::select! {
-                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event),
-                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
-                _ = online_nodes_interval.tick() => self.update_online_nodes(),
+                Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event)?,
+                Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
+                _ = online_nodes_interval.tick() => self.update_online_nodes()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -65,28 +64,28 @@ impl NodesService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: AppEvent) {}
-
-    fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) {
-        match event {
-            MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet),
-            _ => {}
-        }
+    fn handle_app_event(&self, event: AppEvent) -> anyhow::Result<()> {
+        Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, packet: PayloadVariant) {
+    fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) -> anyhow::Result<()> {
+        match event {
+            MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet)?,
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn handle_meshtastic_packet(&mut self, packet: PayloadVariant) -> anyhow::Result<()> {
         match packet {
             PayloadVariant::MyInfo(my_info) => {
                 self.state_action_tx
-                    .send(StateAction::MyNodeKeySet(my_info.my_node_num))
-                    .unwrap_or_log();
+                    .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
             }
             PayloadVariant::NodeInfo(node_info) => {
                 match Node::try_from(&node_info) {
-                    Ok(node) => self
-                        .state_action_tx
-                        .send(StateAction::NodeAdd(node))
-                        .unwrap_or_log(),
+                    Ok(node) => self.state_action_tx.send(StateAction::NodeAdd(node))?,
                     Err(e) => {
                         tracing::debug!(
                             node_key = node_info.num,
@@ -98,20 +97,20 @@ impl NodesService {
             }
             PayloadVariant::Packet(packet) => {
                 self.state_action_tx
-                    .send(StateAction::NodeUpdateLastHeard(packet.from))
-                    .unwrap_or_log();
+                    .send(StateAction::NodeUpdateLastHeard(packet.from))?;
 
                 if packet.hop_start == packet.hop_limit {
                     self.state_action_tx
-                        .send(StateAction::NodeSetSnr(packet.from, packet.rx_snr))
-                        .unwrap_or_log();
+                        .send(StateAction::NodeSetSnr(packet.from, packet.rx_snr))?;
                 }
             }
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn update_online_nodes(&mut self) {
+    fn update_online_nodes(&mut self) -> anyhow::Result<()> {
         let state = &self.state_rx.borrow();
         let now = Utc::now();
 
@@ -126,7 +125,8 @@ impl NodesService {
         });
 
         self.state_action_tx
-            .send(StateAction::OnlineNodesSet(online_nodes))
-            .unwrap_or_log();
+            .send(StateAction::OnlineNodesSet(online_nodes))?;
+
+        Ok(())
     }
 }
