@@ -14,7 +14,6 @@ use tokio::{
     time::timeout,
 };
 use tokio_graceful_shutdown::{ErrorAction, NestedSubsystem, SubsystemBuilder, SubsystemHandle};
-use tracing_unwrap::ResultExt;
 
 use crate::meshtastic::{
     RadioService, connect_via_ble, connect_via_serial, connect_via_tcp,
@@ -26,6 +25,7 @@ const CONNECTION_TIMEOUT_SECS: u64 = 2;
 pub struct MeshtasticService {
     command_rx: mpsc::UnboundedReceiver<CommandToMeshtastic>,
     event_tx: broadcast::Sender<MeshtasticEvent>,
+    event_rx: broadcast::Receiver<MeshtasticEvent>,
     stream_api: Option<ConnectedStreamApi>,
     radio_subsys: Option<NestedSubsystem>,
 }
@@ -43,6 +43,7 @@ impl MeshtasticService {
             Self {
                 command_rx,
                 event_tx: event_tx.clone(),
+                event_rx: event_rx.resubscribe(),
                 stream_api: None,
                 radio_subsys: None,
             },
@@ -54,9 +55,8 @@ impl MeshtasticService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Some(cmd) = self.command_rx.recv() => {
-                    self.handle_command(cmd, subsys).await?;
-                },
+                Ok(event) = self.event_rx.recv() => self.handle_meshtastic_event(event).await?,
+                Some(cmd) = self.command_rx.recv() => self.handle_command(cmd, subsys).await?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     self.disconnect().await?;
@@ -65,6 +65,21 @@ impl MeshtasticService {
                     break;
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    async fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) -> anyhow::Result<()> {
+        match event {
+            MeshtasticEvent::RadioStopped => {
+                self.disconnect().await?;
+
+                self.event_tx.send(MeshtasticEvent::ConnectionError(
+                    "connection channel was closed unexpectedly".to_owned(),
+                ))?;
+            }
+            _ => {}
         }
 
         Ok(())
@@ -136,10 +151,7 @@ impl MeshtasticService {
                 {
                     Ok(Ok((radio_rx, stream_api))) => {
                         self.handle_connection(radio_rx, stream_api, subsys);
-
-                        self.event_tx
-                            .send(MeshtasticEvent::Connected)
-                            .unwrap_or_log();
+                        self.event_tx.send(MeshtasticEvent::Connected)?;
                     }
                     Ok(Err(e)) => {
                         tracing::error!("can't connect via serial: {:?}", e);
@@ -239,7 +251,10 @@ impl MeshtasticService {
         }
 
         if let Some(stream_api) = self.stream_api.take() {
-            stream_api.disconnect().await?;
+            let _ = stream_api
+                .disconnect()
+                .await
+                .inspect_err(|e| tracing::error!("stream api disconnect error: {}", e));
         }
 
         Ok(())
@@ -255,16 +270,17 @@ impl MeshtasticService {
 
         let event_tx = self.event_tx.clone();
 
-        let subsys = subsys.start(SubsystemBuilder::new(
-            "RadioService",
-            async |nested_subsys: &mut SubsystemHandle| {
-                RadioService::new(event_tx)
-                    .run(radio_rx, nested_subsys)
-                    .await
-            },
-        ));
-
-        subsys.change_failure_action(ErrorAction::CatchAndLocalShutdown);
+        let subsys = subsys.start(
+            SubsystemBuilder::new(
+                "RadioService",
+                async |nested_subsys: &mut SubsystemHandle| {
+                    RadioService::new(event_tx)
+                        .run(radio_rx, nested_subsys)
+                        .await
+                },
+            )
+            .on_failure(ErrorAction::CatchAndLocalShutdown),
+        );
 
         self.radio_subsys = Some(subsys);
     }

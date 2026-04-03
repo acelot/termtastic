@@ -1,6 +1,6 @@
 use chrono::{SubsecRound, TimeDelta, Utc};
 
-use crate::ui::{helpers::snr_to_color, prelude::*};
+use crate::ui::{helpers::ColorExt, prelude::*};
 
 pub struct Nodes {
     list_state: ListState,
@@ -30,7 +30,12 @@ impl Nodes {
 }
 
 impl Component for Nodes {
-    fn handle_event(&mut self, state: &State, event: &Event, _emit: &impl Fn(AppEvent)) {
+    fn handle_event(
+        &mut self,
+        state: &State,
+        event: &Event,
+        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Up => self.list_state.previous(),
@@ -50,6 +55,8 @@ impl Component for Nodes {
             },
             _ => {}
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
@@ -115,10 +122,10 @@ impl<'a> Widget for NodeWidget<'a> {
 
         let block = Block::bordered()
             .borders(Borders::LEFT)
-            .border_type(if self.is_selected {
-                BorderType::Thick
+            .border_set(if self.is_selected {
+                symbols::border::THICK
             } else {
-                BorderType::Plain
+                symbols::border::PLAIN
             })
             .border_style(Style::new().fg(if self.is_selected {
                 Color::Yellow
@@ -165,8 +172,8 @@ impl<'a> Widget for NodeWidget<'a> {
 
         Line::from(match self.node.hops_away {
             Some(0) => Span::from(format!("⁕ {}dB", self.node.snr))
-                .style(Style::new().fg(snr_to_color(self.node.snr))),
-            Some(hops) => Span::from(format!("hops: {}", hops)),
+                .style(Style::new().fg(self.node.snr.snr_to_color())),
+            Some(hops) => Span::from("❱".repeat(hops as usize)).dark_gray(),
             None if self.node.my => Span::from("✔ connected").blue(),
             None => Span::from("unknown").dark_gray(),
         })

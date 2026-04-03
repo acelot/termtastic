@@ -14,7 +14,7 @@ use crate::{
     types::{AppEvent, Node},
 };
 
-const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 15;
+const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 1;
 const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 pub struct NodesService {

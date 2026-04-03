@@ -15,8 +15,10 @@ crossterm = { version = "0.29", features = ["event-stream"] }
 futures = { version = "0.3" }
 hostaddr = { version = "0.2", features = ["serde"] }
 itertools = { version = "0.14" }
+lazy_static = { version = "*" }
 meshtastic = { version = "0.1", features = ["bluetooth-le"] }
 ratatui = { version = "0.30", features = ["unstable-rendered-line-info"] }
+regex = { version = "*" }
 serde = { version = "1.0" }
 strum = { version = "0.28", features = ["derive"] }
 thiserror = { version = "2.0" }

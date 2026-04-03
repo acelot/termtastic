@@ -31,7 +31,12 @@ impl Channels {
 }
 
 impl Component for Channels {
-    fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+    fn handle_event(
+        &mut self,
+        _state: &State,
+        event: &Event,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Up => self.list_state.previous(),
@@ -40,7 +45,7 @@ impl Component for Channels {
                     if let Some(i) = self.list_state.selected {
                         let channel = self.channels.get(i).unwrap();
 
-                        emit(AppEvent::ChannelSelected(channel.key));
+                        emit(AppEvent::ChannelSelected(channel.key))?;
                     }
                 }
                 _ => {}
@@ -52,6 +57,8 @@ impl Component for Channels {
             },
             _ => {}
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
@@ -172,11 +179,27 @@ impl<'a> Widget for ConversationWidget<'a> {
             self.channel.name.is_empty(),
             self.direct_node,
         ) {
-            (ChannelRole::Primary, false, _) => vec![Span::from(self.channel.name.clone())],
-            (ChannelRole::Primary, true, _) => vec![Span::from("Primary")],
-            (ChannelRole::Secondary, false, _) => vec![Span::from(self.channel.name.clone())],
+            (ChannelRole::Primary, false, _) => vec![
+                Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                Span::from(" "),
+                Span::from(self.channel.name.clone()),
+            ],
+            (ChannelRole::Primary, true, _) => {
+                vec![
+                    Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                    Span::from(" Primary"),
+                ]
+            }
+            (ChannelRole::Secondary, false, _) => vec![
+                Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                Span::from(" "),
+                Span::from(self.channel.name.clone()),
+            ],
             (ChannelRole::Secondary, true, _) => {
-                vec![Span::from(format!("Secondary #{}", self.channel.id))]
+                vec![
+                    Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                    Span::from(format!(" Secondary #{}", self.channel.id)),
+                ]
             }
             (ChannelRole::Direct, true, Some(node)) => {
                 vec![
@@ -196,13 +219,13 @@ impl<'a> Widget for ConversationWidget<'a> {
         Line::from(name_span).render(v0_h[0], buf);
 
         let type_span = match &self.channel.role {
-            ChannelRole::Primary => Span::from("PRIMARY").dark_gray(),
-            ChannelRole::Secondary => Span::from("SECONDARY").dark_gray(),
-            ChannelRole::Direct => Span::from("DIRECT").dark_gray(),
+            ChannelRole::Primary => Span::from("PRIMARY"),
+            ChannelRole::Secondary => Span::from("SECONDARY"),
+            ChannelRole::Direct => Span::from("DIRECT"),
             _ => unreachable!(),
         };
 
-        Line::from(type_span).render(v0_h[1], buf);
+        Line::from(type_span).magenta().render(v0_h[1], buf);
 
         Line::from(if let Some(message) = self.last_message {
             Span::from(

@@ -16,12 +16,19 @@ impl Chat {
 }
 
 impl Component for Chat {
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+    fn handle_event(
+        &mut self,
+        state: &State,
+        event: &Event,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         if state.active_channel_key.is_some() {
-            self.messenger_component.handle_event(state, event, emit);
+            self.messenger_component.handle_event(state, event, emit)?;
         } else {
-            self.channels_component.handle_event(state, event, emit);
+            self.channels_component.handle_event(state, event, emit)?;
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

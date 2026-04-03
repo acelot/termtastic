@@ -2,7 +2,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, VecDeque},
     time::{Duration, Instant},
-    u32,
+    u32, u128,
 };
 
 use chrono::{DateTime, Utc};
@@ -15,7 +15,6 @@ use tokio::{
     time,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::{
     state::{State, StateAction},
@@ -24,6 +23,7 @@ use crate::{
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
 const RX_TIMEOUT_MILLIS: u128 = 200;
+const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
 
 pub struct Store {
     state: State,
@@ -54,8 +54,8 @@ impl Store {
 
         loop {
             tokio::select! {
-                Some(action) = self.action_rx.recv() => self.handle_action(action),
-                _ = tick_interval.tick() => self.handle_tick(),
+                Some(action) = self.action_rx.recv() => self.handle_action(action)?,
+                _ = tick_interval.tick() => self.handle_tick()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -66,7 +66,7 @@ impl Store {
         Ok(())
     }
 
-    fn handle_action(&mut self, action: StateAction) {
+    fn handle_action(&mut self, action: StateAction) -> anyhow::Result<()> {
         let prev_state = self.state.clone();
 
         match action {
@@ -218,7 +218,7 @@ impl Store {
                     .get_mut(&channel_key)
                     .and_then(|messages| messages.iter_mut().find(|msg| msg.id == message_id))
                 {
-                    message.acks += 1;
+                    message.acked = true;
                 }
             }
             StateAction::FrameCleared => {
@@ -230,30 +230,42 @@ impl Store {
         }
 
         if self.state != prev_state {
-            self.state_tx.send(self.state.clone()).unwrap_or_log();
+            self.state_tx.send(self.state.clone())?;
         }
+
+        Ok(())
     }
 
-    fn handle_tick(&mut self) {
+    fn handle_tick(&mut self) -> anyhow::Result<()> {
         if self.state.rx && self.state.rx_t.elapsed().as_millis() > RX_TIMEOUT_MILLIS {
             self.state.rx = false;
-            self.state_tx.send(self.state.clone()).unwrap_or_log();
+            self.state_tx.send(self.state.clone())?;
         }
 
-        if let Some(toast) = &self.state.toast
-            && self.state.toast_t.elapsed().as_millis() > toast.kind.timeout()
-        {
-            self.state.toast = None;
-            self.state_tx.send(self.state.clone()).unwrap_or_log();
+        if let Some(toast) = &self.state.toast {
+            // skip toast quickly if there is another in queue
+            let timeout = toast
+                .kind
+                .timeout()
+                .min(if self.state.toast_queue.is_empty() {
+                    u128::MAX
+                } else {
+                    TOAST_QUICK_TIMEOUT_MILLIS
+                });
+
+            if self.state.toast_t.elapsed().as_millis() > timeout {
+                self.state.toast = None;
+                self.state_tx.send(self.state.clone())?;
+            }
         }
 
-        if !self.state.toast_queue.is_empty()
-            && self.state.toast.as_ref().map_or(true, |t| t.skippable)
-        {
+        if !self.state.toast_queue.is_empty() {
             self.state.toast = self.state.toast_queue.pop_front();
             self.state.toast_t = Instant::now();
-            self.state_tx.send(self.state.clone()).unwrap_or_log();
+            self.state_tx.send(self.state.clone())?;
         }
+
+        Ok(())
     }
 
     fn update_nodes_sort(&mut self) {

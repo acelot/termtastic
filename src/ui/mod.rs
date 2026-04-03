@@ -4,6 +4,7 @@ pub mod helpers;
 mod ui;
 pub use ui::*;
 
+#[allow(unused_imports)]
 pub mod prelude {
     pub use crate::state::State;
     pub use crate::types::*;

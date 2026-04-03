@@ -11,7 +11,6 @@ use std::{
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::{state::State, types::AppEvent};
 use crate::{
@@ -23,7 +22,6 @@ pub struct Ui {
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     event_tx: broadcast::Sender<AppEvent>,
-    terminal: Terminal<CrosstermBackend<Stdout>>,
     crossterm_events: EventStream,
     layout: Layout,
 }
@@ -38,22 +36,24 @@ impl Ui {
             state_rx,
             state_action_tx,
             event_tx,
-            terminal: setup_terminal().unwrap_or_log(),
             crossterm_events: EventStream::new(),
             layout: Layout::new(),
         }
     }
 
     pub async fn run(&mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
-        self.redraw();
+        let mut terminal = setup_terminal()?;
+
+        self.redraw(&mut terminal)?;
 
         loop {
             tokio::select! {
                 maybe_event = self.crossterm_events.next().fuse() => self.handle_crossterm_event(
                     maybe_event,
+                    &mut terminal,
                     subsys
-                ),
-                _ = self.state_rx.changed() => self.redraw(),
+                )?,
+                _ = self.state_rx.changed() => self.redraw(&mut terminal)?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -61,7 +61,7 @@ impl Ui {
             }
         }
 
-        restore_terminal().unwrap_or_log();
+        restore_terminal()?;
 
         Ok(())
     }
@@ -69,8 +69,9 @@ impl Ui {
     fn handle_crossterm_event(
         &mut self,
         maybe_event: Option<Result<Event, io::Error>>,
+        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
         subsys: &mut SubsystemHandle,
-    ) {
+    ) -> anyhow::Result<()> {
         match maybe_event {
             Some(Ok(event)) => {
                 if let Event::Key(key_event) = event
@@ -80,37 +81,34 @@ impl Ui {
                     subsys.request_shutdown();
                 }
 
-                if let Event::Resize(_, _) = event {
-                    self.terminal.clear().unwrap_or_log();
-                }
-
                 self.layout
                     .handle_event(&self.state_rx.borrow(), &event, &|ev| {
-                        self.event_tx.send(ev).unwrap_or_log();
-                    });
+                        self.event_tx.send(ev)?;
+                        Ok(())
+                    })?;
 
-                self.redraw();
+                self.redraw(terminal)?;
             }
             Some(Err(e)) => tracing::error!("event catching error {}", e),
             None => subsys.request_shutdown(),
         }
+
+        Ok(())
     }
 
-    fn redraw(&mut self) {
+    fn redraw(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
         let state = &self.state_rx.borrow();
 
         if state.need_clear_frame {
-            self.terminal.clear().unwrap_or_log();
-            self.state_action_tx
-                .send(StateAction::FrameCleared)
-                .unwrap_or_log();
+            terminal.clear()?;
+            self.state_action_tx.send(StateAction::FrameCleared)?;
 
-            return;
+            return Ok(());
         }
 
-        self.terminal
-            .draw(|frame| self.layout.render(state, frame, frame.area()))
-            .unwrap_or_log();
+        terminal.draw(|frame| self.layout.render(state, frame, frame.area()))?;
+
+        Ok(())
     }
 }
 

@@ -184,7 +184,6 @@ impl ToastKind {
 pub struct Toast {
     pub kind: ToastKind,
     pub text: String,
-    pub skippable: bool,
 }
 
 #[allow(dead_code)]
@@ -193,15 +192,6 @@ impl Toast {
         Self {
             kind: ToastKind::Success,
             text: text.into(),
-            skippable: false,
-        }
-    }
-
-    pub fn success_skippable<S: Into<String>>(text: S) -> Self {
-        Self {
-            kind: ToastKind::Success,
-            text: text.into(),
-            skippable: true,
         }
     }
 
@@ -209,15 +199,6 @@ impl Toast {
         Self {
             kind: ToastKind::Normal,
             text: text.into(),
-            skippable: false,
-        }
-    }
-
-    pub fn normal_skippable<S: Into<String>>(text: S) -> Self {
-        Self {
-            kind: ToastKind::Normal,
-            text: text.into(),
-            skippable: true,
         }
     }
 
@@ -225,15 +206,6 @@ impl Toast {
         Self {
             kind: ToastKind::Warning,
             text: text.into(),
-            skippable: false,
-        }
-    }
-
-    pub fn warning_skippable<S: Into<String>>(text: S) -> Self {
-        Self {
-            kind: ToastKind::Warning,
-            text: text.into(),
-            skippable: true,
         }
     }
 
@@ -241,15 +213,6 @@ impl Toast {
         Self {
             kind: ToastKind::Error,
             text: text.into(),
-            skippable: false,
-        }
-    }
-
-    pub fn error_skippable<S: Into<String>>(text: S) -> Self {
-        Self {
-            kind: ToastKind::Error,
-            text: text.into(),
-            skippable: true,
         }
     }
 }
@@ -414,7 +377,7 @@ pub struct Message {
     pub hops: Option<u32>,
     pub snr: f32,
     pub rssi: i32,
-    pub acks: u32,
+    pub acked: bool,
 }
 
 impl
@@ -444,7 +407,7 @@ impl
             hops: Some(packet.hop_start - packet.hop_limit),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
-            acks: 0,
+            acked: false,
         })
     }
 }

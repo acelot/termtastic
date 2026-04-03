@@ -5,7 +5,7 @@ use tracing_unwrap::OptionExt;
 use tui_input::backend::crossterm::EventHandler;
 use tui_widget_list::ScrollDirection;
 
-use crate::ui::{helpers::snr_to_color, prelude::*};
+use crate::ui::{helpers::ColorExt, prelude::*};
 
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 
@@ -24,9 +24,7 @@ impl Messenger {
         }
     }
 
-    fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
-        let active_channel_key = state.active_channel_key.unwrap_or_log();
-
+    fn get_hotkeys(&self, active_channel_key: u32) -> Vec<Hotkey> {
         let is_message_selected = self
             .list_states
             .get(&active_channel_key)
@@ -74,8 +72,15 @@ impl Messenger {
 }
 
 impl Component for Messenger {
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
-        let active_channel_key = state.active_channel_key.unwrap_or_log();
+    fn handle_event(
+        &mut self,
+        state: &State,
+        event: &Event,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        let active_channel_key = state
+            .active_channel_key
+            .expect_or_log("channel should be selected");
 
         let list_state = self
             .list_states
@@ -107,11 +112,11 @@ impl Component for Messenger {
                             .insert(active_channel_key, index == messages_len - 1);
                     }
                 }
-                KeyCode::Esc => emit(AppEvent::SwitchChannelRequested),
+                KeyCode::Esc => emit(AppEvent::SwitchChannelRequested)?,
                 KeyCode::Enter => {
                     if input_widget.value().len() <= INPUT_VALUE_MAX_LENGTH {
                         let text = input_widget.value_and_reset();
-                        emit(AppEvent::ChatMessageSubmitted(text));
+                        emit(AppEvent::ChatMessageSubmitted(text))?;
                     }
                 }
                 _ => {
@@ -135,10 +140,14 @@ impl Component for Messenger {
             },
             _ => {}
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        let active_channel = state.get_active_channel().unwrap_or_log();
+        let active_channel = state
+            .get_active_channel()
+            .expect_or_log("channel should be selected");
         let unknown_node = Node::unknown();
         let empty_messages_vec: VecDeque<Message> = VecDeque::default();
 
@@ -300,7 +309,7 @@ impl Component for Messenger {
         .right_aligned()
         .render(input_block_area_h[3], frame.buffer_mut());
 
-        Hotkeys::new(self.get_hotkeys(state)).render(state, frame, v[2]);
+        Hotkeys::new(self.get_hotkeys(active_channel.key)).render(state, frame, v[2]);
     }
 }
 
@@ -337,10 +346,10 @@ impl<'a> Widget for MessageWidget<'a> {
 
         let block = Block::bordered()
             .borders(Borders::LEFT)
-            .border_type(if self.is_selected {
-                BorderType::Thick
+            .border_set(if self.is_selected {
+                symbols::border::THICK
             } else {
-                BorderType::Plain
+                symbols::border::PLAIN
             })
             .border_style(Style::new().fg(if self.is_selected {
                 Color::Yellow
@@ -383,13 +392,13 @@ impl<'a> Widget for MessageWidget<'a> {
             if let Some(hops) = self.node.hops_away
                 && hops > 0
             {
-                Span::from(format!("hops: {}", hops))
+                Span::from("❱".repeat(hops as usize))
                     .dark_gray()
                     .render(v0_h[1], buf);
             } else {
                 Line::from(vec![
                     Span::from(format!("⁕ {}dB", self.message.snr))
-                        .fg(snr_to_color(self.message.snr)),
+                        .fg(self.message.snr.snr_to_color()),
                     Span::from("  ").dark_gray(),
                     Span::from(format!("RSSI {}dBm", self.message.rssi)).dark_gray(),
                 ])
@@ -397,14 +406,10 @@ impl<'a> Widget for MessageWidget<'a> {
                 .render(v0_h[1], buf);
             }
         } else {
-            if self.message.acks > 0 {
-                Line::from(vec![
-                    Span::from("ACKs: ").dark_gray(),
-                    Span::from(self.message.acks.to_string()).green(),
-                ])
-                .render(v0_h[1], buf);
+            if self.message.acked {
+                Span::from("✔").green().render(v0_h[1], buf);
             } else {
-                Span::from("no ack").dark_gray().render(v0_h[1], buf);
+                Span::from("sent").dark_gray().render(v0_h[1], buf);
             }
         }
 

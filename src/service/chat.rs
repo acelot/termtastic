@@ -79,7 +79,9 @@ impl ChatService {
                 }) => {
                     self.meshtastic_command_tx.send(
                         CommandToMeshtastic::SendBroadcastTextMessage {
-                            my_node_id: state.my_node_key.unwrap_or_log(),
+                            my_node_id: state
+                                .my_node_key
+                                .expect_or_log("my node key should exists"),
                             channel_id: *key,
                             reply_message_id: None,
                             text,
@@ -93,7 +95,9 @@ impl ChatService {
                 }) => {
                     self.meshtastic_command_tx.send(
                         CommandToMeshtastic::SendDirectTextMessage {
-                            my_node_id: state.my_node_key.unwrap_or_log(),
+                            my_node_id: state
+                                .my_node_key
+                                .expect_or_log("my node key should exists"),
                             node_id: *key,
                             reply_message_id: None,
                             text,
@@ -130,22 +134,24 @@ impl ChatService {
                     PortNum::RoutingApp => match Routing::decode(&*data.payload) {
                         Ok(Routing {
                             variant: Some(routing::Variant::ErrorReason(e)),
-                        }) if e == routing::Error::None as i32 => {
-                            tracing::debug!("ACK: {:?}", packet);
+                        }) => {
+                            if e == routing::Error::None as i32 {
+                                let state = &self.state_rx.borrow();
 
-                            let state = &self.state_rx.borrow();
+                                if let Some(my) = state.my_node_key
+                                    && packet.to == my
+                                {
+                                    let channel_key = if packet.to == packet.from {
+                                        packet.channel
+                                    } else {
+                                        packet.from
+                                    };
 
-                            if let Some(my) = state.my_node_key
-                                && packet.to == my
-                            {
-                                let channel_key = if packet.to == packet.from {
-                                    0
-                                } else {
-                                    packet.from
-                                };
-
-                                self.state_action_tx
-                                    .send(StateAction::MessageAck(channel_key, data.request_id))?;
+                                    self.state_action_tx.send(StateAction::MessageAck(
+                                        channel_key,
+                                        data.request_id,
+                                    ))?;
+                                }
                             }
                         }
                         _ => {}
@@ -189,8 +195,7 @@ impl ChatService {
                         match Message::try_from((&packet, data)) {
                             Ok(message) => self
                                 .state_action_tx
-                                .send(StateAction::MessageAdd(channel_key, message))
-                                .unwrap_or_log(),
+                                .send(StateAction::MessageAdd(channel_key, message))?,
                             Err(e) => tracing::warn!(
                                 packet_id = packet.id,
                                 node_from = packet.from,
@@ -238,9 +243,7 @@ impl ChatService {
                 }
                 None => {}
             },
-            variant => {
-                tracing::debug!("unhandled payload variant: {:?}", variant);
-            }
+            _ => {}
         }
 
         Ok(())

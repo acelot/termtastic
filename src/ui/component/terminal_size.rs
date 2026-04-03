@@ -11,7 +11,14 @@ impl TerminalSize {
 }
 
 impl Component for TerminalSize {
-    fn handle_event(&mut self, _state: &State, _event: &Event, _emit: &impl Fn(AppEvent)) {}
+    fn handle_event(
+        &mut self,
+        _state: &State,
+        _event: &Event,
+        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 
     fn render(&mut self, _state: &State, frame: &mut ratatui::Frame, area: ratatui::prelude::Rect) {
         let v = Layout::default()

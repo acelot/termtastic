@@ -11,7 +11,14 @@ impl Hotkeys {
 }
 
 impl Component for Hotkeys {
-    fn handle_event(&mut self, _state: &State, _event: &Event, _emit: &impl Fn(AppEvent)) {}
+    fn handle_event(
+        &mut self,
+        _state: &State,
+        _event: &Event,
+        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
 
     fn render(&mut self, _state: &State, frame: &mut Frame, area: Rect) {
         let spans: Vec<Span> = self.items.iter().flat_map(|h| Vec::from(h)).collect();

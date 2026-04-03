@@ -77,7 +77,12 @@ impl Connection {
 }
 
 impl Component for Connection {
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+    fn handle_event(
+        &mut self,
+        state: &State,
+        event: &Event,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         match event {
             Event::Key(KeyEvent { code, .. }) => {
                 let is_device_active = state.active_device.is_some();
@@ -85,14 +90,16 @@ impl Component for Connection {
                 match (code, self.is_form_visible, is_device_active) {
                     (KeyCode::Up, false, false) => self.list_state.previous(),
                     (KeyCode::Down, false, false) => self.list_state.next(),
-                    (KeyCode::Char('r'), false, false) => emit(AppEvent::DeviceRediscoverRequested),
+                    (KeyCode::Char('r'), false, false) => {
+                        emit(AppEvent::DeviceRediscoverRequested)?
+                    }
                     (KeyCode::Char('t'), false, false) => {
                         self.form_error = None;
                         self.is_form_visible = true;
                     }
                     (KeyCode::Enter, false, false) => {
                         if let Some(index) = self.list_state.selected {
-                            emit(AppEvent::DeviceSelected(self.devices[index].clone()))
+                            emit(AppEvent::DeviceSelected(self.devices[index].clone()))?
                         }
                     }
                     (KeyCode::Enter, true, false) => {
@@ -110,14 +117,14 @@ impl Component for Connection {
                         if let Some(index) = self.list_state.selected
                             && let Device::Tcp(hostaddr) = &self.devices[index]
                         {
-                            emit(AppEvent::TcpDeviceRemoved(hostaddr.clone()))
+                            emit(AppEvent::TcpDeviceRemoved(hostaddr.clone()))?
                         }
                     }
                     (KeyCode::Esc, true, false) => {
                         self.form_input.reset();
                         self.is_form_visible = false;
                     }
-                    (KeyCode::Esc, false, true) => emit(AppEvent::DisconnectionRequested),
+                    (KeyCode::Esc, false, true) => emit(AppEvent::DisconnectionRequested)?,
                     (_, true, false) => {
                         self.form_input.handle_event(event);
                     }
@@ -131,6 +138,8 @@ impl Component for Connection {
             },
             _ => {}
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

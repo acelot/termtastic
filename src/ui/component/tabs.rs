@@ -13,15 +13,22 @@ impl Tabs {
 
 #[allow(unstable_name_collisions)]
 impl Component for Tabs {
-    fn handle_event(&mut self, _state: &State, event: &Event, emit: &impl Fn(AppEvent)) {
+    fn handle_event(
+        &mut self,
+        _state: &State,
+        event: &Event,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+    ) -> anyhow::Result<()> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Tab => emit(AppEvent::NextTabRequested),
-                KeyCode::BackTab => emit(AppEvent::PreviousTabRequested),
+                KeyCode::Tab => emit(AppEvent::NextTabRequested)?,
+                KeyCode::BackTab => emit(AppEvent::PreviousTabRequested)?,
                 _ => {}
             },
             _ => {}
         }
+
+        Ok(())
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

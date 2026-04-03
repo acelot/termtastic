@@ -100,7 +100,7 @@ async fn main() {
 
     event_tx_clone
         .send(AppEvent::InitializationRequested)
-        .unwrap_or_log();
+        .expect_or_log("InitializationRequested event should be sent");
 
     Toplevel::new(async |s: &mut SubsystemHandle| {
         s.start(SubsystemBuilder::new(
@@ -150,7 +150,7 @@ async fn main() {
     .catch_signals()
     .handle_shutdown_requests(Duration::from_millis(1000))
     .await
-    .unwrap_or_log();
+    .expect_or_log("application stopped unexpectedly");
 
     tracing::info!("application stopped");
 }

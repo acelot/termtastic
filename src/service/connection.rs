@@ -4,7 +4,6 @@ use futures::stream::{self, StreamExt};
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio::time;
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::ResultExt;
 
 use crate::types::{AppEvent, ConnectionState, Device, Toast};
 use crate::{
@@ -80,9 +79,7 @@ impl ConnectionService {
             }
             AppEvent::DeviceRediscoverRequested => {
                 self.state_action_tx
-                    .send(StateAction::Toast(Toast::normal_skippable(
-                        "discovering...",
-                    )))?;
+                    .send(StateAction::Toast(Toast::normal("discovering...")))?;
 
                 match discover_devices().await {
                     Ok(devices) => {
@@ -127,6 +124,8 @@ impl ConnectionService {
     fn handle_meshtastic_event(&self, event: MeshtasticEvent) -> anyhow::Result<()> {
         match event {
             MeshtasticEvent::Connected => {
+                tracing::info!("successfully connected");
+
                 self.state_action_tx.send(StateAction::ConnectionSuccess)?;
 
                 self.state_action_tx
@@ -135,12 +134,9 @@ impl ConnectionService {
             MeshtasticEvent::ConnectionError(e) => {
                 self.state_action_tx.send(StateAction::ConnectionFail(e))?;
             }
-            MeshtasticEvent::RadioStopped => {
-                self.state_action_tx.send(StateAction::ConnectionFail(
-                    "device is not responding".to_owned(),
-                ))?;
-            }
             MeshtasticEvent::Disconnected => {
+                tracing::info!("disconnected");
+
                 self.state_action_tx.send(StateAction::ConnectionStop)?;
 
                 self.state_action_tx
