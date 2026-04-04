@@ -19,7 +19,7 @@ impl Channels {
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
                     key: "↑↓".to_string(),
-                    label: "navigate".to_string(),
+                    label: "scroll".to_string(),
                 },
                 Hotkey {
                     key: "enter".to_string(),
@@ -62,6 +62,11 @@ impl Component for Channels {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+        let v = ratatui::layout::Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(1), Constraint::Length(1)])
+            .split(area);
+
         self.channels = state
             .channels
             .values()
@@ -70,57 +75,69 @@ impl Component for Channels {
             .cloned()
             .collect();
 
-        if !self.channels.is_empty() && self.list_state.selected.is_none() {
-            self.list_state.select(Some(0));
+        if !self.channels.is_empty() {
+            if self.list_state.selected.is_none() {
+                self.list_state.select(Some(0));
+            }
+
+            let empty_messages_vec: VecDeque<Message> = VecDeque::default();
+
+            let list_builder = ListBuilder::new(|context| {
+                let channel = self.channels.get(context.index).unwrap();
+
+                let messages = state
+                    .messages
+                    .get(&channel.key)
+                    .unwrap_or(&empty_messages_vec);
+
+                let last_message = messages.iter().last();
+                let last_message_node =
+                    last_message.and_then(|message| state.nodes.get(&message.from));
+
+                let item = ConversationWidget {
+                    channel,
+                    direct_node: if channel.role.is_direct() {
+                        state.nodes.get(&channel.key)
+                    } else {
+                        None
+                    },
+                    last_message,
+                    last_message_node,
+                    is_selected: context.is_selected,
+                };
+
+                (item, 4)
+            });
+
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .symbols(ScrollbarSet {
+                    begin: "┬",
+                    thumb: "█",
+                    track: "│",
+                    end: "┴",
+                })
+                .style(Style::new().dark_gray());
+
+            let list = ListView::new(list_builder, self.channels.len())
+                .infinite_scrolling(false)
+                .scrollbar(scrollbar);
+
+            list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+        } else {
+            let v0_v = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                    Constraint::Fill(1),
+                ])
+                .split(v[0]);
+
+            Line::from(Span::from("no channels"))
+                .dark_gray()
+                .centered()
+                .render(v0_v[1], frame.buffer_mut());
         }
-
-        let v = ratatui::layout::Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(1), Constraint::Length(1)])
-            .split(area);
-
-        let empty_messages_vec: VecDeque<Message> = VecDeque::default();
-
-        let list_builder = ListBuilder::new(|context| {
-            let channel = self.channels.get(context.index).unwrap();
-
-            let messages = state
-                .messages
-                .get(&channel.key)
-                .unwrap_or(&empty_messages_vec);
-
-            let last_message = messages.iter().last();
-            let last_message_node = last_message.and_then(|message| state.nodes.get(&message.from));
-
-            let item = ConversationWidget {
-                channel,
-                direct_node: if channel.role.is_direct() {
-                    state.nodes.get(&channel.key)
-                } else {
-                    None
-                },
-                last_message,
-                last_message_node,
-                is_selected: context.is_selected,
-            };
-
-            (item, 4)
-        });
-
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .symbols(ScrollbarSet {
-                begin: "┬",
-                thumb: "█",
-                track: "│",
-                end: "┴",
-            })
-            .style(Style::new().dark_gray());
-
-        let list = ListView::new(list_builder, self.channels.len())
-            .infinite_scrolling(false)
-            .scrollbar(scrollbar);
-
-        list.render(v[0], frame.buffer_mut(), &mut self.list_state);
 
         self.hotkeys_component.render(state, frame, v[1]);
     }
@@ -146,15 +163,18 @@ impl<'a> Widget for ConversationWidget<'a> {
             height: area.height,
         };
 
-        let mut block = Block::bordered()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(Style::new().dark_gray())
+        let block = Block::bordered()
+            .border_type(if self.is_selected {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
+            .border_style(Style::new().fg(if self.is_selected {
+                Color::Yellow
+            } else {
+                Color::DarkGray
+            }))
             .padding(Padding::symmetric(1, 0));
-
-        if self.is_selected {
-            block = block.border_style(Style::new().yellow());
-        }
 
         let block_area = block.inner(area);
         block.render(area, buf);
@@ -180,25 +200,25 @@ impl<'a> Widget for ConversationWidget<'a> {
             self.direct_node,
         ) {
             (ChannelRole::Primary, false, _) => vec![
-                Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                Span::from(format!("#{}", self.channel.key)).dark_gray(),
                 Span::from(" "),
                 Span::from(self.channel.name.clone()),
             ],
             (ChannelRole::Primary, true, _) => {
                 vec![
-                    Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                    Span::from(format!("#{}", self.channel.key)).dark_gray(),
                     Span::from(" Primary"),
                 ]
             }
             (ChannelRole::Secondary, false, _) => vec![
-                Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
+                Span::from(format!("#{}", self.channel.key)).dark_gray(),
                 Span::from(" "),
                 Span::from(self.channel.name.clone()),
             ],
             (ChannelRole::Secondary, true, _) => {
                 vec![
-                    Span::from(format!(" {} ", self.channel.key)).on_dark_gray(),
-                    Span::from(format!(" Secondary #{}", self.channel.id)),
+                    Span::from(format!("#{}", self.channel.key)).dark_gray(),
+                    Span::from(" Secondary"),
                 ]
             }
             (ChannelRole::Direct, true, Some(node)) => {

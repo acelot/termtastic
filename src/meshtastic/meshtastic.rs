@@ -14,6 +14,7 @@ use tokio::{
     time::timeout,
 };
 use tokio_graceful_shutdown::{ErrorAction, NestedSubsystem, SubsystemBuilder, SubsystemHandle};
+use tracing_unwrap::OptionExt;
 
 use crate::meshtastic::{
     RadioService, connect_via_ble, connect_via_serial, connect_via_tcp,
@@ -180,7 +181,7 @@ impl MeshtasticService {
                 match self
                     .stream_api
                     .as_mut()
-                    .unwrap()
+                    .expect_or_log("should be connected")
                     .send_mesh_packet(
                         &mut LocalPacketRouter {
                             my_node_id,
@@ -213,7 +214,7 @@ impl MeshtasticService {
                 match self
                     .stream_api
                     .as_mut()
-                    .unwrap()
+                    .expect_or_log("should be connected")
                     .send_mesh_packet(
                         &mut LocalPacketRouter {
                             my_node_id,

@@ -1,4 +1,5 @@
 use arboard::Clipboard;
+use chrono::Local;
 use tracing::Level;
 
 use crate::ui::prelude::*;
@@ -22,7 +23,7 @@ impl Logs {
             hotkeys_component: Hotkeys::new(vec![
                 Hotkey {
                     key: "↑↓".to_string(),
-                    label: "navigate".to_string(),
+                    label: "scroll".to_string(),
                 },
                 Hotkey {
                     key: "enter".to_string(),
@@ -237,8 +238,17 @@ impl<'a> Widget for LogRecordWidget<'a> {
             height: area.height,
         });
 
+        let tz = Local;
+
         let mut p = Paragraph::new(Line::from(vec![
-            Span::from(self.record.datetime.format("%H:%M:%S").to_string()).dark_gray(),
+            Span::from(
+                self.record
+                    .datetime
+                    .with_timezone(&tz)
+                    .format("%H:%M:%S")
+                    .to_string(),
+            )
+            .dark_gray(),
             Span::from(" ").dark_gray(),
             Span::from(format!("{:<5}", self.record.level.to_string())).style(
                 match self.record.level {

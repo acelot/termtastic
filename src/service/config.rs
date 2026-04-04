@@ -9,7 +9,6 @@ use crate::{
 };
 
 pub struct ConfigService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -18,13 +17,11 @@ pub struct ConfigService {
 
 impl ConfigService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,

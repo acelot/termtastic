@@ -47,7 +47,7 @@ impl Connection {
         let mut hotkeys = vec![
             Hotkey {
                 key: "↑↓".to_string(),
-                label: "navigate".to_string(),
+                label: "scroll".to_string(),
             },
             Hotkey {
                 key: "enter".to_string(),
@@ -105,7 +105,7 @@ impl Component for Connection {
                     (KeyCode::Enter, true, false) => {
                         match self.form_input.value().parse::<HostAddr<String>>() {
                             Ok(addr) => {
-                                emit(AppEvent::TcpDeviceSubmitted(addr));
+                                emit(AppEvent::TcpDeviceSubmitted(addr))?;
                                 self.is_form_visible = false;
                             }
                             Err(e) => {
@@ -156,8 +156,16 @@ impl Component for Connection {
             .sorted()
             .collect();
 
-        if !self.devices.is_empty() && self.list_state.selected.is_none() {
-            self.list_state.select(Some(0));
+        if self.list_state.selected.is_none()
+            && state.device_discovering_state == DeviceDiscoveringState::Done
+            && !self.devices.is_empty()
+        {
+            if let Some(active) = &state.active_device {
+                self.list_state
+                    .select(self.devices.iter().position(|d| active == d));
+            } else {
+                self.list_state.select(Some(0));
+            }
         }
 
         let list_builder = ListBuilder::new(|context| {

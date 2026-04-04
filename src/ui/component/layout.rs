@@ -1,5 +1,6 @@
 use crate::ui::{
     component::{Chat, Connection, Header, Logs, Nodes, Tabs, TerminalSize},
+    logo::APP_LOGO_TEXT,
     prelude::*,
 };
 
@@ -13,6 +14,7 @@ pub struct Layout {
     nodes_component: Nodes,
     connection_component: Connection,
     logs_component: Logs,
+    logo: Text<'static>,
 }
 
 impl Layout {
@@ -25,6 +27,7 @@ impl Layout {
             nodes_component: Nodes::new(),
             connection_component: Connection::new(),
             logs_component: Logs::new(),
+            logo: APP_LOGO_TEXT.clone(),
         }
     }
 }
@@ -36,6 +39,14 @@ impl Component for Layout {
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<()> {
+        if let Event::Key(KeyEvent {
+            code: KeyCode::F(12),
+            ..
+        }) = event
+        {
+            emit(AppEvent::SplashLogoRequested)?;
+        }
+
         self.header_component.handle_event(state, event, emit)?;
         self.tabs_component.handle_event(state, event, emit)?;
 
@@ -78,6 +89,20 @@ impl Component for Layout {
             Tab::Connection => self.connection_component.render(state, frame, v[3]),
             Tab::Logs => self.logs_component.render(state, frame, v[3]),
             _ => {}
+        }
+
+        if state.splash_logo {
+            let logo_width = self.logo.width() as u16;
+            let logo_height = self.logo.height() as u16;
+
+            let logo_popup_area = Rect {
+                x: area.x + area.width / 2 - logo_width / 2,
+                y: area.y + area.height / 2 - logo_height / 2,
+                width: logo_width as u16,
+                height: logo_height as u16,
+            };
+
+            (&self.logo).render(logo_popup_area, frame.buffer_mut());
         }
 
         if let Some(Toast { kind, text, .. }) = &state.toast {

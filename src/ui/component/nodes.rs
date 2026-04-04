@@ -18,7 +18,11 @@ impl Nodes {
                 },
                 Hotkey {
                     key: "enter".to_string(),
-                    label: "expand".to_string(),
+                    label: "node info".to_string(),
+                },
+                Hotkey {
+                    key: "F2".to_string(),
+                    label: "direct".to_string(),
                 },
                 Hotkey {
                     key: "s".to_string(),
@@ -34,7 +38,7 @@ impl Component for Nodes {
         &mut self,
         state: &State,
         event: &Event,
-        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<()> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
@@ -45,6 +49,15 @@ impl Component for Nodes {
                 }
                 KeyCode::End => {
                     self.list_state.select(Some(state.nodes_sort.len() - 1));
+                }
+                KeyCode::F(2) => {
+                    if let Some(node_key) = self
+                        .list_state
+                        .selected
+                        .and_then(|index| state.nodes_sort.get(index))
+                    {
+                        emit(AppEvent::DirectChatRequested(*node_key))?;
+                    }
                 }
                 _ => {}
             },
@@ -73,31 +86,47 @@ impl Component for Nodes {
             ])
             .split(area);
 
-        let list_builder = ListBuilder::new(|context| {
-            let node = &state.nodes[&state.nodes_sort[context.index as usize]];
+        if !state.nodes_sort.is_empty() {
+            let list_builder = ListBuilder::new(|context| {
+                let node = &state.nodes[&state.nodes_sort[context.index as usize]];
 
-            let item = NodeWidget {
-                node,
-                is_selected: context.is_selected,
-            };
+                let item = NodeWidget {
+                    node,
+                    is_selected: context.is_selected,
+                };
 
-            (item, 3)
-        });
+                (item, 3)
+            });
 
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .symbols(ScrollbarSet {
-                begin: "┬",
-                thumb: "█",
-                track: "│",
-                end: "┴",
-            })
-            .style(Style::new().dark_gray());
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
+                .symbols(ScrollbarSet {
+                    begin: "┬",
+                    thumb: "█",
+                    track: "│",
+                    end: "┴",
+                })
+                .style(Style::new().dark_gray());
 
-        let list = ListView::new(list_builder, state.nodes_sort.len())
-            .infinite_scrolling(false)
-            .scrollbar(scrollbar);
+            let list = ListView::new(list_builder, state.nodes_sort.len())
+                .infinite_scrolling(false)
+                .scrollbar(scrollbar);
 
-        list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+            list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+        } else {
+            let v0_v = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                    Constraint::Fill(1),
+                ])
+                .split(v[0]);
+
+            Line::from(Span::from("no nodes"))
+                .dark_gray()
+                .centered()
+                .render(v0_v[1], frame.buffer_mut());
+        }
 
         self.hotkeys_component.render(state, frame, v[2]);
     }

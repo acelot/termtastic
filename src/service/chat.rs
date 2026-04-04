@@ -1,15 +1,10 @@
 use meshtastic::{
     Message as _,
-    protobufs::{
-        MeshPacket, PortNum, Routing,
-        from_radio::PayloadVariant,
-        mesh_packet::{self, TransportMechanism},
-        routing,
-    },
+    protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
-use tracing_unwrap::{OptionExt, ResultExt};
+use tracing_unwrap::OptionExt;
 
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -18,7 +13,6 @@ use crate::{
 };
 
 pub struct ChatService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -28,7 +22,6 @@ pub struct ChatService {
 
 impl ChatService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -36,7 +29,6 @@ impl ChatService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,
@@ -71,7 +63,10 @@ impl ChatService {
             AppEvent::SwitchChannelRequested => {
                 self.state_action_tx.send(StateAction::ChannelActiveUnset)?;
             }
-            AppEvent::ChatMessageSubmitted(text) => match state.get_active_channel() {
+            AppEvent::ChatMessageSubmitted {
+                text,
+                reply_message_id,
+            } => match state.get_active_channel() {
                 Some(Channel {
                     key,
                     role: ChannelRole::Primary | ChannelRole::Secondary,
@@ -83,7 +78,7 @@ impl ChatService {
                                 .my_node_key
                                 .expect_or_log("my node key should exists"),
                             channel_id: *key,
-                            reply_message_id: None,
+                            reply_message_id,
                             text,
                         },
                     )?;
@@ -99,7 +94,7 @@ impl ChatService {
                                 .my_node_key
                                 .expect_or_log("my node key should exists"),
                             node_id: *key,
-                            reply_message_id: None,
+                            reply_message_id,
                             text,
                         },
                     )?;
@@ -153,6 +148,9 @@ impl ChatService {
                                     ))?;
                                 }
                             }
+                        }
+                        Err(e) => {
+                            tracing::debug!("can't decode RoutingApp payload: {:?}", e);
                         }
                         _ => {}
                     },
@@ -223,7 +221,7 @@ impl ChatService {
                             node.long_name,
                             node.hw_model,
                             text,
-                            packet.hop_start - packet.hop_limit,
+                            packet.hop_start.saturating_sub(packet.hop_limit),
                             packet.rx_snr,
                             packet.rx_rssi,
                         );
@@ -247,14 +245,5 @@ impl ChatService {
         }
 
         Ok(())
-    }
-
-    fn packet_to_channel_key(&self, packet: &MeshPacket, my_node_key: Option<u32>) -> u32 {
-        match (packet.from, packet.to, my_node_key) {
-            (_, 0 | u32::MAX, _) => packet.channel,
-            (from, to, Some(my)) if to == my => from,
-            (from, to, Some(my)) if from == my => to,
-            _ => unreachable!(),
-        }
     }
 }

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use hostaddr::HostAddr;
 
-use crate::types::{AppConfig, Channel, Device, LogRecord, Message, Node, NodesSortBy, Toast};
+use crate::types::{AppConfig, Channel, Device, LogRecord, Message, Node, NodesSortBy, Tab, Toast};
 
 #[derive(Debug, Clone)]
 pub enum StateAction {
@@ -17,9 +17,12 @@ pub enum StateAction {
     ReconnectionBackoffSet(Duration),
     DeviceActiveSet(Device),
     DevicesAddTcp(HostAddr<String>),
-    DiscoveredDevicesSet(Vec<Device>),
+    DeviceDiscoveringStart,
+    DeviceDiscoveringFail(String),
+    DeviceDiscoveringDone(Vec<Device>),
     DevicesRemoveTcp(HostAddr<String>),
     LogRecordAdd(LogRecord),
+    DirectChatStart(u32),
     MessageAdd(u32, Message),
     MessageReactionAdd {
         channel_key: u32,
@@ -30,11 +33,15 @@ pub enum StateAction {
     MessageAck(u32, u32),
     MyNodeKeySet(u32),
     NodeAdd(Node),
-    NodeUpdateLastHeard(u32),
-    NodeSetSnr(u32, f32),
+    NodeUpdateLastHeard {
+        node_key: u32,
+        hops: u32,
+        snr: f32,
+    },
     NodesSortBySet(NodesSortBy),
-    OnlineNodesSet(u16),
     RxTrigger,
+    SplashLogo,
+    TabSwitchTo(Tab),
     TabSwitchToNext,
     TabSwitchToPrevious,
     FrameCleared,

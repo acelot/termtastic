@@ -79,6 +79,9 @@ impl ConnectionService {
             }
             AppEvent::DeviceRediscoverRequested => {
                 self.state_action_tx
+                    .send(StateAction::DeviceDiscoveringStart)?;
+
+                self.state_action_tx
                     .send(StateAction::Toast(Toast::normal("discovering...")))?;
 
                 match discover_devices().await {
@@ -86,7 +89,7 @@ impl ConnectionService {
                         let devices_count = devices.len();
 
                         self.state_action_tx
-                            .send(StateAction::DiscoveredDevicesSet(devices))?;
+                            .send(StateAction::DeviceDiscoveringDone(devices))?;
 
                         self.state_action_tx
                             .send(StateAction::Toast(Toast::normal(format!(
@@ -98,7 +101,10 @@ impl ConnectionService {
                         tracing::error!("device discovering failed: {}", e);
 
                         self.state_action_tx
-                            .send(StateAction::Toast(Toast::error("discovering failed")))?;
+                            .send(StateAction::DeviceDiscoveringFail(e.to_string()))?;
+
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::error("discovery failed")))?;
                     }
                 };
             }

@@ -3,6 +3,7 @@ use std::{collections::HashMap, time::Instant};
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
 use hostaddr::HostAddr;
+use meshtastic::protobufs::{MeshPacket, User};
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -49,7 +50,12 @@ pub enum AppEvent {
     PreviousTabRequested,
     TcpDeviceRemoved(HostAddr<String>),
     TcpDeviceSubmitted(HostAddr<String>),
-    ChatMessageSubmitted(String),
+    ChatMessageSubmitted {
+        text: String,
+        reply_message_id: Option<u32>,
+    },
+    SplashLogoRequested,
+    DirectChatRequested(u32),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -81,6 +87,14 @@ impl Ord for Device {
             (Device::Serial(address), Device::Serial(other_address)) => address.cmp(other_address),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeviceDiscoveringState {
+    NotStarted,
+    Discovering,
+    Failed(String),
+    Done,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,6 +171,15 @@ impl Tab {
 pub struct Hotkey {
     pub key: String,
     pub label: String,
+}
+
+impl Hotkey {
+    pub fn new<S: Into<String>>(key: S, label: S) -> Self {
+        Self {
+            key: key.into(),
+            label: label.into(),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -253,12 +276,12 @@ impl Node {
             id: "?".to_owned(),
             key: 0,
             short_name: "?".to_owned(),
-            long_name: "unknown".to_owned(),
+            long_name: "Unknown".to_owned(),
             hops_away: None,
             last_heard: None,
             snr: 0.0,
-            role: "?".to_owned(),
-            hw_model: "?".to_owned(),
+            role: "UNKNOWN".to_owned(),
+            hw_model: "UNKNOWN".to_owned(),
             my: false,
         }
     }
@@ -289,6 +312,27 @@ impl TryFrom<&meshtastic::protobufs::NodeInfo> for Node {
             hops_away: value.hops_away,
             last_heard,
             snr: value.snr,
+            role: user.role().as_str_name().to_string(),
+            hw_model: user.hw_model().as_str_name().to_string(),
+            my: false,
+        })
+    }
+}
+
+impl TryFrom<(&MeshPacket, &User)> for Node {
+    type Error = anyhow::Error;
+
+    fn try_from((packet, user): (&MeshPacket, &User)) -> Result<Self, Self::Error> {
+        let last_heard = DateTime::from_timestamp(packet.rx_time as i64, 0);
+
+        Ok(Self {
+            id: user.id.clone(),
+            key: packet.from,
+            short_name: user.short_name.clone(),
+            long_name: user.long_name.clone(),
+            hops_away: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
+            last_heard,
+            snr: packet.rx_snr,
             role: user.role().as_str_name().to_string(),
             hw_model: user.hw_model().as_str_name().to_string(),
             my: false,
@@ -369,7 +413,7 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     pub id: u32,
-    pub reply_to: u32,
+    pub reply_message_id: u32,
     pub from: u32,
     pub datetime: DateTime<Utc>,
     pub text: String,
@@ -396,7 +440,7 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: packet.id,
-            reply_to: data.reply_id,
+            reply_message_id: data.reply_id,
             from: packet.from,
             datetime: Utc
                 .timestamp_opt(packet.rx_time as i64, 0)
@@ -404,7 +448,7 @@ impl
                 .unwrap_or(Utc::now()),
             text: String::from_utf8(data.payload.clone())?,
             reactions: HashMap::default(),
-            hops: Some(packet.hop_start - packet.hop_limit),
+            hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
             acked: false,

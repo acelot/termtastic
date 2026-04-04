@@ -18,12 +18,15 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::{
     state::{State, StateAction},
-    types::{ConnectionState, NodesSortBy},
+    types::{Channel, ConnectionState, DeviceDiscoveringState, NodesSortBy, Tab},
 };
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
+const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 15;
 const RX_TIMEOUT_MILLIS: u128 = 200;
 const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
+const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 2000;
+const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 pub struct Store {
     state: State,
@@ -51,11 +54,14 @@ impl Store {
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         let mut tick_interval = time::interval(Duration::from_millis(TICK_INTERVAL_MILLIS));
+        let mut online_nodes_interval =
+            time::interval(Duration::from_secs(UPDATE_ONLINE_NODES_INTERVAL_SECS));
 
         loop {
             tokio::select! {
                 Some(action) = self.action_rx.recv() => self.handle_action(action)?,
                 _ = tick_interval.tick() => self.handle_tick()?,
+                _ = online_nodes_interval.tick() => self.update_online_nodes()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -70,9 +76,19 @@ impl Store {
         let prev_state = self.state.clone();
 
         match action {
+            StateAction::SplashLogo => {
+                self.state.splash_logo = true;
+                self.state.splash_logo_t = Instant::now();
+            }
             StateAction::AppConfigApply(cfg) => {
+                self.state.active_tab = cfg.active_tab;
                 self.state.active_device = cfg.active_device;
                 self.state.tcp_devices = cfg.tcp_devices;
+                self.state.nodes_sort_by = cfg.nodes_sort_by;
+            }
+            StateAction::TabSwitchTo(tab) => {
+                self.state.active_tab = tab;
+                self.state.need_clear_frame = true;
             }
             StateAction::TabSwitchToNext => {
                 self.state.active_tab = self.state.active_tab.next();
@@ -119,8 +135,15 @@ impl Store {
             StateAction::LogRecordAdd(r) => {
                 self.state.logs.push(r);
             }
-            StateAction::DiscoveredDevicesSet(devices) => {
+            StateAction::DeviceDiscoveringStart => {
+                self.state.device_discovering_state = DeviceDiscoveringState::Discovering;
+            }
+            StateAction::DeviceDiscoveringFail(error) => {
+                self.state.device_discovering_state = DeviceDiscoveringState::Failed(error);
+            }
+            StateAction::DeviceDiscoveringDone(devices) => {
                 self.state.discovered_devices = devices;
+                self.state.device_discovering_state = DeviceDiscoveringState::Done;
             }
             StateAction::DevicesAddTcp(hostaddr) => {
                 if !self.state.tcp_devices.contains(&hostaddr) {
@@ -144,6 +167,7 @@ impl Store {
                 self.state.nodes.insert(node.key, node);
 
                 self.update_nodes_sort();
+                self.update_online_nodes()?;
             }
             StateAction::ChannelEnsure(key, channel) => {
                 self.state.channels.entry(key).or_insert(channel);
@@ -154,26 +178,29 @@ impl Store {
             StateAction::ChannelActiveUnset => {
                 self.state.active_channel_key = None;
             }
-            StateAction::OnlineNodesSet(total) => {
-                self.state.online_nodes = total;
-            }
             StateAction::RxTrigger => {
                 self.state.rx_t = Instant::now();
                 self.state.rx = true;
             }
             StateAction::NodesSortBySet(sort_by) => {
                 self.state.nodes_sort_by = sort_by;
+                self.update_nodes_sort();
             }
-            StateAction::NodeUpdateLastHeard(number) => {
-                if let Some(node) = self.state.nodes.get_mut(&number) {
+            StateAction::NodeUpdateLastHeard {
+                node_key,
+                hops,
+                snr,
+            } => {
+                if let Some(node) = self.state.nodes.get_mut(&node_key) {
                     node.last_heard = Some(Utc::now());
+                    node.hops_away = Some(hops);
+
+                    if hops == 0 {
+                        node.snr = snr;
+                    }
+
                     self.update_nodes_sort();
-                }
-            }
-            StateAction::NodeSetSnr(number, snr) => {
-                if let Some(node) = self.state.nodes.get_mut(&number) {
-                    node.snr = snr;
-                    self.update_nodes_sort();
+                    self.update_online_nodes()?;
                 }
             }
             StateAction::MyNodeKeySet(number) => {
@@ -182,6 +209,15 @@ impl Store {
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.my = true;
                 }
+            }
+            StateAction::DirectChatStart(node_key) => {
+                self.state
+                    .channels
+                    .entry(node_key)
+                    .or_insert(Channel::direct(node_key));
+
+                self.state.active_channel_key = Some(node_key);
+                self.state.active_tab = Tab::Chat;
             }
             StateAction::MessageAdd(channel_key, message) => {
                 if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
@@ -239,6 +275,13 @@ impl Store {
     fn handle_tick(&mut self) -> anyhow::Result<()> {
         if self.state.rx && self.state.rx_t.elapsed().as_millis() > RX_TIMEOUT_MILLIS {
             self.state.rx = false;
+            self.state_tx.send(self.state.clone())?;
+        }
+
+        if self.state.splash_logo
+            && self.state.splash_logo_t.elapsed().as_millis() > SPLASH_LOGO_TIMEOUT_MILLIS
+        {
+            self.state.splash_logo = false;
             self.state_tx.send(self.state.clone())?;
         }
 
@@ -308,5 +351,21 @@ impl Store {
             })
             .map(|node| node.key)
             .collect();
+    }
+
+    fn update_online_nodes(&mut self) -> anyhow::Result<()> {
+        let now = Utc::now();
+
+        self.state.online_nodes = self.state.nodes.iter().fold(0, |mut counter, (_, node)| {
+            if let Some(last_heard) = node.last_heard
+                && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
+            {
+                counter += 1;
+            }
+
+            counter
+        });
+
+        Ok(())
     }
 }

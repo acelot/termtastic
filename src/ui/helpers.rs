@@ -1,17 +1,18 @@
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
+
 use ratatui::{
     style::{Color, Style, Stylize},
     text::{Line, Span},
 };
 use regex::{Regex, RegexBuilder};
 
-lazy_static! {
-    static ref LINK_REGEX: Regex = RegexBuilder::new(r"[^:/?#\s]+://[^\s]+(?:[\s,.!?;:)\]}>]|$)")
+static LINK_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    RegexBuilder::new(r"[^:/?#\s]+://[^\s]+(?:[\s,.!?;:)\]}>]|$)")
         .multi_line(true)
         .unicode(true)
         .build()
-        .unwrap();
-}
+        .unwrap()
+});
 
 pub trait ColorExt {
     fn snr_to_color(&self) -> Color;
@@ -28,6 +29,7 @@ impl ColorExt for f32 {
     }
 }
 
+#[allow(dead_code)]
 pub trait LinkExt {
     fn str_to_hyperlinked_lines(value: &str) -> Vec<Line<'_>>;
 }

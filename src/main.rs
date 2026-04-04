@@ -53,7 +53,6 @@ async fn main() {
     let (event_tx, event_rx) = broadcast::channel::<AppEvent>(100);
 
     let config_service = ConfigService::new(
-        event_tx.clone(),
         event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
@@ -87,7 +86,6 @@ async fn main() {
     );
 
     let chat_service = ChatService::new(
-        event_tx.clone(),
         event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),

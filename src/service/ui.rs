@@ -7,6 +7,7 @@ use crate::{
     state::{State, StateAction},
 };
 
+#[allow(dead_code)]
 pub struct UiService {
     app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -50,8 +51,11 @@ impl UiService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: AppEvent) -> anyhow::Result<()> {
+    fn handle_app_event(&mut self, event: AppEvent) -> anyhow::Result<()> {
         match event {
+            AppEvent::InitializationRequested | AppEvent::SplashLogoRequested => {
+                self.state_action_tx.send(StateAction::SplashLogo)?;
+            }
             AppEvent::NextTabRequested => {
                 self.state_action_tx.send(StateAction::TabSwitchToNext)?;
             }

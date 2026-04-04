@@ -1,5 +1,6 @@
 pub mod component;
 pub mod helpers;
+pub mod logo;
 
 mod ui;
 pub use ui::*;
@@ -13,6 +14,7 @@ pub mod prelude {
     pub use ratatui::layout::Flex;
     pub use ratatui::prelude::*;
     pub use ratatui::symbols::scrollbar::Set as ScrollbarSet;
+    pub use ratatui::text::Text;
     pub use ratatui::widgets::{
         Block, BorderType, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         Wrap,
