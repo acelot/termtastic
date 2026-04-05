@@ -51,7 +51,6 @@ impl ConnectionService {
             tokio::select! {
                 Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event).await?,
                 Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
-                _ = self.state_rx.changed() => self.handle_state_change()?,
                 _ = connection_check_interval.tick() => self.check_connection()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
@@ -157,37 +156,28 @@ impl ConnectionService {
         Ok(())
     }
 
-    fn handle_state_change(&self) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
-
-        if let Some(device) = &state.active_device
-            && state.connection_state == ConnectionState::NotConnected
-        {
-            self.connect(device)?;
-        }
-
-        Ok(())
-    }
-
     fn check_connection(&self) -> anyhow::Result<()> {
         let state = &self.state_rx.borrow();
 
-        if let Some(device) = &state.active_device
-            && let ConnectionState::ProblemDetected { since, .. } = state.connection_state
-        {
-            let backoff_duration = Duration::from_millis(
-                (RECONNECTION_BACKOFF_BASE_MILLIS * 2_u64.pow(state.connection_attempt as u32))
-                    .min(RECONNECTION_BACKOFF_MAX_MILLIS),
-            );
+        match (&state.active_device, &state.connection_state) {
+            (Some(device), ConnectionState::ProblemDetected { since, .. }) => {
+                let backoff_duration = Duration::from_millis(
+                    (RECONNECTION_BACKOFF_BASE_MILLIS * 2_u64.pow(state.connection_attempt as u32))
+                        .min(RECONNECTION_BACKOFF_MAX_MILLIS),
+                );
 
-            let time_left = (since + backoff_duration).duration_since(Instant::now());
+                let time_left =
+                    backoff_duration.saturating_sub(Instant::now().duration_since(*since));
 
-            self.state_action_tx
-                .send(StateAction::ReconnectionBackoffSet(time_left))?;
+                self.state_action_tx
+                    .send(StateAction::ReconnectionBackoffSet(time_left))?;
 
-            if time_left.is_zero() {
-                self.connect(device)?;
+                if time_left.is_zero() {
+                    self.connect(device)?;
+                }
             }
+            (Some(device), ConnectionState::NotConnected) => self.connect(device)?,
+            _ => {}
         }
 
         Ok(())

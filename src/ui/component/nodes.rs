@@ -200,10 +200,10 @@ impl<'a> Widget for NodeWidget<'a> {
         .render(v0_h[0], buf);
 
         Line::from(match self.node.hops_away {
+            _ if self.node.my => Span::from("✔ connected").blue(),
             Some(0) => Span::from(format!("⁕ {}dB", self.node.snr))
                 .style(Style::new().fg(self.node.snr.snr_to_color())),
             Some(hops) => Span::from("❱".repeat(hops as usize)).dark_gray(),
-            None if self.node.my => Span::from("✔ connected").blue(),
             None => Span::from("unknown").dark_gray(),
         })
         .render(v0_h[1], buf);
