@@ -15,7 +15,9 @@ use tracing_unwrap::ResultExt;
 use crate::{
     log2state::LogToState,
     meshtastic::MeshtasticService,
-    service::{ChatService, ConfigService, ConnectionService, NodesService, UiService},
+    service::{
+        ChatService, ConfigService, ConnectionService, NodesService, SettingsService, UiService,
+    },
     state::{State, Store},
     types::AppEvent,
     ui::Ui,
@@ -93,6 +95,15 @@ async fn main() {
         meshtastic_event_rx.resubscribe(),
     );
 
+    let settings_service = SettingsService::new(
+        event_tx.clone(),
+        event_rx.resubscribe(),
+        state_rx.clone(),
+        state_action_tx.clone(),
+        meshtastic_command_tx.clone(),
+        meshtastic_event_rx.resubscribe(),
+    );
+
     let event_tx_clone = event_tx.clone();
     let state_action_tx_clone = state_action_tx.clone();
 
@@ -124,6 +135,11 @@ async fn main() {
         s.start(SubsystemBuilder::new(
             "ConnectionService",
             async |subsys: &mut SubsystemHandle| connection_service.run(subsys).await,
+        ));
+
+        s.start(SubsystemBuilder::new(
+            "SettingsService",
+            async |subsys: &mut SubsystemHandle| settings_service.run(subsys).await,
         ));
 
         s.start(SubsystemBuilder::new(

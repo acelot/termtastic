@@ -2,7 +2,9 @@ use std::sync::LazyLock;
 
 use ratatui::{
     style::{Color, Style, Stylize},
+    symbols::scrollbar::Set as ScrollbarSet,
     text::{Line, Span},
+    widgets::{Scrollbar, ScrollbarOrientation},
 };
 use regex::{Regex, RegexBuilder};
 
@@ -62,4 +64,15 @@ pub fn str_to_hyperlinked_lines(value: &str) -> Vec<Line<'_>> {
     }
 
     result
+}
+
+pub fn default_scrollbar() -> Scrollbar<'static> {
+    Scrollbar::new(ScrollbarOrientation::VerticalRight)
+        .symbols(ScrollbarSet {
+            begin: "┬",
+            thumb: "█",
+            track: "│",
+            end: "┴",
+        })
+        .style(Style::new().dark_gray())
 }

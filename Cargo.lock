@@ -1701,6 +1701,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1733,8 +1739,7 @@ dependencies = [
 [[package]]
 name = "meshtastic"
 version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bf901325782ca58dcfb24bcc8c357e6404a5a40995afeffcc75c531d5742bb3"
+source = "git+https://github.com/meshtastic/rust?branch=main#e28f13c06b6d96363bcd7bebf3d6911ae06ae922"
 dependencies = [
  "bluez-async",
  "btleplug",
@@ -1745,6 +1750,7 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "serde_json",
+ "strum 0.28.0",
  "thiserror 2.0.18",
  "tokio",
  "tokio-serial",
@@ -3042,6 +3048,7 @@ dependencies = [
  "futures",
  "hostaddr",
  "itertools 0.14.0",
+ "maplit",
  "meshtastic",
  "ratatui",
  "regex",

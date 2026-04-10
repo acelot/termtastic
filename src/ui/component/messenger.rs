@@ -11,7 +11,10 @@ use tracing_unwrap::OptionExt;
 use tui_input::backend::crossterm::EventHandler;
 use tui_widget_list::ScrollDirection;
 
-use crate::ui::{helpers::ColorExt, prelude::*};
+use crate::ui::{
+    helpers::{ColorExt, default_scrollbar},
+    prelude::*,
+};
 
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
@@ -238,35 +241,14 @@ impl Component for Messenger {
                 (item, height)
             });
 
-            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .symbols(ScrollbarSet {
-                    begin: "┬",
-                    thumb: "█",
-                    track: "│",
-                    end: "┴",
-                })
-                .style(Style::new().dark_gray());
-
             let list = ListView::new(list_builder, messages.len())
                 .infinite_scrolling(false)
                 .scroll_direction(ScrollDirection::Backward)
-                .scrollbar(scrollbar);
+                .scrollbar(default_scrollbar());
 
             list.render(v[0], frame.buffer_mut(), list_state);
         } else {
-            let v0_v = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Fill(1),
-                    Constraint::Length(1),
-                    Constraint::Fill(1),
-                ])
-                .split(v[0]);
-
-            Line::from(Span::from("no messages"))
-                .dark_gray()
-                .centered()
-                .render(v0_v[1], frame.buffer_mut());
+            PlaceholderWidget::dark_gray("no messages").render(v[0], frame.buffer_mut());
         }
 
         // input
@@ -279,7 +261,7 @@ impl Component for Messenger {
 
         let channel_name_spans = match (&active_channel.role, replying_to) {
             (ChannelRole::Primary | ChannelRole::Secondary, None) => vec![
-                Span::from(format!("#{} ", active_channel.id)).dark_gray(),
+                Span::from(format!("#{} ", active_channel.key)).dark_gray(),
                 Span::from(if !active_channel.name.is_empty() {
                     &active_channel.name
                 } else if active_channel.role == ChannelRole::Primary {
@@ -350,7 +332,7 @@ impl Component for Messenger {
         .right_aligned()
         .render(input_block_area_h[3], frame.buffer_mut());
 
-        Hotkeys::new(self.get_hotkeys(active_channel.key)).render(state, frame, v[2]);
+        HotkeysWidget::new(&self.get_hotkeys(active_channel.key)).render(v[2], frame.buffer_mut());
     }
 }
 

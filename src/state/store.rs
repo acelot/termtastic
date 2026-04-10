@@ -7,6 +7,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use meshtastic::protobufs::{config, module_config};
 use tokio::{
     sync::{
         mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
@@ -18,7 +19,9 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::{
     state::{State, StateAction},
-    types::{Channel, ConnectionState, DeviceDiscoveringState, NodesSortBy, Tab},
+    types::{
+        Channel, ConnectionState, DeviceDiscoveringState, NodesSortBy, SettingsFormState, Tab,
+    },
 };
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
@@ -73,38 +76,45 @@ impl Store {
     }
 
     fn handle_action(&mut self, action: StateAction) -> anyhow::Result<()> {
-        let prev_state = self.state.clone();
+        let mut is_changed = false;
 
         match action {
             StateAction::SplashLogo => {
                 self.state.splash_logo = true;
                 self.state.splash_logo_t = Instant::now();
+                is_changed = true;
             }
             StateAction::AppConfigApply(cfg) => {
                 self.state.active_tab = cfg.active_tab;
                 self.state.active_device = cfg.active_device;
                 self.state.tcp_devices = cfg.tcp_devices;
                 self.state.nodes_sort_by = cfg.nodes_sort_by;
+                is_changed = true;
             }
             StateAction::TabSwitchTo(tab) => {
                 self.state.active_tab = tab;
                 self.state.need_clear_frame = true;
+                is_changed = true;
             }
             StateAction::TabSwitchToNext => {
                 self.state.active_tab = self.state.active_tab.next();
                 self.state.need_clear_frame = true;
+                is_changed = true;
             }
             StateAction::TabSwitchToPrevious => {
                 self.state.active_tab = self.state.active_tab.prev();
                 self.state.need_clear_frame = true;
+                is_changed = true;
             }
             StateAction::DeviceActiveSet(device) => {
                 self.state.active_device = Some(device);
+                is_changed = true;
             }
             StateAction::ConnectionStart => {
                 self.state.connection_state = ConnectionState::Connecting;
                 self.state.connection_attempt += 1;
                 self.state.reconnection_backoff = None;
+                is_changed = true;
 
                 tracing::debug!("connection attempt #{}", self.state.connection_attempt);
             }
@@ -113,6 +123,7 @@ impl Store {
                     since: Instant::now(),
                     error,
                 };
+                is_changed = true;
             }
             StateAction::ConnectionStop => {
                 self.state.connection_state = ConnectionState::NotConnected;
@@ -123,39 +134,137 @@ impl Store {
                 self.state.nodes_sort.clear();
                 self.state.nodes.clear();
                 self.state.online_nodes = 0;
+                is_changed = true;
             }
             StateAction::ConnectionSuccess => {
                 self.state.connection_state = ConnectionState::Connected;
                 self.state.connection_attempt = 0;
                 self.state.reconnection_backoff = None;
+                is_changed = true;
             }
             StateAction::ReconnectionBackoffSet(duration) => {
                 self.state.reconnection_backoff = Some(duration);
+                is_changed = true;
             }
             StateAction::LogRecordAdd(r) => {
                 self.state.logs.push(r);
+                is_changed = true;
             }
             StateAction::DeviceDiscoveringStart => {
                 self.state.device_discovering_state = DeviceDiscoveringState::Discovering;
+                is_changed = true;
             }
             StateAction::DeviceDiscoveringFail(error) => {
                 self.state.device_discovering_state = DeviceDiscoveringState::Failed(error);
+                is_changed = true;
             }
             StateAction::DeviceDiscoveringDone(devices) => {
                 self.state.discovered_devices = devices;
                 self.state.device_discovering_state = DeviceDiscoveringState::Done;
+                is_changed = true;
             }
             StateAction::DevicesAddTcp(hostaddr) => {
                 if !self.state.tcp_devices.contains(&hostaddr) {
                     self.state.tcp_devices.push(hostaddr);
+                    is_changed = true;
                 }
+            }
+            StateAction::DeviceConfigSet(variant) => {
+                match variant {
+                    config::PayloadVariant::Bluetooth(cfg) => {
+                        self.state.device_config.bluetooth = Some(cfg);
+                    }
+                    config::PayloadVariant::Device(cfg) => {
+                        self.state.device_config.device = Some(cfg);
+                    }
+                    config::PayloadVariant::DeviceUi(cfg) => {
+                        self.state.device_config.device_ui = Some(cfg);
+                    }
+                    config::PayloadVariant::Display(cfg) => {
+                        self.state.device_config.display = Some(cfg);
+                    }
+                    config::PayloadVariant::Lora(cfg) => {
+                        self.state.device_config.lora = Some(cfg);
+                    }
+                    config::PayloadVariant::Network(cfg) => {
+                        self.state.device_config.network = Some(cfg);
+                    }
+                    config::PayloadVariant::Position(cfg) => {
+                        self.state.device_config.position = Some(cfg);
+                    }
+                    config::PayloadVariant::Power(cfg) => {
+                        self.state.device_config.power = Some(cfg);
+                    }
+                    config::PayloadVariant::Security(cfg) => {
+                        self.state.device_config.security = Some(cfg);
+                    }
+                    config::PayloadVariant::Sessionkey(cfg) => {
+                        self.state.device_config.sessionkey = Some(cfg);
+                    }
+                }
+
+                is_changed = true;
+            }
+            StateAction::DeviceModuleConfigSet(variant) => {
+                match variant {
+                    module_config::PayloadVariant::AmbientLighting(cfg) => {
+                        self.state.device_module_config.ambient_lighting = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Audio(cfg) => {
+                        self.state.device_module_config.audio = Some(cfg);
+                    }
+                    module_config::PayloadVariant::CannedMessage(cfg) => {
+                        self.state.device_module_config.canned_message = Some(cfg);
+                    }
+                    module_config::PayloadVariant::DetectionSensor(cfg) => {
+                        self.state.device_module_config.detection_sensor = Some(cfg);
+                    }
+                    module_config::PayloadVariant::ExternalNotification(cfg) => {
+                        self.state.device_module_config.external_notification = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Mqtt(cfg) => {
+                        self.state.device_module_config.mqtt = Some(cfg);
+                    }
+                    module_config::PayloadVariant::NeighborInfo(cfg) => {
+                        self.state.device_module_config.neighbor = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Paxcounter(cfg) => {
+                        self.state.device_module_config.paxcounter = Some(cfg);
+                    }
+                    module_config::PayloadVariant::RangeTest(cfg) => {
+                        self.state.device_module_config.range_test = Some(cfg);
+                    }
+                    module_config::PayloadVariant::RemoteHardware(cfg) => {
+                        self.state.device_module_config.remote_hardware = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Serial(cfg) => {
+                        self.state.device_module_config.serial = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Statusmessage(cfg) => {
+                        self.state.device_module_config.status_message = Some(cfg);
+                    }
+                    module_config::PayloadVariant::StoreForward(cfg) => {
+                        self.state.device_module_config.store_forward = Some(cfg);
+                    }
+                    module_config::PayloadVariant::Telemetry(cfg) => {
+                        self.state.device_module_config.telemetry = Some(cfg);
+                    }
+                    module_config::PayloadVariant::TrafficManagement(cfg) => {
+                        self.state.device_module_config.traffic_management = Some(cfg);
+                    }
+                }
+
+                is_changed = true;
             }
             StateAction::DevicesRemoveTcp(hostaddr) => {
                 self.state
                     .tcp_devices
                     .iter()
                     .position(|h| h == &hostaddr)
-                    .map(|index| self.state.tcp_devices.remove(index));
+                    .map(|index| {
+                        self.state.tcp_devices.remove(index);
+                        is_changed = true;
+                    });
             }
             StateAction::NodeAdd(mut node) => {
                 if let Some(number) = self.state.my_node_key
@@ -168,23 +277,29 @@ impl Store {
 
                 self.update_nodes_sort();
                 self.update_online_nodes()?;
+                is_changed = true;
             }
             StateAction::ChannelEnsure(key, channel) => {
                 self.state.channels.entry(key).or_insert(channel);
+                is_changed = true;
             }
             StateAction::ChannelActiveSet(id) => {
                 self.state.active_channel_key = Some(id);
+                is_changed = true;
             }
             StateAction::ChannelActiveUnset => {
                 self.state.active_channel_key = None;
+                is_changed = true;
             }
             StateAction::RxTrigger => {
                 self.state.rx_t = Instant::now();
                 self.state.rx = true;
+                is_changed = true;
             }
             StateAction::NodesSortBySet(sort_by) => {
                 self.state.nodes_sort_by = sort_by;
                 self.update_nodes_sort();
+                is_changed = true;
             }
             StateAction::NodeUpdateLastHeard {
                 node_key,
@@ -201,6 +316,7 @@ impl Store {
 
                     self.update_nodes_sort();
                     self.update_online_nodes()?;
+                    is_changed = true;
                 }
             }
             StateAction::MyNodeKeySet(number) => {
@@ -208,6 +324,7 @@ impl Store {
 
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.my = true;
+                    is_changed = true;
                 }
             }
             StateAction::DirectChatStart(node_key) => {
@@ -218,6 +335,7 @@ impl Store {
 
                 self.state.active_channel_key = Some(node_key);
                 self.state.active_tab = Tab::Chat;
+                is_changed = true;
             }
             StateAction::MessageAdd(channel_key, message) => {
                 if let Some(messages_vec) = self.state.messages.get_mut(&channel_key) {
@@ -227,6 +345,8 @@ impl Store {
                         .messages
                         .insert(channel_key, VecDeque::from(vec![message]));
                 }
+
+                is_changed = true;
             }
             StateAction::MessageReactionAdd {
                 channel_key,
@@ -246,6 +366,8 @@ impl Store {
                         .or_insert_with(HashMap::new)
                         .insert(node_key, Utc::now());
                 }
+
+                is_changed = true;
             }
             StateAction::MessageAck(channel_key, message_id) => {
                 if let Some(message) = self
@@ -256,16 +378,52 @@ impl Store {
                 {
                     message.acked = true;
                 }
+
+                is_changed = true;
             }
             StateAction::FrameCleared => {
                 self.state.need_clear_frame = false;
+                is_changed = true;
             }
             StateAction::Toast(toast) => {
                 self.state.toast_queue.push_back(toast);
+                is_changed = true;
+            }
+            StateAction::SettingsFormLoadingStart { id } => {
+                self.state.settings_form_data = None;
+                self.state.settings_form_state = SettingsFormState::Loading { id };
+                is_changed = true;
+            }
+            StateAction::SettingsFormLoadingFail { id, error } => {
+                self.state.settings_form_data = None;
+                self.state.settings_form_state = SettingsFormState::LoadingFailed { id, error };
+                is_changed = true;
+            }
+            StateAction::SettingsFormLoadingDone { id, data } => {
+                self.state.settings_form_data = Some(data);
+                self.state.settings_form_state = SettingsFormState::Loaded { id };
+                is_changed = true;
+            }
+            StateAction::SettingsFormSavingStart { id } => {
+                self.state.settings_form_state = SettingsFormState::Saving { id };
+                is_changed = true;
+            }
+            StateAction::SettingsFormSavingFail { id, error } => {
+                self.state.settings_form_state = SettingsFormState::SavingFailed { id, error };
+                is_changed = true;
+            }
+            StateAction::SettingsFormSavingDone { id } => {
+                self.state.settings_form_state = SettingsFormState::Saved { id };
+                is_changed = true;
+            }
+            StateAction::SettingsFormClose => {
+                self.state.settings_form_data = None;
+                self.state.settings_form_state = SettingsFormState::Inactive;
+                is_changed = true;
             }
         }
 
-        if self.state != prev_state {
+        if is_changed {
             self.state_tx.send(self.state.clone())?;
         }
 

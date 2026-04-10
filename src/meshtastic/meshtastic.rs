@@ -3,7 +3,7 @@ use std::time::Duration;
 use meshtastic::{
     api::ConnectedStreamApi,
     packet::{PacketDestination, PacketRouter},
-    protobufs::{FromRadio, PortNum, from_radio::PayloadVariant},
+    protobufs::{Config, FromRadio, ModuleConfig, PortNum, from_radio},
     types::{EncodedMeshPacketData, MeshChannel, NodeId},
 };
 use tokio::{
@@ -79,6 +79,20 @@ impl MeshtasticService {
                 self.event_tx.send(MeshtasticEvent::ConnectionError(
                     "connection channel was closed unexpectedly".to_owned(),
                 ))?;
+            }
+            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::Config(Config {
+                payload_variant: Some(variant),
+            })) => {
+                self.event_tx
+                    .send(MeshtasticEvent::IncomingConfig(variant))?;
+            }
+            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::ModuleConfig(
+                ModuleConfig {
+                    payload_variant: Some(variant),
+                },
+            )) => {
+                self.event_tx
+                    .send(MeshtasticEvent::IncomingModuleConfig(variant))?;
             }
             _ => {}
         }
@@ -310,10 +324,9 @@ impl<'a> PacketRouter<(), LocalPacketRouterErr> for LocalPacketRouter<'a> {
         &mut self,
         packet: meshtastic::protobufs::MeshPacket,
     ) -> Result<(), LocalPacketRouterErr> {
-        self.event_tx
-            .send(MeshtasticEvent::IncomingPacket(PayloadVariant::Packet(
-                packet,
-            )))?;
+        self.event_tx.send(MeshtasticEvent::IncomingPacket(
+            from_radio::PayloadVariant::Packet(packet),
+        ))?;
 
         Ok(())
     }

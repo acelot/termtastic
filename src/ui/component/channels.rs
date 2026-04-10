@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use chrono::Local;
 use itertools::Itertools;
 
-use crate::ui::prelude::*;
+use crate::ui::{helpers::default_scrollbar, prelude::*};
 
 pub struct Channels {
     channels: Vec<Channel>,
     list_state: ListState,
-    hotkeys_component: Hotkeys,
+    hotkeys: Vec<Hotkey>,
 }
 
 impl Channels {
@@ -16,7 +16,7 @@ impl Channels {
         Self {
             channels: vec![],
             list_state: ListState::default(),
-            hotkeys_component: Hotkeys::new(vec![
+            hotkeys: vec![
                 Hotkey {
                     key: "↑↓".to_string(),
                     label: "scroll".to_string(),
@@ -25,7 +25,7 @@ impl Channels {
                     key: "enter".to_string(),
                     label: "open".to_string(),
                 },
-            ]),
+            ],
         }
     }
 }
@@ -109,37 +109,16 @@ impl Component for Channels {
                 (item, 4)
             });
 
-            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .symbols(ScrollbarSet {
-                    begin: "┬",
-                    thumb: "█",
-                    track: "│",
-                    end: "┴",
-                })
-                .style(Style::new().dark_gray());
-
             let list = ListView::new(list_builder, self.channels.len())
                 .infinite_scrolling(false)
-                .scrollbar(scrollbar);
+                .scrollbar(default_scrollbar());
 
             list.render(v[0], frame.buffer_mut(), &mut self.list_state);
         } else {
-            let v0_v = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Fill(1),
-                    Constraint::Length(1),
-                    Constraint::Fill(1),
-                ])
-                .split(v[0]);
-
-            Line::from(Span::from("no channels"))
-                .dark_gray()
-                .centered()
-                .render(v0_v[1], frame.buffer_mut());
+            PlaceholderWidget::dark_gray("no channels").render(v[0], frame.buffer_mut());
         }
 
-        self.hotkeys_component.render(state, frame, v[1]);
+        HotkeysWidget::new(&self.hotkeys).render(v[1], frame.buffer_mut());
     }
 }
 

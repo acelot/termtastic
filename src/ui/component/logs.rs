@@ -2,15 +2,15 @@ use arboard::Clipboard;
 use chrono::Local;
 use tracing::Level;
 
-use crate::ui::prelude::*;
+use crate::ui::{helpers::default_scrollbar, prelude::*};
 
 pub struct Logs {
     list_state: ListState,
     follow: bool,
     popup_record: Option<LogRecord>,
     popup_scroll_offset: u16,
-    hotkeys_component: Hotkeys,
-    popup_hotkeys_component: Hotkeys,
+    hotkeys: Vec<Hotkey>,
+    popup_hotkeys: Vec<Hotkey>,
 }
 
 impl Logs {
@@ -20,7 +20,7 @@ impl Logs {
             follow: true,
             popup_record: None,
             popup_scroll_offset: 0,
-            hotkeys_component: Hotkeys::new(vec![
+            hotkeys: vec![
                 Hotkey {
                     key: "↑↓".to_string(),
                     label: "scroll".to_string(),
@@ -41,8 +41,8 @@ impl Logs {
                     key: "end".to_string(),
                     label: "to bottom".to_string(),
                 },
-            ]),
-            popup_hotkeys_component: Hotkeys::new(vec![
+            ],
+            popup_hotkeys: vec![
                 Hotkey {
                     key: "↑↓".to_string(),
                     label: "scroll".to_string(),
@@ -55,7 +55,7 @@ impl Logs {
                     key: "esc".to_string(),
                     label: "close".to_string(),
                 },
-            ]),
+            ],
         }
     }
 
@@ -158,31 +158,26 @@ impl Component for Logs {
             ])
             .split(area);
 
-        let list_builder = ListBuilder::new(|context| {
-            let item = LogRecordWidget {
-                record: &state.logs[context.index],
-                is_selected: context.is_selected,
-                wrap: false,
-                scroll_offset: 0,
-            };
+        if !state.logs.is_empty() {
+            let list_builder = ListBuilder::new(|context| {
+                let item = LogRecordWidget {
+                    record: &state.logs[context.index],
+                    is_selected: context.is_selected,
+                    wrap: false,
+                    scroll_offset: 0,
+                };
 
-            (item, 1)
-        });
+                (item, 1)
+            });
 
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .symbols(ScrollbarSet {
-                begin: "┬",
-                thumb: "█",
-                track: "│",
-                end: "┴",
-            })
-            .style(Style::new().dark_gray());
+            let list = ListView::new(list_builder, state.logs.len())
+                .scrollbar(default_scrollbar())
+                .infinite_scrolling(false);
 
-        let list = ListView::new(list_builder, state.logs.len())
-            .scrollbar(scrollbar)
-            .infinite_scrolling(false);
-
-        list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+            list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+        } else {
+            PlaceholderWidget::dark_gray("no logs").render(v[0], frame.buffer_mut());
+        }
 
         if let Some(r) = &self.popup_record {
             let popup_area = Rect {
@@ -214,9 +209,9 @@ impl Component for Logs {
         }
 
         if self.popup_record.is_some() {
-            self.popup_hotkeys_component.render(state, frame, v[2]);
+            HotkeysWidget::new(&self.popup_hotkeys).render(v[2], frame.buffer_mut());
         } else {
-            self.hotkeys_component.render(state, frame, v[2]);
+            HotkeysWidget::new(&self.hotkeys).render(v[2], frame.buffer_mut());
         }
     }
 }

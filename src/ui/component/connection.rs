@@ -2,7 +2,7 @@ use hostaddr::HostAddr;
 use itertools::Itertools;
 use tui_input::{Input, backend::crossterm::EventHandler};
 
-use crate::ui::prelude::*;
+use crate::ui::{helpers::default_scrollbar, prelude::*};
 
 pub struct Connection {
     devices: Vec<Device>,
@@ -156,45 +156,40 @@ impl Component for Connection {
             .sorted()
             .collect();
 
-        if self.list_state.selected.is_none()
-            && state.device_discovering_state == DeviceDiscoveringState::Done
-            && !self.devices.is_empty()
-        {
-            if let Some(active) = &state.active_device {
-                self.list_state
-                    .select(self.devices.iter().position(|d| active == d));
-            } else {
-                self.list_state.select(Some(0));
+        if !self.devices.is_empty() {
+            if self.list_state.selected.is_none()
+                && state.device_discovering_state == DeviceDiscoveringState::Done
+                && !self.devices.is_empty()
+            {
+                if let Some(active) = &state.active_device {
+                    self.list_state
+                        .select(self.devices.iter().position(|d| active == d));
+                } else {
+                    self.list_state.select(Some(0));
+                }
             }
+
+            let list_builder = ListBuilder::new(|context| {
+                let device = self.devices.iter().nth(context.index).unwrap();
+
+                let item = DeviceWidget {
+                    device,
+                    is_selected: context.is_selected,
+                    centered: false,
+                    dimmed: state.active_device.is_some(),
+                };
+
+                (item, 1)
+            });
+
+            let list = ListView::new(list_builder, self.devices.len())
+                .infinite_scrolling(false)
+                .scrollbar(default_scrollbar());
+
+            list.render(v[0], frame.buffer_mut(), &mut self.list_state);
+        } else {
+            PlaceholderWidget::dark_gray("no devices").render(v[0], frame.buffer_mut());
         }
-
-        let list_builder = ListBuilder::new(|context| {
-            let device = self.devices.iter().nth(context.index).unwrap();
-
-            let item = DeviceWidget {
-                device,
-                is_selected: context.is_selected,
-                centered: false,
-                dimmed: state.active_device.is_some(),
-            };
-
-            (item, 1)
-        });
-
-        let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-            .symbols(ScrollbarSet {
-                begin: "┬",
-                thumb: "█",
-                track: "│",
-                end: "┴",
-            })
-            .style(Style::new().dark_gray());
-
-        let list = ListView::new(list_builder, self.devices.len())
-            .infinite_scrolling(false)
-            .scrollbar(scrollbar);
-
-        list.render(v[0], frame.buffer_mut(), &mut self.list_state);
 
         if self.is_form_visible {
             let popup_area = Rect {
@@ -298,7 +293,7 @@ impl Component for Connection {
             );
         }
 
-        Hotkeys::new(self.get_hotkeys(state)).render(state, frame, v[1])
+        HotkeysWidget::new(&self.get_hotkeys(state)).render(v[1], frame.buffer_mut())
     }
 }
 

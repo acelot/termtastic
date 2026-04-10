@@ -125,7 +125,6 @@ impl ConnectionService {
         Ok(())
     }
 
-    #[allow(unreachable_patterns)]
     fn handle_meshtastic_event(&self, event: MeshtasticEvent) -> anyhow::Result<()> {
         match event {
             MeshtasticEvent::Connected => {

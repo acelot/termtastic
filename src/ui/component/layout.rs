@@ -1,5 +1,5 @@
 use crate::ui::{
-    component::{Chat, Connection, Header, Logs, Nodes, Tabs, TerminalSize},
+    component::{Chat, Connection, Header, Logs, Nodes, Settings, Tabs, TerminalSize},
     logo::APP_LOGO_TEXT,
     prelude::*,
 };
@@ -12,6 +12,7 @@ pub struct Layout {
     tabs_component: Tabs,
     chat_component: Chat,
     nodes_component: Nodes,
+    settings_component: Settings,
     connection_component: Connection,
     logs_component: Logs,
     logo: Text<'static>,
@@ -25,6 +26,7 @@ impl Layout {
             tabs_component: Tabs::new(),
             chat_component: Chat::new(),
             nodes_component: Nodes::new(),
+            settings_component: Settings::new(),
             connection_component: Connection::new(),
             logs_component: Logs::new(),
             logo: APP_LOGO_TEXT.clone(),
@@ -53,9 +55,9 @@ impl Component for Layout {
         match state.active_tab {
             Tab::Chat => self.chat_component.handle_event(state, event, emit)?,
             Tab::Nodes => self.nodes_component.handle_event(state, event, emit)?,
+            Tab::Settings => self.settings_component.handle_event(state, event, emit)?,
             Tab::Connection => self.connection_component.handle_event(state, event, emit)?,
             Tab::Logs => self.logs_component.handle_event(state, event, emit)?,
-            _ => {}
         }
 
         Ok(())
@@ -86,9 +88,9 @@ impl Component for Layout {
         match state.active_tab {
             Tab::Chat => self.chat_component.render(state, frame, v[3]),
             Tab::Nodes => self.nodes_component.render(state, frame, v[3]),
+            Tab::Settings => self.settings_component.render(state, frame, v[3]),
             Tab::Connection => self.connection_component.render(state, frame, v[3]),
             Tab::Logs => self.logs_component.render(state, frame, v[3]),
-            _ => {}
         }
 
         if state.splash_logo {

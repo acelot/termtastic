@@ -1,9 +1,9 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{MeshPacket, User};
+use meshtastic::protobufs::{DeviceUiConfig, MeshPacket, User, config, module_config};
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -15,7 +15,7 @@ use tracing::Level;
 
 use crate::state::State;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub struct AppConfig {
     #[serde(default)]
     pub active_tab: Tab,
@@ -56,6 +56,8 @@ pub enum AppEvent {
     },
     SplashLogoRequested,
     DirectChatRequested(u32),
+    SettingsFormSelected(FormId),
+    SettingsFormLoadingCancelRequested,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -97,7 +99,7 @@ pub enum DeviceDiscoveringState {
     Done,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum ConnectionState {
     NotConnected,
     ProblemDetected { since: Instant, error: String },
@@ -105,7 +107,7 @@ pub enum ConnectionState {
     Connected,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct LogRecord {
     pub datetime: DateTime<Utc>,
     pub level: Level,
@@ -167,7 +169,7 @@ impl Tab {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Hotkey {
     pub key: String,
     pub label: String,
@@ -183,7 +185,7 @@ impl Hotkey {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 #[repr(u128)]
 pub enum ToastKind {
     Success,
@@ -203,7 +205,7 @@ impl ToastKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Toast {
     pub kind: ToastKind,
     pub text: String,
@@ -240,7 +242,7 @@ impl Toast {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub enum NodesSortBy {
     Hops,
     ShortName,
@@ -256,7 +258,7 @@ impl Default for NodesSortBy {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Node {
     pub id: String,
     pub key: u32,
@@ -368,7 +370,7 @@ impl From<meshtastic::protobufs::channel::Role> for ChannelRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Channel {
     pub key: u32,
     pub id: u32,
@@ -410,7 +412,7 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Message {
     pub id: u32,
     pub reply_message_id: u32,
@@ -454,4 +456,214 @@ impl
             acked: false,
         })
     }
+}
+
+#[derive(Debug, Display, Clone, PartialEq, Eq, Hash)]
+pub enum FormId {
+    RadioLora,
+    RadioChannels,
+    RadioSecurity,
+    DeviceUser,
+    DeviceDevice,
+    DevicePosition,
+    DevicePower,
+    DeviceDisplay,
+    DeviceBluetooth,
+    ModuleMqtt,
+    ModuleSerial,
+    ModuleExternalNotification,
+    ModuleStoreAndForward,
+    ModuleRangeTest,
+    ModuleTelemetry,
+    ModuleCannedMessage,
+    ModuleNeighborInfo,
+    AppUi,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SettingsFormState {
+    Inactive,
+    Loading { id: FormId },
+    LoadingFailed { id: FormId, error: String },
+    Loaded { id: FormId },
+    Saving { id: FormId },
+    SavingFailed { id: FormId, error: String },
+    Saved { id: FormId },
+}
+
+#[derive(Debug, Clone)]
+pub enum SettingsItem {
+    Group { title: &'static str },
+    Form { title: &'static str, id: FormId },
+}
+
+impl SettingsItem {
+    pub fn group(title: &'static str) -> Self {
+        Self::Group { title }
+    }
+
+    pub fn form(title: &'static str, id: FormId) -> Self {
+        Self::Form { title, id }
+    }
+}
+
+pub type FormData = HashMap<&'static str, FormValue>;
+
+#[derive(Debug, Clone)]
+pub enum FormValue {
+    String(String),
+    Int32(i32),
+    UnsignedInt32(u32),
+    Float32(f32),
+    Bool(bool),
+}
+
+impl Into<String> for &FormValue {
+    fn into(self) -> String {
+        let FormValue::String(value) = self else {
+            panic!()
+        };
+        value.clone()
+    }
+}
+
+impl Into<i32> for &FormValue {
+    fn into(self) -> i32 {
+        let FormValue::Int32(value) = self else {
+            panic!()
+        };
+        value.clone()
+    }
+}
+
+impl Into<u32> for &FormValue {
+    fn into(self) -> u32 {
+        let FormValue::UnsignedInt32(value) = self else {
+            panic!()
+        };
+        *value
+    }
+}
+
+impl Into<f32> for &FormValue {
+    fn into(self) -> f32 {
+        let FormValue::Float32(value) = self else {
+            panic!()
+        };
+        *value
+    }
+}
+
+impl Into<bool> for &FormValue {
+    fn into(self) -> bool {
+        let FormValue::Bool(value) = self else {
+            panic!()
+        };
+        *value
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FormItem {
+    pub key: &'static str,
+    pub title: &'static str,
+    pub description: &'static str,
+    pub kind: FormItemKind,
+    pub formatter: fn(&FormValue) -> String,
+}
+
+impl FormItem {
+    pub fn new(
+        key: &'static str,
+        title: &'static str,
+        description: &'static str,
+        kind: FormItemKind,
+        formatter: fn(&FormValue) -> String,
+    ) -> Self {
+        Self {
+            key,
+            title,
+            description,
+            kind,
+            formatter,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum FormItemKind {
+    InputOfString {
+        maxlen: usize,
+    },
+    InputOfUInt32 {
+        min: u32,
+        max: u32,
+    },
+    InputOfFloat32 {
+        min: f32,
+        max: f32,
+        precision: usize,
+    },
+    EnumOfString(Vec<FormEnumVariant<String>>),
+    EnumOfInt32(Vec<FormEnumVariant<i32>>),
+    EnumOfUnsignedInt32(Vec<FormEnumVariant<u32>>),
+    EnumOfFloat32(Vec<FormEnumVariant<f32>>),
+    BitMask(Vec<FormEnumVariant<u8>>),
+    Switch,
+    Button {
+        event: AppEvent,
+        confirm: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct FormEnumVariant<T>
+where
+    T: Sized,
+{
+    pub title: String,
+    pub value: T,
+}
+
+impl<T> FormEnumVariant<T> {
+    pub fn new<S: Into<String>>(title: S, value: T) -> Self {
+        Self {
+            title: title.into(),
+            value,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DeviceConfig {
+    pub bluetooth: Option<config::BluetoothConfig>,
+    pub device: Option<config::DeviceConfig>,
+    pub device_ui: Option<DeviceUiConfig>,
+    pub display: Option<config::DisplayConfig>,
+    pub lora: Option<config::LoRaConfig>,
+    pub network: Option<config::NetworkConfig>,
+    pub position: Option<config::PositionConfig>,
+    pub power: Option<config::PowerConfig>,
+    pub security: Option<config::SecurityConfig>,
+    pub sessionkey: Option<config::SessionkeyConfig>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct DeviceModuleConfig {
+    pub ambient_lighting: Option<module_config::AmbientLightingConfig>,
+    pub audio: Option<module_config::AudioConfig>,
+    pub canned_message: Option<module_config::CannedMessageConfig>,
+    pub detection_sensor: Option<module_config::DetectionSensorConfig>,
+    pub external_notification: Option<module_config::ExternalNotificationConfig>,
+    pub map_report: Option<module_config::MapReportSettings>,
+    pub mqtt: Option<module_config::MqttConfig>,
+    pub neighbor: Option<module_config::NeighborInfoConfig>,
+    pub paxcounter: Option<module_config::PaxcounterConfig>,
+    pub range_test: Option<module_config::RangeTestConfig>,
+    pub remote_hardware: Option<module_config::RemoteHardwareConfig>,
+    pub serial: Option<module_config::SerialConfig>,
+    pub status_message: Option<module_config::StatusMessageConfig>,
+    pub store_forward: Option<module_config::StoreForwardConfig>,
+    pub telemetry: Option<module_config::TelemetryConfig>,
+    pub traffic_management: Option<module_config::TrafficManagementConfig>,
 }

@@ -1,17 +1,20 @@
 use chrono::{SubsecRound, TimeDelta, Utc};
 
-use crate::ui::{helpers::ColorExt, prelude::*};
+use crate::ui::{
+    helpers::{ColorExt, default_scrollbar},
+    prelude::*,
+};
 
 pub struct Nodes {
     list_state: ListState,
-    hotkeys_component: Hotkeys,
+    hotkeys: Vec<Hotkey>,
 }
 
 impl Nodes {
     pub fn new() -> Self {
         Self {
             list_state: ListState::default(),
-            hotkeys_component: Hotkeys::new(vec![
+            hotkeys: vec![
                 Hotkey {
                     key: "↑↓".to_string(),
                     label: "scroll".to_string(),
@@ -28,7 +31,7 @@ impl Nodes {
                     key: "s".to_string(),
                     label: "sort by".to_string(),
                 },
-            ]),
+            ],
         }
     }
 }
@@ -98,37 +101,16 @@ impl Component for Nodes {
                 (item, 3)
             });
 
-            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
-                .symbols(ScrollbarSet {
-                    begin: "┬",
-                    thumb: "█",
-                    track: "│",
-                    end: "┴",
-                })
-                .style(Style::new().dark_gray());
-
             let list = ListView::new(list_builder, state.nodes_sort.len())
                 .infinite_scrolling(false)
-                .scrollbar(scrollbar);
+                .scrollbar(default_scrollbar());
 
             list.render(v[0], frame.buffer_mut(), &mut self.list_state);
         } else {
-            let v0_v = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([
-                    Constraint::Fill(1),
-                    Constraint::Length(1),
-                    Constraint::Fill(1),
-                ])
-                .split(v[0]);
-
-            Line::from(Span::from("no nodes"))
-                .dark_gray()
-                .centered()
-                .render(v0_v[1], frame.buffer_mut());
+            PlaceholderWidget::dark_gray("no nodes").render(v[0], frame.buffer_mut());
         }
 
-        self.hotkeys_component.render(state, frame, v[2]);
+        HotkeysWidget::new(&self.hotkeys).render(v[2], frame.buffer_mut());
     }
 }
 

@@ -1,10 +1,13 @@
 use std::time::Duration;
 
 use hostaddr::HostAddr;
+use meshtastic::protobufs::{config, module_config};
 
-use crate::types::{AppConfig, Channel, Device, LogRecord, Message, Node, NodesSortBy, Tab, Toast};
+use crate::types::{
+    AppConfig, Channel, Device, FormData, FormId, LogRecord, Message, Node, NodesSortBy, Tab, Toast,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum StateAction {
     AppConfigApply(AppConfig),
     ChannelActiveSet(u32),
@@ -20,6 +23,8 @@ pub enum StateAction {
     DeviceDiscoveringStart,
     DeviceDiscoveringFail(String),
     DeviceDiscoveringDone(Vec<Device>),
+    DeviceConfigSet(config::PayloadVariant),
+    DeviceModuleConfigSet(module_config::PayloadVariant),
     DevicesRemoveTcp(HostAddr<String>),
     LogRecordAdd(LogRecord),
     DirectChatStart(u32),
@@ -46,4 +51,26 @@ pub enum StateAction {
     TabSwitchToPrevious,
     FrameCleared,
     Toast(Toast),
+    SettingsFormLoadingStart {
+        id: FormId,
+    },
+    SettingsFormLoadingFail {
+        id: FormId,
+        error: String,
+    },
+    SettingsFormLoadingDone {
+        id: FormId,
+        data: FormData,
+    },
+    SettingsFormSavingStart {
+        id: FormId,
+    },
+    SettingsFormSavingFail {
+        id: FormId,
+        error: String,
+    },
+    SettingsFormSavingDone {
+        id: FormId,
+    },
+    SettingsFormClose,
 }
