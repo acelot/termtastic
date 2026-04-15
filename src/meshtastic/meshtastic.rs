@@ -252,6 +252,27 @@ impl MeshtasticService {
                         .send(MeshtasticEvent::MessageRejected(e.to_string()))?,
                 };
             }
+            CommandToMeshtastic::SaveConfig { my_node_id, config } => {
+                let api = self
+                    .stream_api
+                    .as_mut()
+                    .expect_or_log("should be connected");
+
+                api.start_config_transaction().await?;
+
+                api.update_config(
+                    &mut LocalPacketRouter {
+                        my_node_id,
+                        event_tx: &self.event_tx,
+                    },
+                    Config {
+                        payload_variant: Some(config),
+                    },
+                )
+                .await?;
+
+                api.commit_config_transaction().await?;
+            }
         };
 
         Ok(())

@@ -6,19 +6,19 @@ use crate::ui::{
 
 const MIN_TERMINAL_SIZE: (u16, u16) = (80, 24);
 
-pub struct Layout {
+pub struct Layout<'a> {
     terminal_size_component: TerminalSize,
     header_component: Header,
     tabs_component: Tabs,
-    chat_component: Chat,
+    chat_component: Chat<'a>,
     nodes_component: Nodes,
-    settings_component: Settings,
-    connection_component: Connection,
+    settings_component: Settings<'a>,
+    connection_component: Connection<'a>,
     logs_component: Logs,
     logo: Text<'static>,
 }
 
-impl Layout {
+impl<'a> Layout<'a> {
     pub fn new() -> Self {
         Self {
             terminal_size_component: TerminalSize::new(MIN_TERMINAL_SIZE),
@@ -34,7 +34,7 @@ impl Layout {
     }
 }
 
-impl Component for Layout {
+impl<'a> Component for Layout<'a> {
     fn handle_event(
         &mut self,
         state: &State,

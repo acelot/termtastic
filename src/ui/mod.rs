@@ -21,6 +21,6 @@ pub mod prelude {
         Block, BorderType, Borders, Clear, Padding, Paragraph, Scrollbar, ScrollbarOrientation,
         Wrap,
     };
-    pub use tui_input::Input as TuiInput;
+    pub use ratatui_textarea::{TextArea, WrapMode};
     pub use tui_widget_list::{ListBuilder, ListState, ListView};
 }

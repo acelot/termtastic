@@ -3,7 +3,12 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{DeviceUiConfig, MeshPacket, User, config, module_config};
+use maplit::hashmap;
+use meshtastic::protobufs::{
+    DeviceUiConfig, MeshPacket, User,
+    config::{self, LoRaConfig},
+    module_config,
+};
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -57,7 +62,10 @@ pub enum AppEvent {
     SplashLogoRequested,
     DirectChatRequested(u32),
     SettingsFormSelected(FormId),
-    SettingsFormLoadingCancelRequested,
+    SettingsFormCancelRequested,
+    SettingsFormResetRequested,
+    SettingsFormSaveRequested(FormId),
+    SettingsFormItemSubmitted(&'static FormItem, FormValue),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -509,57 +517,117 @@ impl SettingsItem {
 
 pub type FormData = HashMap<&'static str, FormValue>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FormValue {
     String(String),
     Int32(i32),
     UnsignedInt32(u32),
     Float32(f32),
     Bool(bool),
+    VecOfFormValue(Vec<FormValue>),
 }
 
-impl Into<String> for &FormValue {
-    fn into(self) -> String {
-        let FormValue::String(value) = self else {
-            panic!()
-        };
-        value.clone()
+impl FormValue {
+    pub fn as_string(&self) -> Option<&String> {
+        if let Self::String(value) = self {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_i32(&self) -> Option<i32> {
+        if let Self::Int32(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_u32(&self) -> Option<u32> {
+        if let Self::UnsignedInt32(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_f32(&self) -> Option<f32> {
+        if let Self::Float32(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        if let Self::Bool(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_vec_of_u32(&self) -> Option<Vec<u32>> {
+        if let Self::VecOfFormValue(value) = self {
+            Some(
+                value
+                    .iter()
+                    .map(|v| v.as_u32().expect("invalid value"))
+                    .collect(),
+            )
+        } else {
+            None
+        }
     }
 }
 
-impl Into<i32> for &FormValue {
-    fn into(self) -> i32 {
-        let FormValue::Int32(value) = self else {
-            panic!()
-        };
-        value.clone()
+impl std::fmt::Display for FormValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::String(v) => write!(f, "{}", v),
+            Self::Int32(v) => write!(f, "{}", v),
+            Self::UnsignedInt32(v) => write!(f, "{}", v),
+            Self::Float32(v) => write!(f, "{}", v),
+            Self::Bool(v) => {
+                if *v {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
+            Self::VecOfFormValue(v) => write!(f, "{:?}", v),
+        }
     }
 }
 
-impl Into<u32> for &FormValue {
-    fn into(self) -> u32 {
-        let FormValue::UnsignedInt32(value) = self else {
-            panic!()
-        };
-        *value
+impl From<String> for FormValue {
+    fn from(value: String) -> Self {
+        Self::String(value)
     }
 }
 
-impl Into<f32> for &FormValue {
-    fn into(self) -> f32 {
-        let FormValue::Float32(value) = self else {
-            panic!()
-        };
-        *value
+impl From<i32> for FormValue {
+    fn from(value: i32) -> Self {
+        Self::Int32(value)
     }
 }
 
-impl Into<bool> for &FormValue {
-    fn into(self) -> bool {
-        let FormValue::Bool(value) = self else {
-            panic!()
-        };
-        *value
+impl From<u32> for FormValue {
+    fn from(value: u32) -> Self {
+        Self::UnsignedInt32(value)
+    }
+}
+
+impl From<f32> for FormValue {
+    fn from(value: f32) -> Self {
+        Self::Float32(value)
+    }
+}
+
+impl From<bool> for FormValue {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
     }
 }
 
@@ -567,18 +635,20 @@ impl Into<bool> for &FormValue {
 pub struct FormItem {
     pub key: &'static str,
     pub title: &'static str,
-    pub description: &'static str,
+    pub description: Option<&'static str>,
     pub kind: FormItemKind,
     pub formatter: fn(&FormValue) -> String,
+    pub validator: fn(&FormValue) -> anyhow::Result<()>,
 }
 
 impl FormItem {
     pub fn new(
         key: &'static str,
         title: &'static str,
-        description: &'static str,
+        description: Option<&'static str>,
         kind: FormItemKind,
         formatter: fn(&FormValue) -> String,
+        validator: fn(&FormValue) -> anyhow::Result<()>,
     ) -> Self {
         Self {
             key,
@@ -586,50 +656,40 @@ impl FormItem {
             description,
             kind,
             formatter,
+            validator,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum FormItemKind {
-    InputOfString {
-        maxlen: usize,
-    },
-    InputOfUInt32 {
-        min: u32,
-        max: u32,
-    },
-    InputOfFloat32 {
-        min: f32,
-        max: f32,
-        precision: usize,
-    },
-    EnumOfString(Vec<FormEnumVariant<String>>),
-    EnumOfInt32(Vec<FormEnumVariant<i32>>),
-    EnumOfUnsignedInt32(Vec<FormEnumVariant<u32>>),
-    EnumOfFloat32(Vec<FormEnumVariant<f32>>),
-    BitMask(Vec<FormEnumVariant<u8>>),
+    InputOfString,
+    InputOfInt32,
+    InputOfUnsignedInt32,
+    InputOfFloat32,
+    Enum(Vec<FormEnumVariant>),
+    BitMask(Vec<FormEnumVariant>),
     Switch,
-    Button {
-        event: AppEvent,
-        confirm: bool,
-    },
+    Button { event: AppEvent, confirm: bool },
+}
+
+impl FormItemKind {
+    pub fn is_enum(&self) -> bool {
+        return matches!(self, Self::Enum(_));
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct FormEnumVariant<T>
-where
-    T: Sized,
-{
+pub struct FormEnumVariant {
     pub title: String,
-    pub value: T,
+    pub value: FormValue,
 }
 
-impl<T> FormEnumVariant<T> {
-    pub fn new<S: Into<String>>(title: S, value: T) -> Self {
+impl FormEnumVariant {
+    pub fn new<S: Into<String>, F: Into<FormValue>>(title: S, value: F) -> Self {
         Self {
             title: title.into(),
-            value,
+            value: value.into(),
         }
     }
 }

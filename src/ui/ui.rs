@@ -18,15 +18,15 @@ use crate::{
     ui::component::{Component, Layout},
 };
 
-pub struct Ui {
+pub struct Ui<'a> {
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     event_tx: broadcast::Sender<AppEvent>,
     crossterm_events: EventStream,
-    layout: Layout,
+    layout: Layout<'a>,
 }
 
-impl Ui {
+impl<'a> Ui<'a> {
     pub fn new(
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,

@@ -390,16 +390,19 @@ impl Store {
                 is_changed = true;
             }
             StateAction::SettingsFormLoadingStart { id } => {
+                self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
                 self.state.settings_form_state = SettingsFormState::Loading { id };
                 is_changed = true;
             }
             StateAction::SettingsFormLoadingFail { id, error } => {
+                self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
                 self.state.settings_form_state = SettingsFormState::LoadingFailed { id, error };
                 is_changed = true;
             }
             StateAction::SettingsFormLoadingDone { id, data } => {
+                self.state.settings_form_original_data = Some(data.clone());
                 self.state.settings_form_data = Some(data);
                 self.state.settings_form_state = SettingsFormState::Loaded { id };
                 is_changed = true;
@@ -417,9 +420,24 @@ impl Store {
                 is_changed = true;
             }
             StateAction::SettingsFormClose => {
+                self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
                 self.state.settings_form_state = SettingsFormState::Inactive;
                 is_changed = true;
+            }
+            StateAction::SettingsFormReset => {
+                self.state.settings_form_data = self.state.settings_form_original_data.clone();
+                self.state.settings_form_is_changed = false;
+                is_changed = true;
+            }
+            StateAction::SettingsFormValueSet { key, value } => {
+                if let Some(data) = self.state.settings_form_data.as_mut() {
+                    data.insert(key, value);
+                    self.state.settings_form_is_changed =
+                        self.state.settings_form_data != self.state.settings_form_original_data;
+
+                    is_changed = true;
+                }
             }
         }
 

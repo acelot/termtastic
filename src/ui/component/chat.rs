@@ -1,12 +1,12 @@
 use crate::ui::component::{Channels, Messenger};
 use crate::ui::prelude::*;
 
-pub struct Chat {
-    messenger_component: Messenger,
+pub struct Chat<'a> {
+    messenger_component: Messenger<'a>,
     channels_component: Channels,
 }
 
-impl Chat {
+impl<'a> Chat<'a> {
     pub fn new() -> Self {
         Self {
             messenger_component: Messenger::new(),
@@ -15,7 +15,7 @@ impl Chat {
     }
 }
 
-impl Component for Chat {
+impl<'a> Component for Chat<'a> {
     fn handle_event(
         &mut self,
         state: &State,

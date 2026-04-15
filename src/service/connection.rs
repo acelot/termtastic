@@ -62,7 +62,7 @@ impl ConnectionService {
         Ok(())
     }
 
-    async fn handle_app_event(&self, event: AppEvent) -> anyhow::Result<()> {
+    async fn handle_app_event(&mut self, event: AppEvent) -> anyhow::Result<()> {
         match event {
             AppEvent::InitializationRequested => {
                 self.app_event_tx

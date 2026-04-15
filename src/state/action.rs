@@ -4,7 +4,8 @@ use hostaddr::HostAddr;
 use meshtastic::protobufs::{config, module_config};
 
 use crate::types::{
-    AppConfig, Channel, Device, FormData, FormId, LogRecord, Message, Node, NodesSortBy, Tab, Toast,
+    AppConfig, Channel, Device, FormData, FormId, FormValue, LogRecord, Message, Node, NodesSortBy,
+    Tab, Toast,
 };
 
 #[derive(Debug)]
@@ -73,4 +74,9 @@ pub enum StateAction {
         id: FormId,
     },
     SettingsFormClose,
+    SettingsFormReset,
+    SettingsFormValueSet {
+        key: &'static str,
+        value: FormValue,
+    },
 }

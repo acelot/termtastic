@@ -1,5 +1,6 @@
 mod log2state;
 mod meshtastic;
+mod serde;
 mod service;
 mod state;
 mod types;

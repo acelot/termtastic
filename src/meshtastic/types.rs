@@ -32,4 +32,8 @@ pub enum CommandToMeshtastic {
         reply_message_id: Option<u32>,
         text: String,
     },
+    SaveConfig {
+        my_node_id: u32,
+        config: config::PayloadVariant,
+    },
 }

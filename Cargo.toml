@@ -22,6 +22,7 @@ meshtastic = { git = "https://github.com/meshtastic/rust", branch = "main", feat
     "bluetooth-le",
 ] }
 ratatui = { version = "0.30", features = ["unstable-rendered-line-info"] }
+ratatui-textarea = { version = "0.9" }
 regex = { version = "*" }
 serde = { version = "1.0" }
 strum = { version = "0.28", features = ["derive"] }
@@ -32,7 +33,4 @@ tracing = { version = "0.1" }
 tracing-appender = { version = "0.2" }
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0" }
-tui-input = { version = "0.15", features = [
-    "crossterm",
-], default-features = false }
 tui-widget-list = { version = "0.15.2" }

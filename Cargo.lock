@@ -2481,7 +2481,7 @@ dependencies = [
  "thiserror 2.0.18",
  "unicode-segmentation",
  "unicode-truncate",
- "unicode-width 0.2.2",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -2517,6 +2517,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ratatui-textarea"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2f109a42d924f1fe4f4d521a1f473161f6c08eb53a2d9b862ca6efd14f6e51c"
+dependencies = [
+ "ratatui-core",
+ "ratatui-crossterm",
+ "ratatui-widgets",
+ "unicode-segmentation",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
 name = "ratatui-widgets"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2532,7 +2545,7 @@ dependencies = [
  "strum 0.27.2",
  "time",
  "unicode-segmentation",
- "unicode-width 0.2.2",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -3051,6 +3064,7 @@ dependencies = [
  "maplit",
  "meshtastic",
  "ratatui",
+ "ratatui-textarea",
  "regex",
  "serde",
  "strum 0.28.0",
@@ -3061,7 +3075,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "tracing-unwrap",
- "tui-input",
  "tui-widget-list",
 ]
 
@@ -3405,16 +3418,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tui-input"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79c1ee964298f136020f5f69e0e601f4d3a1f610a7baf1af9fcb96152e8a2c45"
-dependencies = [
- "crossterm",
- "unicode-width 0.2.2",
-]
-
-[[package]]
 name = "tui-widget-list"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3465,7 +3468,7 @@ checksum = "16b380a1238663e5f8a691f9039c73e1cdae598a30e9855f541d29b08b53e9a5"
 dependencies = [
  "itertools 0.14.0",
  "unicode-segmentation",
- "unicode-width 0.2.2",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -3476,9 +3479,9 @@ checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
 
 [[package]]
 name = "unicode-width"
-version = "0.2.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ac048d71ede7ee76d585517add45da530660ef4390e49b098733c6e897f254"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "unicode-xid"

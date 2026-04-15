@@ -192,7 +192,7 @@ impl Component for Logs {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(Style::new().white())
-                .padding(Padding::uniform(1));
+                .padding(Padding::symmetric(1, 0));
 
             let popup_block_area = popup_block.inner(popup_area);
 

@@ -5,10 +5,10 @@ use std::{
     sync::LazyLock,
 };
 
+use crossterm::event::KeyModifiers;
 use itertools::Itertools;
 use ratatui::text::ToSpan;
 use tracing_unwrap::OptionExt;
-use tui_input::backend::crossterm::EventHandler;
 use tui_widget_list::ScrollDirection;
 
 use crate::ui::{
@@ -22,14 +22,14 @@ const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
 static UNKNOWN_NODE: LazyLock<Node> = LazyLock::new(|| Node::unknown());
 static EMPTY_MESSAGES_VEC: LazyLock<VecDeque<Message>> = LazyLock::new(|| VecDeque::default());
 
-pub struct Messenger {
+pub struct Messenger<'a> {
     list_states: HashMap<u32, ListState>,
-    input_widgets: HashMap<u32, TuiInput>,
+    input_widgets: HashMap<u32, TextArea<'a>>,
     follow_chat: HashMap<u32, bool>,
     replying_to: HashMap<u32, (Node, u32)>,
 }
 
-impl Messenger {
+impl<'a> Messenger<'a> {
     pub fn new() -> Self {
         Self {
             list_states: HashMap::default(),
@@ -49,7 +49,7 @@ impl Messenger {
         let has_input_value = self
             .input_widgets
             .get(&active_channel_key)
-            .and_then(|input| Some(VALID_INPUT_LENGTH.contains(&input.value().len())))
+            .and_then(|input| Some(VALID_INPUT_LENGTH.contains(&input.lines()[0].len())))
             .unwrap_or(false);
 
         let is_replying_to = self.replying_to.contains_key(&active_channel_key);
@@ -71,7 +71,7 @@ impl Messenger {
     }
 }
 
-impl Component for Messenger {
+impl<'a> Component for Messenger<'a> {
     fn handle_event(
         &mut self,
         state: &State,
@@ -85,12 +85,12 @@ impl Component for Messenger {
         let list_state = self
             .list_states
             .entry(active_channel_key)
-            .or_insert(ListState::default());
+            .or_insert_with(|| ListState::default());
 
         let input_widget = self
             .input_widgets
             .entry(active_channel_key)
-            .or_insert(TuiInput::default());
+            .or_insert_with(|| new_input_widget());
 
         let is_replying_to = self.replying_to.contains_key(&active_channel_key);
 
@@ -100,7 +100,9 @@ impl Component for Messenger {
             .unwrap_or(&EMPTY_MESSAGES_VEC);
 
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent {
+                code, modifiers, ..
+            }) => match code {
                 KeyCode::Up => {
                     self.follow_chat.insert(active_channel_key, false);
                     list_state.previous()
@@ -117,25 +119,29 @@ impl Component for Messenger {
                 KeyCode::Esc if is_replying_to => {
                     self.replying_to.remove(&active_channel_key);
                 }
+                KeyCode::Enter if modifiers.contains(KeyModifiers::CONTROL) => {
+                    input_widget.insert_newline();
+                }
                 KeyCode::Enter if !is_replying_to => {
-                    if input_widget.value().len() <= INPUT_VALUE_MAX_LENGTH {
-                        let text = input_widget.value_and_reset();
+                    if input_widget.lines()[0].len() <= INPUT_VALUE_MAX_LENGTH {
                         emit(AppEvent::ChatMessageSubmitted {
-                            text,
+                            text: input_widget.lines()[0].clone(),
                             reply_message_id: None,
                         })?;
+
+                        input_widget.clear();
                     }
                 }
                 KeyCode::Enter if is_replying_to => {
-                    if input_widget.value().len() <= INPUT_VALUE_MAX_LENGTH
+                    if input_widget.lines()[0].len() <= INPUT_VALUE_MAX_LENGTH
                         && let Some((_, message_id)) = self.replying_to.remove(&active_channel_key)
                     {
-                        let text = input_widget.value_and_reset();
-
                         emit(AppEvent::ChatMessageSubmitted {
-                            text,
+                            text: input_widget.lines()[0].clone(),
                             reply_message_id: Some(message_id),
                         })?;
+
+                        input_widget.clear();
                     }
                 }
                 KeyCode::F(2) => {
@@ -148,7 +154,7 @@ impl Component for Messenger {
                     }
                 }
                 _ => {
-                    input_widget.handle_event(event);
+                    input_widget.input(event.clone());
                 }
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
@@ -180,12 +186,12 @@ impl Component for Messenger {
         let list_state = self
             .list_states
             .entry(active_channel.key)
-            .or_insert(ListState::default());
+            .or_insert_with(|| ListState::default());
 
         let input_widget = self
             .input_widgets
             .entry(active_channel.key)
-            .or_insert(TuiInput::default());
+            .or_insert_with(|| new_input_widget());
 
         let replying_to = self.replying_to.get(&active_channel.key);
 
@@ -302,23 +308,9 @@ impl Component for Messenger {
 
         input_block.render(v[1], frame.buffer_mut());
         channel_line.render(input_block_area_h[0], frame.buffer_mut());
+        frame.render_widget(&*input_widget, input_block_area_h[2]);
 
-        let input_width = input_block_area_h[2].width.max(1);
-        let scroll = input_widget.visual_scroll(input_width as usize);
-
-        let input = Paragraph::new(if !input_widget.value().is_empty() {
-            Span::from(input_widget.value())
-        } else {
-            Span::from("type message...").dark_gray()
-        })
-        .scroll((0, scroll as u16));
-
-        frame.render_widget(input, input_block_area_h[2]);
-
-        let x = input_widget.visual_cursor().max(scroll) - scroll;
-        frame.set_cursor_position((input_block_area_h[2].x + x as u16, input_block_area_h[2].y));
-
-        let input_value_len = input_widget.value().len();
+        let input_value_len = input_widget.lines()[0].len();
 
         Line::from(
             Span::from(format!(" {}/{}", input_value_len, INPUT_VALUE_MAX_LENGTH)).style(
@@ -334,6 +326,14 @@ impl Component for Messenger {
 
         HotkeysWidget::new(&self.get_hotkeys(active_channel.key)).render(v[2], frame.buffer_mut());
     }
+}
+
+fn new_input_widget() -> TextArea<'static> {
+    let mut input = TextArea::default();
+    input.set_placeholder_text("type message...");
+    input.set_cursor_line_style(Style::default());
+
+    input
 }
 
 struct MessageWidget<'a> {

@@ -1,25 +1,28 @@
 use hostaddr::HostAddr;
 use itertools::Itertools;
-use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::ui::{helpers::default_scrollbar, prelude::*};
 
-pub struct Connection {
+pub struct Connection<'a> {
     devices: Vec<Device>,
     list_state: ListState,
     is_form_visible: bool,
     form_error: Option<String>,
-    form_input: Input,
+    form_input: TextArea<'a>,
 }
 
-impl Connection {
+impl<'a> Connection<'a> {
     pub fn new() -> Self {
+        let mut textarea = TextArea::default();
+        textarea.set_cursor_line_style(Style::default());
+        textarea.set_placeholder_text("host[:port=4403]");
+
         Self {
             devices: vec![],
             list_state: ListState::default(),
             is_form_visible: false,
             form_error: None,
-            form_input: Input::default(),
+            form_input: textarea,
         }
     }
 
@@ -76,7 +79,7 @@ impl Connection {
     }
 }
 
-impl Component for Connection {
+impl<'a> Component for Connection<'a> {
     fn handle_event(
         &mut self,
         state: &State,
@@ -103,7 +106,7 @@ impl Component for Connection {
                         }
                     }
                     (KeyCode::Enter, true, false) => {
-                        match self.form_input.value().parse::<HostAddr<String>>() {
+                        match self.form_input.lines()[0].parse::<HostAddr<String>>() {
                             Ok(addr) => {
                                 emit(AppEvent::TcpDeviceSubmitted(addr))?;
                                 self.is_form_visible = false;
@@ -121,12 +124,11 @@ impl Component for Connection {
                         }
                     }
                     (KeyCode::Esc, true, false) => {
-                        self.form_input.reset();
                         self.is_form_visible = false;
                     }
                     (KeyCode::Esc, false, true) => emit(AppEvent::DisconnectionRequested)?,
                     (_, true, false) => {
-                        self.form_input.handle_event(event);
+                        self.form_input.input(event.clone());
                     }
                     _ => {}
                 };
@@ -213,21 +215,7 @@ impl Component for Connection {
 
             frame.render_widget(Clear, popup_area);
             frame.render_widget(popup_block, popup_area);
-
-            let input_width = popup_block_area.width.max(1) - 1;
-            let input_scroll = self.form_input.visual_scroll(input_width as usize);
-
-            let form_input = Paragraph::new(if !self.form_input.value().is_empty() {
-                Span::from(self.form_input.value())
-            } else {
-                Span::from("host[:port=4403]").dark_gray()
-            })
-            .scroll((0, input_scroll as u16));
-
-            frame.render_widget(form_input, popup_block_area);
-
-            let x = self.form_input.visual_cursor().max(input_scroll) - input_scroll;
-            frame.set_cursor_position((popup_block_area.x + x as u16, popup_block_area.y));
+            frame.render_widget(&self.form_input, popup_block_area);
         }
 
         if let Some(active_device) = &state.active_device {

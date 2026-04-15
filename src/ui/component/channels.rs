@@ -30,7 +30,7 @@ impl Channels {
     }
 }
 
-impl Component for Channels {
+impl<'a> Component for Channels {
     fn handle_event(
         &mut self,
         _state: &State,
