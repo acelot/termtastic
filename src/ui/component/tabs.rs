@@ -18,17 +18,23 @@ impl Component for Tabs {
         _state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
-                KeyCode::Tab => emit(AppEvent::NextTabRequested)?,
-                KeyCode::BackTab => emit(AppEvent::PreviousTabRequested)?,
+                KeyCode::Tab => {
+                    emit(AppEvent::NextTabRequested)?;
+                    return Ok(true);
+                },
+                KeyCode::BackTab => {
+                    emit(AppEvent::PreviousTabRequested)?;
+                    return Ok(true);
+                },
                 _ => {}
             },
             _ => {}
         }
 
-        Ok(())
+        Ok(false)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

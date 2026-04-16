@@ -40,7 +40,7 @@ impl<'a> Component for Layout<'a> {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         if let Event::Key(KeyEvent {
             code: KeyCode::F(12),
             ..
@@ -49,18 +49,21 @@ impl<'a> Component for Layout<'a> {
             emit(AppEvent::SplashLogoRequested)?;
         }
 
-        self.header_component.handle_event(state, event, emit)?;
-        self.tabs_component.handle_event(state, event, emit)?;
-
-        match state.active_tab {
-            Tab::Chat => self.chat_component.handle_event(state, event, emit)?,
-            Tab::Nodes => self.nodes_component.handle_event(state, event, emit)?,
-            Tab::Settings => self.settings_component.handle_event(state, event, emit)?,
-            Tab::Connection => self.connection_component.handle_event(state, event, emit)?,
-            Tab::Logs => self.logs_component.handle_event(state, event, emit)?,
+        if self.header_component.handle_event(state, event, emit)? {
+            return Ok(true)
         }
 
-        Ok(())
+        if self.tabs_component.handle_event(state, event, emit)? {
+            return Ok(true)
+        }
+
+        match state.active_tab {
+            Tab::Chat => self.chat_component.handle_event(state, event, emit),
+            Tab::Nodes => self.nodes_component.handle_event(state, event, emit),
+            Tab::Settings => self.settings_component.handle_event(state, event, emit),
+            Tab::Connection => self.connection_component.handle_event(state, event, emit),
+            Tab::Logs => self.logs_component.handle_event(state, event, emit),
+        }
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

@@ -8,7 +8,7 @@ pub trait Component {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()>;
+    ) -> anyhow::Result<bool>;
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect);
 }

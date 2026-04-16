@@ -77,7 +77,7 @@ impl<'a> Component for Messenger<'a> {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         let active_channel_key = state
             .active_channel_key
             .expect_or_log("channel should be selected");
@@ -175,7 +175,7 @@ impl<'a> Component for Messenger<'a> {
             _ => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

@@ -16,8 +16,8 @@ impl Component for TerminalSize {
         _state: &State,
         _event: &Event,
         _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        Ok(())
+    ) -> anyhow::Result<bool> {
+        Ok(false)
     }
 
     fn render(&mut self, _state: &State, frame: &mut ratatui::Frame, area: ratatui::prelude::Rect) {

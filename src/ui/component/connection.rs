@@ -85,7 +85,7 @@ impl<'a> Component for Connection<'a> {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         if self.is_form_visible {
             match event {
                 Event::Key(KeyEvent { code, .. }) => match code {
@@ -110,7 +110,7 @@ impl<'a> Component for Connection<'a> {
                 _ => {}
             }
 
-            return Ok(());
+            return Ok(true);
         }
 
         if state.active_device.is_some() {
@@ -122,7 +122,7 @@ impl<'a> Component for Connection<'a> {
                 _ => {}
             }
 
-            return Ok(());
+            return Ok(true);
         }
 
         match event {
@@ -156,7 +156,7 @@ impl<'a> Component for Connection<'a> {
             _ => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

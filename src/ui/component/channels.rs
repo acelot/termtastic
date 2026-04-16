@@ -36,7 +36,7 @@ impl<'a> Component for Channels {
         _state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match code {
                 KeyCode::Up => self.list_state.previous(),
@@ -58,7 +58,7 @@ impl<'a> Component for Channels {
             _ => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

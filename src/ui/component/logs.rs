@@ -80,7 +80,7 @@ impl Component for Logs {
         state: &State,
         event: &Event,
         _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         match event {
             Event::Key(KeyEvent { code, .. }) => match (code, self.popup_record.is_some()) {
                 (KeyCode::Up, false) => {
@@ -141,7 +141,7 @@ impl Component for Logs {
             _ => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

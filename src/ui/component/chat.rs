@@ -21,14 +21,14 @@ impl<'a> Component for Chat<'a> {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         if state.active_channel_key.is_some() {
             self.messenger_component.handle_event(state, event, emit)?;
         } else {
             self.channels_component.handle_event(state, event, emit)?;
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

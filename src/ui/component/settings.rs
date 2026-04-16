@@ -185,7 +185,7 @@ impl<'a> Component for Settings<'a> {
         state: &State,
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         match event {
             Event::Key(KeyEvent { code, .. }) => {
                 // Confirm popup
@@ -201,7 +201,7 @@ impl<'a> Component for Settings<'a> {
                         _ => {}
                     }
 
-                    return Ok(());
+                    return Ok(true);
                 }
 
                 // Input popup
@@ -230,7 +230,7 @@ impl<'a> Component for Settings<'a> {
                         }
                     }
 
-                    return Ok(());
+                    return Ok(true);
                 }
 
                 // Dropdown popup
@@ -258,7 +258,7 @@ impl<'a> Component for Settings<'a> {
                         }
                     }
 
-                    return Ok(());
+                    return Ok(true);
                 }
 
                 // Default
@@ -293,7 +293,7 @@ impl<'a> Component for Settings<'a> {
                             emit(AppEvent::SettingsFormCancelRequested)?;
                             self.is_exit_confirm_visible = false;
 
-                            return Ok(());
+                            return Ok(true);
                         }
 
                         let index = self.form_list_state.selected.expect("should be Some");
@@ -321,7 +321,7 @@ impl<'a> Component for Settings<'a> {
             _ => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

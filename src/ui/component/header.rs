@@ -14,8 +14,8 @@ impl Component for Header {
         _state: &State,
         _event: &crossterm::event::Event,
         _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
-        Ok(())
+    ) -> anyhow::Result<bool> {
+        Ok(false)
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
