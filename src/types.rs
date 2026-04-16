@@ -3,12 +3,7 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
 use hostaddr::HostAddr;
-use maplit::hashmap;
-use meshtastic::protobufs::{
-    DeviceUiConfig, MeshPacket, User,
-    config::{self, LoRaConfig},
-    module_config,
-};
+use meshtastic::protobufs::{DeviceUiConfig, MeshPacket, User, config, module_config};
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -381,6 +376,7 @@ impl From<meshtastic::protobufs::channel::Role> for ChannelRole {
 #[derive(Debug, Clone)]
 pub struct Channel {
     pub key: u32,
+    #[allow(dead_code)]
     pub id: u32,
     pub role: ChannelRole,
     pub name: String,
@@ -428,6 +424,7 @@ pub struct Message {
     pub datetime: DateTime<Utc>,
     pub text: String,
     pub reactions: HashMap<String, HashMap<u32, DateTime<Utc>>>,
+    #[allow(dead_code)]
     pub hops: Option<u32>,
     pub snr: f32,
     pub rssi: i32,
@@ -658,6 +655,7 @@ impl FormItem {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum FormItemKind {
     InputOfString,
@@ -712,6 +710,7 @@ pub struct DeviceModuleConfig {
     pub canned_message: Option<module_config::CannedMessageConfig>,
     pub detection_sensor: Option<module_config::DetectionSensorConfig>,
     pub external_notification: Option<module_config::ExternalNotificationConfig>,
+    #[allow(dead_code)]
     pub map_report: Option<module_config::MapReportSettings>,
     pub mqtt: Option<module_config::MqttConfig>,
     pub neighbor: Option<module_config::NeighborInfoConfig>,

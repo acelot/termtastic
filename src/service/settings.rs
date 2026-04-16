@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use maplit::hashmap;
-use meshtastic::protobufs::config;
 use meshtastic::protobufs::config::lo_ra_config::{ModemPreset, RegionCode};
+use meshtastic::protobufs::config::{self, LoRaConfig};
 use strum::IntoEnumIterator;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
@@ -20,7 +20,6 @@ pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(|| build_settin
 pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(|| build_forms());
 
 pub struct SettingsService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -30,7 +29,6 @@ pub struct SettingsService {
 
 impl SettingsService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -38,7 +36,6 @@ impl SettingsService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,
@@ -104,7 +101,6 @@ impl SettingsService {
                     .send(CommandToMeshtastic::SaveConfig {
                         my_node_id: state.my_node_key.expect("should be Some"),
                         config,
-                        form_id: form_id.clone(),
                     })?;
             }
             AppEvent::SettingsFormItemSubmitted(form_item, value) => {
@@ -134,12 +130,12 @@ impl SettingsService {
                 self.state_action_tx
                     .send(StateAction::Toast(Toast::error(e)))?;
             }
-            MeshtasticEvent::ConfigSaved(form_id) => {
+            MeshtasticEvent::ConfigSaved => {
                 self.state_action_tx
                     .send(StateAction::Toast(Toast::success("config saved")))?;
 
-                self.app_event_tx
-                    .send(AppEvent::SettingsFormSelected(form_id))?;
+                self.state_action_tx
+                    .send(StateAction::SettingsFormSavingDone)?;
             }
             _ => {}
         }
@@ -169,7 +165,9 @@ impl SettingsService {
         let form_data = state.settings_form_data.as_ref().expect("should be Some");
 
         let config = match id {
-            FormId::RadioLora => config::PayloadVariant::Lora(from_formdata(&form_data)?),
+            FormId::RadioLora => {
+                config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(&form_data)?)
+            }
             _ => unimplemented!(),
         };
 

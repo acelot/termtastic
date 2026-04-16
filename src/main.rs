@@ -97,7 +97,6 @@ async fn main() {
     );
 
     let settings_service = SettingsService::new(
-        event_tx.clone(),
         event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),

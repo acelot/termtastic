@@ -263,28 +263,12 @@ impl<'a> Component for Settings<'a> {
 
                 // Default
                 match (code, &state.settings_form_state) {
-                    (KeyCode::Up, SettingsFormState::Inactive) => loop {
+                    (KeyCode::Up, SettingsFormState::Inactive) => {
                         self.settings_list_state.previous();
-
-                        if self.settings_list_state.selected == Some(0) {
-                            break;
-                        }
-
-                        if let Some(index) = self.settings_list_state.selected
-                            && !matches!(SETTINGS[index], SettingsItem::Group { .. })
-                        {
-                            break;
-                        }
-                    },
-                    (KeyCode::Down, SettingsFormState::Inactive) => loop {
+                    }
+                    (KeyCode::Down, SettingsFormState::Inactive) => {
                         self.settings_list_state.next();
-
-                        if let Some(index) = self.settings_list_state.selected
-                            && !matches!(SETTINGS[index], SettingsItem::Group { .. })
-                        {
-                            break;
-                        }
-                    },
+                    }
                     (KeyCode::Enter, SettingsFormState::Inactive) => {
                         if let Some(index) = self.settings_list_state.selected
                             && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
@@ -512,9 +496,16 @@ impl<'a> Widget for SettingsItemWidget<'a> {
 
         match self.settings_item {
             SettingsItem::Group { title } => {
-                Line::from(Span::from(*title))
-                    .magenta()
-                    .render(block_area, buf);
+                Line::from(
+                    Span::from(*title)
+                        .magenta()
+                        .add_modifier(if self.is_selected {
+                            Modifier::REVERSED
+                        } else {
+                            Modifier::empty()
+                        }),
+                )
+                .render(block_area, buf);
             }
             SettingsItem::Form { title, .. } => {
                 Line::from(vec![
@@ -586,7 +577,7 @@ impl<'a> Widget for FormItemWidget<'a> {
                 "[ ]".to_owned()
             }
         } else if self.form_item.kind.is_enum() {
-            format!("{} ⏷", (self.form_item.formatter)(self.value))
+            format!("{} ↓", (self.form_item.formatter)(self.value))
         } else {
             (self.form_item.formatter)(self.value)
         };

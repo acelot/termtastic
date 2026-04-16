@@ -253,11 +253,7 @@ impl MeshtasticService {
                         .send(MeshtasticEvent::MessageRejected(e.to_string()))?,
                 };
             }
-            CommandToMeshtastic::SaveConfig {
-                my_node_id,
-                config,
-                form_id,
-            } => {
+            CommandToMeshtastic::SaveConfig { my_node_id, config } => {
                 let api = self
                     .stream_api
                     .as_mut()
@@ -282,7 +278,7 @@ impl MeshtasticService {
                 .await
                 {
                     Ok(Ok(_)) => {
-                        self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id))?;
+                        self.event_tx.send(MeshtasticEvent::ConfigSaved)?;
                     }
                     Ok(Err(e)) => {
                         tracing::error!("save config error: {:?}", e);

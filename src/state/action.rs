@@ -44,10 +44,12 @@ pub enum StateAction {
         hops: u32,
         snr: f32,
     },
+    #[allow(dead_code)]
     NodesSortBySet(NodesSortBy),
     NodesOnlineSet(u16),
     RxTrigger,
     SplashLogo,
+    #[allow(dead_code)]
     TabSwitchTo(Tab),
     TabSwitchToNext,
     TabSwitchToPrevious,
@@ -64,6 +66,7 @@ pub enum StateAction {
         id: FormId,
         data: FormData,
     },
+    SettingsFormSavingDone,
     SettingsFormClose,
     SettingsFormReset,
     SettingsFormValueSet {

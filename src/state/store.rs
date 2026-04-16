@@ -407,6 +407,11 @@ impl Store {
                 self.state.settings_form_state = SettingsFormState::Loaded { id };
                 is_changed = true;
             }
+            StateAction::SettingsFormSavingDone => {
+                self.state.settings_form_original_data = self.state.settings_form_data.clone();
+                self.state.settings_form_is_changed = false;
+                is_changed = true;
+            }
             StateAction::SettingsFormClose => {
                 self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
