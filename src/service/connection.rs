@@ -158,7 +158,21 @@ impl ConnectionService {
 
                 self.state_action_tx.send(StateAction::RxTrigger)?;
 
-                tracing::debug!("PACKET {:?}", packet);
+                if let PayloadVariant::Packet(p) = packet {
+                    let state = &self.state_rx.borrow();
+                    let from = state
+                        .nodes
+                        .get(&p.from)
+                        .and_then(|n| Some(n.short_name.clone()));
+                    let to = state
+                        .nodes
+                        .get(&p.to)
+                        .and_then(|n| Some(n.short_name.clone()));
+
+                    tracing::debug!(node_from = from, node_to = to, "MESH PACKET {:?}", p);
+                } else {
+                    tracing::debug!("PACKET {:?}", packet);
+                }
             }
             _ => {}
         }

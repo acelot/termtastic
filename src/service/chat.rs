@@ -228,16 +228,7 @@ impl ChatService {
                     }
                     _ => {}
                 },
-                Some(mesh_packet::PayloadVariant::Encrypted(_)) => {
-                    tracing::info!(
-                        packet_id = packet.id,
-                        node_from = packet.from,
-                        node_to = packet.to,
-                        channel = packet.channel,
-                        "encrypted packet – ignore"
-                    );
-                }
-                None => {}
+                _ => {}
             },
             _ => {}
         }
