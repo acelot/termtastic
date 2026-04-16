@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use futures::stream::{self, StreamExt};
+use meshtastic::protobufs::from_radio::PayloadVariant;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio::time;
 use tokio_graceful_shutdown::SubsystemHandle;
@@ -130,10 +131,8 @@ impl ConnectionService {
             MeshtasticEvent::Connected => {
                 tracing::info!("successfully connected");
 
-                self.state_action_tx.send(StateAction::ConnectionSuccess)?;
-
                 self.state_action_tx
-                    .send(StateAction::Toast(Toast::success("connected")))?;
+                    .send(StateAction::Toast(Toast::normal("loading data...")))?;
             }
             MeshtasticEvent::ConnectionError(e) => {
                 self.state_action_tx.send(StateAction::ConnectionFail(e))?;
@@ -146,8 +145,20 @@ impl ConnectionService {
                 self.state_action_tx
                     .send(StateAction::Toast(Toast::normal("disconnected")))?;
             }
-            MeshtasticEvent::IncomingPacket(_) => {
+            MeshtasticEvent::IncomingPacket(packet) => {
+                match packet {
+                    PayloadVariant::ConfigCompleteId(_) => {
+                        self.state_action_tx.send(StateAction::ConnectionSuccess)?;
+
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::success("connected")))?;
+                    }
+                    _ => {}
+                }
+
                 self.state_action_tx.send(StateAction::RxTrigger)?;
+
+                tracing::debug!("PACKET {:?}", packet);
             }
             _ => {}
         }

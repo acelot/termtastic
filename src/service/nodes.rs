@@ -1,8 +1,14 @@
+use std::time::Duration;
+
+use chrono::Utc;
 use meshtastic::{
     Message as _,
     protobufs::{MeshPacket, PortNum, User, from_radio::PayloadVariant, mesh_packet},
 };
-use tokio::sync::{broadcast, mpsc, watch};
+use tokio::{
+    sync::{broadcast, mpsc, watch},
+    time,
+};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::{
@@ -10,6 +16,9 @@ use crate::{
     state::{State, StateAction},
     types::{AppEvent, Node},
 };
+
+const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 5;
+const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 #[allow(dead_code)]
 pub struct NodesService {
@@ -41,10 +50,14 @@ impl NodesService {
     }
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
+        let mut online_nodes_interval =
+            time::interval(Duration::from_secs(UPDATE_ONLINE_NODES_INTERVAL_SECS));
+
         loop {
             tokio::select! {
                 Ok(event) = self.app_event_rx.recv() => self.handle_app_event(event)?,
                 Ok(event) = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
+                _ = online_nodes_interval.tick() => self.update_online_nodes()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -84,7 +97,10 @@ impl NodesService {
             }
             PayloadVariant::NodeInfo(node_info) => {
                 match Node::try_from(&node_info) {
-                    Ok(node) => self.state_action_tx.send(StateAction::NodeAdd(node))?,
+                    Ok(node) => {
+                        self.state_action_tx.send(StateAction::NodeAdd(node))?;
+                        self.update_online_nodes()?;
+                    }
                     Err(e) => {
                         tracing::debug!(
                             node_key = node_info.num,
@@ -136,6 +152,28 @@ impl NodesService {
                 hops: packet.hop_start.saturating_sub(packet.hop_limit),
                 snr: packet.rx_snr,
             })?;
+
+        self.update_online_nodes()?;
+
+        Ok(())
+    }
+
+    fn update_online_nodes(&self) -> anyhow::Result<()> {
+        let state = &self.state_rx.borrow();
+        let now = Utc::now();
+
+        let count = state.nodes.iter().fold(0, |mut counter, (_, node)| {
+            if let Some(last_heard) = node.last_heard
+                && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
+            {
+                counter += 1;
+            }
+
+            counter
+        });
+
+        self.state_action_tx
+            .send(StateAction::NodesOnlineSet(count))?;
 
         Ok(())
     }

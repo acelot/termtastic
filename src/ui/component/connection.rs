@@ -86,26 +86,10 @@ impl<'a> Component for Connection<'a> {
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<()> {
-        match event {
-            Event::Key(KeyEvent { code, .. }) => {
-                let is_device_active = state.active_device.is_some();
-
-                match (code, self.is_form_visible, is_device_active) {
-                    (KeyCode::Up, false, false) => self.list_state.previous(),
-                    (KeyCode::Down, false, false) => self.list_state.next(),
-                    (KeyCode::Char('r'), false, false) => {
-                        emit(AppEvent::DeviceRediscoverRequested)?
-                    }
-                    (KeyCode::Char('t'), false, false) => {
-                        self.form_error = None;
-                        self.is_form_visible = true;
-                    }
-                    (KeyCode::Enter, false, false) => {
-                        if let Some(index) = self.list_state.selected {
-                            emit(AppEvent::DeviceSelected(self.devices[index].clone()))?
-                        }
-                    }
-                    (KeyCode::Enter, true, false) => {
+        if self.is_form_visible {
+            match event {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Enter => {
                         match self.form_input.lines()[0].parse::<HostAddr<String>>() {
                             Ok(addr) => {
                                 emit(AppEvent::TcpDeviceSubmitted(addr))?;
@@ -116,23 +100,54 @@ impl<'a> Component for Connection<'a> {
                             }
                         }
                     }
-                    (KeyCode::Delete | KeyCode::Backspace, false, false) => {
-                        if let Some(index) = self.list_state.selected
-                            && let Device::Tcp(hostaddr) = &self.devices[index]
-                        {
-                            emit(AppEvent::TcpDeviceRemoved(hostaddr.clone()))?
-                        }
-                    }
-                    (KeyCode::Esc, true, false) => {
+                    KeyCode::Esc => {
                         self.is_form_visible = false;
                     }
-                    (KeyCode::Esc, false, true) => emit(AppEvent::DisconnectionRequested)?,
-                    (_, true, false) => {
+                    _ => {
                         self.form_input.input(event.clone());
                     }
-                    _ => {}
-                };
+                },
+                _ => {}
             }
+
+            return Ok(());
+        }
+
+        if state.active_device.is_some() {
+            match event {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Esc => emit(AppEvent::DisconnectionRequested)?,
+                    _ => {}
+                },
+                _ => {}
+            }
+
+            return Ok(());
+        }
+
+        match event {
+            Event::Key(KeyEvent { code, .. }) => match code {
+                KeyCode::Up => self.list_state.previous(),
+                KeyCode::Down => self.list_state.next(),
+                KeyCode::Char('r') => emit(AppEvent::DeviceRediscoverRequested)?,
+                KeyCode::Char('t') => {
+                    self.form_error = None;
+                    self.is_form_visible = true;
+                }
+                KeyCode::Enter => {
+                    if let Some(index) = self.list_state.selected {
+                        emit(AppEvent::DeviceSelected(self.devices[index].clone()))?
+                    }
+                }
+                KeyCode::Delete | KeyCode::Backspace => {
+                    if let Some(index) = self.list_state.selected
+                        && let Device::Tcp(hostaddr) = &self.devices[index]
+                    {
+                        emit(AppEvent::TcpDeviceRemoved(hostaddr.clone()))?
+                    }
+                }
+                _ => {}
+            },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
                 MouseEventKind::ScrollUp => self.list_state.previous(),
                 MouseEventKind::ScrollDown => self.list_state.next(),

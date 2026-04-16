@@ -25,11 +25,9 @@ use crate::{
 };
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
-const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 15;
-const RX_TIMEOUT_MILLIS: u128 = 200;
+const RX_TIMEOUT_MILLIS: u128 = 250;
 const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
-const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 2000;
-const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
+const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 1000;
 
 pub struct Store {
     state: State,
@@ -57,14 +55,11 @@ impl Store {
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         let mut tick_interval = time::interval(Duration::from_millis(TICK_INTERVAL_MILLIS));
-        let mut online_nodes_interval =
-            time::interval(Duration::from_secs(UPDATE_ONLINE_NODES_INTERVAL_SECS));
 
         loop {
             tokio::select! {
                 Some(action) = self.action_rx.recv() => self.handle_action(action)?,
                 _ = tick_interval.tick() => self.handle_tick()?,
-                _ = online_nodes_interval.tick() => self.update_online_nodes()?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -276,7 +271,6 @@ impl Store {
                 self.state.nodes.insert(node.key, node);
 
                 self.update_nodes_sort();
-                self.update_online_nodes()?;
                 is_changed = true;
             }
             StateAction::ChannelEnsure(key, channel) => {
@@ -301,6 +295,10 @@ impl Store {
                 self.update_nodes_sort();
                 is_changed = true;
             }
+            StateAction::NodesOnlineSet(count) => {
+                self.state.online_nodes = count;
+                is_changed = true;
+            }
             StateAction::NodeUpdateLastHeard {
                 node_key,
                 hops,
@@ -315,7 +313,6 @@ impl Store {
                     }
 
                     self.update_nodes_sort();
-                    self.update_online_nodes()?;
                     is_changed = true;
                 }
             }
@@ -392,36 +389,28 @@ impl Store {
             StateAction::SettingsFormLoadingStart { id } => {
                 self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
+                self.state.settings_form_is_changed = false;
                 self.state.settings_form_state = SettingsFormState::Loading { id };
                 is_changed = true;
             }
             StateAction::SettingsFormLoadingFail { id, error } => {
                 self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
+                self.state.settings_form_is_changed = false;
                 self.state.settings_form_state = SettingsFormState::LoadingFailed { id, error };
                 is_changed = true;
             }
             StateAction::SettingsFormLoadingDone { id, data } => {
                 self.state.settings_form_original_data = Some(data.clone());
                 self.state.settings_form_data = Some(data);
+                self.state.settings_form_is_changed = false;
                 self.state.settings_form_state = SettingsFormState::Loaded { id };
-                is_changed = true;
-            }
-            StateAction::SettingsFormSavingStart { id } => {
-                self.state.settings_form_state = SettingsFormState::Saving { id };
-                is_changed = true;
-            }
-            StateAction::SettingsFormSavingFail { id, error } => {
-                self.state.settings_form_state = SettingsFormState::SavingFailed { id, error };
-                is_changed = true;
-            }
-            StateAction::SettingsFormSavingDone { id } => {
-                self.state.settings_form_state = SettingsFormState::Saved { id };
                 is_changed = true;
             }
             StateAction::SettingsFormClose => {
                 self.state.settings_form_original_data = None;
                 self.state.settings_form_data = None;
+                self.state.settings_form_is_changed = false;
                 self.state.settings_form_state = SettingsFormState::Inactive;
                 is_changed = true;
             }
@@ -527,21 +516,5 @@ impl Store {
             })
             .map(|node| node.key)
             .collect();
-    }
-
-    fn update_online_nodes(&mut self) -> anyhow::Result<()> {
-        let now = Utc::now();
-
-        self.state.online_nodes = self.state.nodes.iter().fold(0, |mut counter, (_, node)| {
-            if let Some(last_heard) = node.last_heard
-                && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
-            {
-                counter += 1;
-            }
-
-            counter
-        });
-
-        Ok(())
     }
 }

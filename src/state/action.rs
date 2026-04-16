@@ -45,6 +45,7 @@ pub enum StateAction {
         snr: f32,
     },
     NodesSortBySet(NodesSortBy),
+    NodesOnlineSet(u16),
     RxTrigger,
     SplashLogo,
     TabSwitchTo(Tab),
@@ -62,16 +63,6 @@ pub enum StateAction {
     SettingsFormLoadingDone {
         id: FormId,
         data: FormData,
-    },
-    SettingsFormSavingStart {
-        id: FormId,
-    },
-    SettingsFormSavingFail {
-        id: FormId,
-        error: String,
-    },
-    SettingsFormSavingDone {
-        id: FormId,
     },
     SettingsFormClose,
     SettingsFormReset,

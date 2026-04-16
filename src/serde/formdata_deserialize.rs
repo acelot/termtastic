@@ -1,4 +1,4 @@
-use std::{collections::hash_map, fmt::Display};
+use std::fmt::Display;
 
 use serde::{Deserializer, de::*};
 
@@ -229,8 +229,8 @@ impl<'a> Deserializer<'a> for FormDataDeserializer<'a> {
         V: Visitor<'a>,
     {
         visitor.visit_map(FormDataAccessImpl {
-            entries: self.data.into_iter(),
-            current_key: None,
+            data: self.data,
+            current_index: 0,
         })
     }
 
@@ -274,8 +274,8 @@ impl<'a> Deserializer<'a> for FormDataDeserializer<'a> {
 }
 
 struct FormDataAccessImpl<'a> {
-    entries: hash_map::Iter<'a, &'static str, FormValue>,
-    current_key: Option<&'static str>,
+    data: &'a FormData,
+    current_index: usize,
 }
 
 impl<'a> MapAccess<'a> for FormDataAccessImpl<'a> {
@@ -285,8 +285,7 @@ impl<'a> MapAccess<'a> for FormDataAccessImpl<'a> {
     where
         K: DeserializeSeed<'a>,
     {
-        if let Some((key, _value)) = self.entries.next() {
-            self.current_key = Some(key);
+        if let Some((key, _value)) = self.data.iter().nth(self.current_index) {
             seed.deserialize(key.into_deserializer()).map(Some)
         } else {
             Ok(None)
@@ -297,12 +296,14 @@ impl<'a> MapAccess<'a> for FormDataAccessImpl<'a> {
     where
         V: DeserializeSeed<'a>,
     {
-        let _ = self
-            .current_key
-            .take()
-            .expect("next_value called before next_key");
+        let (_key, value) = self
+            .data
+            .iter()
+            .nth(self.current_index)
+            .expect("value not found");
 
-        let value = self.entries.next().expect("value not found").1;
+        self.current_index += 1;
+
         let value_deserializer = FormValueDeserializer { value };
 
         seed.deserialize(value_deserializer)

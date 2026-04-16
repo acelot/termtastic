@@ -494,9 +494,6 @@ pub enum SettingsFormState {
     Loading { id: FormId },
     LoadingFailed { id: FormId, error: String },
     Loaded { id: FormId },
-    Saving { id: FormId },
-    SavingFailed { id: FormId, error: String },
-    Saved { id: FormId },
 }
 
 #[derive(Debug, Clone)]

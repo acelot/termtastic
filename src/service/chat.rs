@@ -226,9 +226,7 @@ impl ChatService {
                             packet.rx_rssi,
                         );
                     }
-                    _ => {
-                        tracing::info!("unhandled packet app: {:?}", packet);
-                    }
+                    _ => {}
                 },
                 Some(mesh_packet::PayloadVariant::Encrypted(_)) => {
                     tracing::info!(

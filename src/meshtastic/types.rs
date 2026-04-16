@@ -1,6 +1,8 @@
 use hostaddr::HostAddr;
 use meshtastic::protobufs::{config, from_radio, module_config};
 
+use crate::types::FormId;
+
 #[derive(Debug, Clone)]
 pub enum MeshtasticEvent {
     Connected,
@@ -12,6 +14,8 @@ pub enum MeshtasticEvent {
     MessageAccepted,
     MessageRejected(String),
     RadioStopped,
+    ConfigSaveError(String),
+    ConfigSaved(FormId),
 }
 
 #[derive(Debug, Clone)]
@@ -35,5 +39,6 @@ pub enum CommandToMeshtastic {
     SaveConfig {
         my_node_id: u32,
         config: config::PayloadVariant,
+        form_id: FormId,
     },
 }

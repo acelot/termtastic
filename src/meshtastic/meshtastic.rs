@@ -22,6 +22,7 @@ use crate::meshtastic::{
 };
 
 const CONNECTION_TIMEOUT_SECS: u64 = 2;
+const SAVE_CONFIG_TIMEOUT_SECS: u64 = 2;
 
 pub struct MeshtasticService {
     command_rx: mpsc::UnboundedReceiver<CommandToMeshtastic>,
@@ -252,26 +253,50 @@ impl MeshtasticService {
                         .send(MeshtasticEvent::MessageRejected(e.to_string()))?,
                 };
             }
-            CommandToMeshtastic::SaveConfig { my_node_id, config } => {
+            CommandToMeshtastic::SaveConfig {
+                my_node_id,
+                config,
+                form_id,
+            } => {
                 let api = self
                     .stream_api
                     .as_mut()
                     .expect_or_log("should be connected");
 
-                api.start_config_transaction().await?;
+                match timeout(Duration::from_secs(SAVE_CONFIG_TIMEOUT_SECS), async {
+                    api.start_config_transaction().await?;
 
-                api.update_config(
-                    &mut LocalPacketRouter {
-                        my_node_id,
-                        event_tx: &self.event_tx,
-                    },
-                    Config {
-                        payload_variant: Some(config),
-                    },
-                )
-                .await?;
+                    api.update_config(
+                        &mut LocalPacketRouter {
+                            my_node_id,
+                            event_tx: &self.event_tx,
+                        },
+                        Config {
+                            payload_variant: Some(config),
+                        },
+                    )
+                    .await?;
 
-                api.commit_config_transaction().await?;
+                    api.commit_config_transaction().await
+                })
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id))?;
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("save config error: {:?}", e);
+
+                        self.event_tx
+                            .send(MeshtasticEvent::ConfigSaveError(e.to_string()))?;
+                    }
+                    Err(e) => {
+                        tracing::error!("save config timeout: {:?}", e);
+
+                        self.event_tx
+                            .send(MeshtasticEvent::ConfigSaveError(e.to_string()))?;
+                    }
+                }
             }
         };
 

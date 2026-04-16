@@ -9,7 +9,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
-use crate::types::{AppEvent, FormData, FormId};
+use crate::types::{AppEvent, FormData, FormId, Toast};
 use crate::types::{FormEnumVariant, FormItem, FormItemKind, SettingsItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -89,18 +89,22 @@ impl SettingsService {
             }
             AppEvent::SettingsFormResetRequested => {
                 self.state_action_tx.send(StateAction::SettingsFormReset)?;
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::normal("the data was reset")))?;
             }
             AppEvent::SettingsFormSaveRequested(form_id) => {
                 let state = &self.state_rx.borrow();
                 let config = self.make_meshtastic_config(&form_id)?;
 
                 self.state_action_tx
-                    .send(StateAction::SettingsFormSavingStart { id: form_id })?;
+                    .send(StateAction::Toast(Toast::normal("saving...")))?;
 
                 self.meshtastic_command_tx
                     .send(CommandToMeshtastic::SaveConfig {
                         my_node_id: state.my_node_key.expect("should be Some"),
                         config,
+                        form_id: form_id.clone(),
                     })?;
             }
             AppEvent::SettingsFormItemSubmitted(form_item, value) => {
@@ -126,6 +130,17 @@ impl SettingsService {
                 self.state_action_tx
                     .send(StateAction::DeviceModuleConfigSet(variant))?;
             }
+            MeshtasticEvent::ConfigSaveError(e) => {
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::error(e)))?;
+            }
+            MeshtasticEvent::ConfigSaved(form_id) => {
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::success("config saved")))?;
+
+                self.app_event_tx
+                    .send(AppEvent::SettingsFormSelected(form_id))?;
+            }
             _ => {}
         }
 
@@ -136,31 +151,13 @@ impl SettingsService {
         let state = &self.state_rx.borrow();
 
         let data = match id {
-            FormId::RadioLora => {
-                let Some(lora) = &state.device_config.lora else {
-                    return Err(anyhow::anyhow!("Lora config not loaded"));
-                };
-
-                // hashmap! {
-                //     "region" => lora.region.into(),
-                //     "use_preset" => lora.use_preset.into(),
-                //     "preset" => lora.modem_preset.into(),
-                //     "bandwidth" => lora.bandwidth.into(),
-                //     "spread_factor" => lora.spread_factor.into(),
-                //     "coding_rate" => lora.coding_rate.into(),
-                //     "ignore_mqtt" => lora.ignore_mqtt.into(),
-                //     "ok_to_mqtt" => lora.config_ok_to_mqtt.into(),
-                //     "tx_enabled" => lora.tx_enabled.into(),
-                //     "override_duty_cycle" => lora.override_duty_cycle.into(),
-                //     "hop_limit" => lora.hop_limit.into(),
-                //     "channel_num" => lora.channel_num.into(),
-                //     "rx_boosted_gain" => lora.sx126x_rx_boosted_gain.into(),
-                //     "override_frequency" => lora.override_frequency.into(),
-                //     "tx_power" => lora.tx_power.into(),
-                // }
-
-                to_formdata(lora)?
-            }
+            FormId::RadioLora => to_formdata(
+                state
+                    .device_config
+                    .lora
+                    .as_ref()
+                    .ok_or(anyhow::anyhow!("Lora config not loaded"))?,
+            )?,
             _ => return Err(anyhow::anyhow!("Loader not implemented for FormId: {}", id)),
         };
 
@@ -379,7 +376,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                       frequency will be used instead (frequency_offset still applies). \
                       This will allow you to use out-of-band frequencies."),
                 FormItemKind::InputOfFloat32,
-                |v| format!("{} MHz", v.to_string()),
+                |v| if v.as_f32().expect("invalid value") > 0.0 { format!("{} MHz", v.to_string()) } else { "not set".to_owned() },
                 |v| (0.0..=2500.0)
                     .contains(&v.as_f32().expect("invalid value"))
                     .then_some(())

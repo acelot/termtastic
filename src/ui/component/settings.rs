@@ -52,9 +52,6 @@ impl<'a> Settings<'a> {
                     .then_some(Hotkey::new("r", "reset")),
                 Some(Hotkey::new("esc", "return")),
             ],
-            SettingsFormState::Saving { .. } => vec![Some(Hotkey::new("esc", "return"))],
-            SettingsFormState::SavingFailed { .. } => vec![Some(Hotkey::new("esc", "return"))],
-            SettingsFormState::Saved { .. } => vec![Some(Hotkey::new("esc", "return"))],
         }
         .into_iter()
         .flatten()
@@ -442,7 +439,6 @@ impl<'a> Component for Settings<'a> {
                     frame.buffer_mut(),
                 );
             }
-            _ => {}
         }
 
         form_block.render(v0_h[1], frame.buffer_mut());
@@ -585,7 +581,7 @@ impl<'a> Widget for FormItemWidget<'a> {
         // value
         let formatted_value = if matches!(self.form_item.kind, FormItemKind::Switch) {
             if self.value.as_bool().expect("invalid FormValue") == true {
-                "[x]".to_owned()
+                "[✔]".to_owned()
             } else {
                 "[ ]".to_owned()
             }
