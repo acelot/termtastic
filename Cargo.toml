@@ -9,9 +9,10 @@ anyhow = { version = "1.0.102" }
 arboard = { version = "3.6.1" }
 bluest = { version = "0.6.9" }
 chrono = { version = "0.4.44" }
-circular-queue = { version = "0.2.7" }
 clap = { version = "4.6.1", features = ["derive"] }
-confy = { version = "2.0.0", default-features = false, features = ["yaml_conf"] }
+confy = { version = "2.0.0", default-features = false, features = [
+    "yaml_conf",
+] }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 futures = { version = "0.3.32" }
 hostaddr = { version = "0.2.4", features = ["serde"] }

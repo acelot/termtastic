@@ -460,15 +460,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "circular-queue"
-version = "0.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2df8276ab95fe8665a814190345239d91105df5df0fda26ddc7784c96244dc76"
-dependencies = [
- "version_check",
-]
-
-[[package]]
 name = "clap"
 version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3054,7 +3045,6 @@ dependencies = [
  "arboard",
  "bluest",
  "chrono",
- "circular-queue",
  "clap",
  "confy",
  "crossterm",

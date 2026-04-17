@@ -59,18 +59,18 @@ impl Logs {
         }
     }
 
-    fn copy_to_clipboard(&self, record: &LogRecord) {
+    fn copy_to_clipboard(&self, record: &LogRecord) -> anyhow::Result<()> {
         let mut clipboard = Clipboard::new().unwrap();
 
-        clipboard
-            .set_text(format!(
-                "{} {} {}: {}",
-                record.datetime.to_rfc3339(),
-                record.level.to_string(),
-                record.source.clone(),
-                record.message
-            ))
-            .unwrap();
+        clipboard.set_text(format!(
+            "{} {} {}: {}",
+            record.datetime.to_rfc3339(),
+            record.level.to_string(),
+            record.source.clone(),
+            record.message
+        ))?;
+
+        Ok(())
     }
 }
 
@@ -79,47 +79,69 @@ impl Component for Logs {
         &mut self,
         state: &State,
         event: &Event,
-        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
+        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<bool> {
+        if self.popup_record.is_some() {
+            match event {
+                Event::Key(KeyEvent { code, .. }) => match code {
+                    KeyCode::Up => {
+                        self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
+                    }
+                    KeyCode::Down => {
+                        self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
+                    }
+                    KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
+                        match self.copy_to_clipboard(&state.logs[i]) {
+                            Ok(_) => emit(AppEvent::ToastRequested(Toast::normal("copied")))?,
+                            Err(e) => {
+                                emit(AppEvent::ToastRequested(Toast::error("copy failed")))?;
+                                tracing::error!("copy failed: {:?}", e);
+                            }
+                        }
+                    }
+                    KeyCode::Esc => self.popup_record = None,
+                    _ => {}
+                },
+                _ => {}
+            }
+
+            return Ok(true);
+        }
+
         match event {
-            Event::Key(KeyEvent { code, .. }) => match (code, self.popup_record.is_some()) {
-                (KeyCode::Up, false) => {
+            Event::Key(KeyEvent { code, .. }) => match code {
+                KeyCode::Up => {
                     self.follow = false;
                     self.list_state.previous();
                 }
-                (KeyCode::Down, false) => {
+                KeyCode::Down => {
                     self.list_state.next();
 
                     if let Some(index) = self.list_state.selected {
                         self.follow = index == state.logs.len() - 1;
                     }
                 }
-                (KeyCode::Enter, false) => {
+                KeyCode::Enter => {
                     if let Some(i) = self.list_state.selected {
                         self.popup_record = Some(state.logs[i].clone());
                         self.popup_scroll_offset = 0;
                     }
                 }
-                (KeyCode::Home, false) => {
+                KeyCode::Home => {
                     self.follow = false;
                     self.list_state.select(Some(0));
                 }
-                (KeyCode::End, false) => {
+                KeyCode::End => {
                     self.follow = true;
                     self.list_state.select(Some(state.logs.len() - 1));
                 }
-                // popup hotkeys
-                (KeyCode::Up, true) => {
-                    self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
-                }
-                (KeyCode::Down, true) => {
-                    self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
-                }
-                (KeyCode::Esc, true) => self.popup_record = None,
-                // general
-                (KeyCode::Char('c'), _) => {
-                    if let Some(i) = self.list_state.selected {
-                        self.copy_to_clipboard(&state.logs[i]);
+                KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
+                    match self.copy_to_clipboard(&state.logs[i]) {
+                        Ok(_) => emit(AppEvent::ToastRequested(Toast::normal("copied")))?,
+                        Err(e) => {
+                            emit(AppEvent::ToastRequested(Toast::error("copy failed")))?;
+                            tracing::error!("copy failed: {:?}", e);
+                        }
                     }
                 }
                 _ => {}
@@ -176,7 +198,7 @@ impl Component for Logs {
 
             list.render(v[0], frame.buffer_mut(), &mut self.list_state);
         } else {
-            PlaceholderWidget::dark_gray("no logs").render(v[0], frame.buffer_mut());
+            PlaceholderWidget::dark_gray("no logs yet").render(v[0], frame.buffer_mut());
         }
 
         if let Some(r) = &self.popup_record {

@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use tokio::sync::broadcast;
 use tokio_graceful_shutdown::{SubsystemBuilder, SubsystemHandle, Toplevel};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use tracing_unwrap::ResultExt;
 
 use crate::{
@@ -31,10 +31,6 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 async fn main() {
     let (store, state_action_tx, state_rx) = Store::new(State::default());
 
-    let log_filter = tracing_subscriber::filter::Targets::new()
-        .with_default(tracing::Level::DEBUG)
-        .with_target("meshtastic", tracing::level_filters::LevelFilter::OFF);
-
     let (file_writer, _file_writer_guard) = tracing_appender::non_blocking(
         tracing_appender::rolling::daily("logs", format!("{}.log", APP_NAME)),
     );
@@ -45,7 +41,7 @@ async fn main() {
     let log_to_state_layer = LogToState::new(state_action_tx.clone());
 
     tracing_subscriber::registry()
-        .with(log_filter)
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(file_logger_layer)
         .with(log_to_state_layer)
         .init();

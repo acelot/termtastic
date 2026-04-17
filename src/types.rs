@@ -61,6 +61,7 @@ pub enum AppEvent {
     SettingsFormResetRequested,
     SettingsFormSaveRequested(FormId),
     SettingsFormItemSubmitted(&'static FormItem, FormValue),
+    ToastRequested(Toast),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -445,6 +446,10 @@ impl
             &meshtastic::protobufs::Data,
         ),
     ) -> Result<Self, Self::Error> {
+        if data.payload.is_empty() {
+            return Err(anyhow!("payload is empty"));
+        }
+
         Ok(Self {
             id: packet.id,
             reply_message_id: data.reply_id,

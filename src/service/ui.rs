@@ -63,6 +63,9 @@ impl UiService {
                 self.state_action_tx
                     .send(StateAction::TabSwitchToPrevious)?;
             }
+            AppEvent::ToastRequested(toast) => {
+                self.state_action_tx.send(StateAction::Toast(toast))?;
+            }
             _ => {}
         }
 
