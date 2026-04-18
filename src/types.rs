@@ -2,8 +2,10 @@ use std::{collections::HashMap, fmt::Debug, time::Instant};
 
 use anyhow::anyhow;
 use chrono::{DateTime, TimeZone, Utc};
+use emoji::Emoji;
 use hostaddr::HostAddr;
 use meshtastic::protobufs::{DeviceUiConfig, MeshPacket, User, config, module_config};
+use ordermap::OrderMap;
 use ratatui::{
     style::{self, Stylize as _},
     text,
@@ -54,6 +56,10 @@ pub enum AppEvent {
         text: String,
         reply_message_id: Option<u32>,
     },
+    ChatReactionSubmitted {
+        emoji: &'static Emoji,
+        reply_message_id: Option<u32>,
+    },
     SplashLogoRequested,
     DirectChatRequested(u32),
     SettingsFormSelected(FormId),
@@ -61,7 +67,7 @@ pub enum AppEvent {
     SettingsFormResetRequested,
     SettingsFormSaveRequested(FormId),
     SettingsFormItemSubmitted(&'static FormItem, FormValue),
-    ToastRequested(Toast),
+    CopyToClipboardRequested(String),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Serialize, Deserialize, Hash)]
@@ -117,6 +123,18 @@ pub struct LogRecord {
     pub level: Level,
     pub source: String,
     pub message: String,
+}
+
+impl Into<String> for LogRecord {
+    fn into(self) -> String {
+        format!(
+            "{} {} {}: {}",
+            self.datetime.to_rfc3339(),
+            self.level.to_string(),
+            self.source.clone(),
+            self.message
+        )
+    }
 }
 
 #[derive(
@@ -424,7 +442,7 @@ pub struct Message {
     pub from: u32,
     pub datetime: DateTime<Utc>,
     pub text: String,
-    pub reactions: HashMap<String, HashMap<u32, DateTime<Utc>>>,
+    pub reactions: OrderMap<String, HashMap<u32, DateTime<Utc>>>,
     #[allow(dead_code)]
     pub hops: Option<u32>,
     pub snr: f32,
@@ -459,7 +477,7 @@ impl
                 .single()
                 .unwrap_or(Utc::now()),
             text: String::from_utf8(data.payload.clone())?,
-            reactions: HashMap::default(),
+            reactions: OrderMap::default(),
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,

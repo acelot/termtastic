@@ -18,7 +18,7 @@ use tracing_unwrap::OptionExt;
 
 use crate::meshtastic::{
     RadioService, connect_via_ble, connect_via_serial, connect_via_tcp,
-    types::{CommandToMeshtastic, MeshtasticEvent},
+    types::{CommandToMeshtastic, MeshtasticEvent, TextMessage},
 };
 
 const CONNECTION_TIMEOUT_SECS: u64 = 2;
@@ -202,15 +202,18 @@ impl MeshtasticService {
                             my_node_id,
                             event_tx: &self.event_tx,
                         },
-                        EncodedMeshPacketData::new(text.into_bytes()),
+                        EncodedMeshPacketData::new(match &text {
+                            TextMessage::Text(v) => v.clone().into_bytes(),
+                            TextMessage::Emoji(e) => e.glyph.as_bytes().to_vec(),
+                        }),
                         PortNum::TextMessageApp,
                         PacketDestination::Broadcast,
                         MeshChannel::from(channel_id),
-                        true,             // want_ack
-                        false,            // want_response
-                        true,             // echo_response
-                        reply_message_id, // reply_id
-                        None,             // emoji
+                        true,                                               // want_ack
+                        false,                                              // want_response
+                        true,                                               // echo_response
+                        reply_message_id,                                   // reply_id
+                        matches!(text, TextMessage::Emoji(_)).then_some(1), // emoji
                     )
                     .await
                 {
@@ -235,15 +238,18 @@ impl MeshtasticService {
                             my_node_id,
                             event_tx: &self.event_tx,
                         },
-                        EncodedMeshPacketData::new(text.into_bytes()),
+                        EncodedMeshPacketData::new(match &text {
+                            TextMessage::Text(v) => v.clone().into_bytes(),
+                            TextMessage::Emoji(e) => e.glyph.as_bytes().to_vec(),
+                        }),
                         PortNum::TextMessageApp,
                         PacketDestination::Node(NodeId::from(node_id)),
                         MeshChannel::from(0),
-                        true,             // want_ack
-                        false,            // want_response
-                        true,             // echo_response
-                        reply_message_id, // reply_id
-                        None,             // emoji
+                        true,                                               // want_ack
+                        false,                                              // want_response
+                        true,                                               // echo_response
+                        reply_message_id,                                   // reply_id
+                        matches!(text, TextMessage::Emoji(_)).then_some(1), // emoji
                     )
                     .await
                 {

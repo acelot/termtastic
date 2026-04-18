@@ -1,6 +1,8 @@
+use arboard::Clipboard;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
+use crate::types::Toast;
 use crate::ui::prelude::AppEvent;
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -63,9 +65,17 @@ impl UiService {
                 self.state_action_tx
                     .send(StateAction::TabSwitchToPrevious)?;
             }
-            AppEvent::ToastRequested(toast) => {
-                self.state_action_tx.send(StateAction::Toast(toast))?;
-            }
+            AppEvent::CopyToClipboardRequested(text) => match copy_to_clipboard(text) {
+                Ok(_) => self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::normal("copied")))?,
+                Err(e) => {
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("copy failed")))?;
+
+                    tracing::error!("copy failed: {:?}", e);
+                }
+            },
             _ => {}
         }
 
@@ -79,4 +89,9 @@ impl UiService {
 
         Ok(())
     }
+}
+
+fn copy_to_clipboard(text: String) -> anyhow::Result<()> {
+    Clipboard::new()?.set_text(text)?;
+    Ok(())
 }

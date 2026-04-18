@@ -1,3 +1,4 @@
+use emoji::Emoji;
 use hostaddr::HostAddr;
 use meshtastic::protobufs::{config, from_radio, module_config};
 
@@ -18,6 +19,12 @@ pub enum MeshtasticEvent {
 }
 
 #[derive(Debug, Clone)]
+pub enum TextMessage {
+    Text(String),
+    Emoji(&'static Emoji),
+}
+
+#[derive(Debug, Clone)]
 pub enum CommandToMeshtastic {
     ConnectViaTcp(HostAddr<String>),
     ConnectViaBle(String),
@@ -27,13 +34,13 @@ pub enum CommandToMeshtastic {
         my_node_id: u32,
         channel_id: u32,
         reply_message_id: Option<u32>,
-        text: String,
+        text: TextMessage,
     },
     SendDirectTextMessage {
         my_node_id: u32,
         node_id: u32,
         reply_message_id: Option<u32>,
-        text: String,
+        text: TextMessage,
     },
     SaveConfig {
         my_node_id: u32,

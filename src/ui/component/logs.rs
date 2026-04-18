@@ -1,4 +1,3 @@
-use arboard::Clipboard;
 use chrono::Local;
 use tracing::Level;
 
@@ -58,20 +57,6 @@ impl Logs {
             ],
         }
     }
-
-    fn copy_to_clipboard(&self, record: &LogRecord) -> anyhow::Result<()> {
-        let mut clipboard = Clipboard::new().unwrap();
-
-        clipboard.set_text(format!(
-            "{} {} {}: {}",
-            record.datetime.to_rfc3339(),
-            record.level.to_string(),
-            record.source.clone(),
-            record.message
-        ))?;
-
-        Ok(())
-    }
 }
 
 impl Component for Logs {
@@ -91,13 +76,9 @@ impl Component for Logs {
                         self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
                     }
                     KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
-                        match self.copy_to_clipboard(&state.logs[i]) {
-                            Ok(_) => emit(AppEvent::ToastRequested(Toast::normal("copied")))?,
-                            Err(e) => {
-                                emit(AppEvent::ToastRequested(Toast::error("copy failed")))?;
-                                tracing::error!("copy failed: {:?}", e);
-                            }
-                        }
+                        emit(AppEvent::CopyToClipboardRequested(
+                            state.logs[i].clone().into(),
+                        ))?;
                     }
                     KeyCode::Esc => self.popup_record = None,
                     _ => {}
@@ -136,13 +117,9 @@ impl Component for Logs {
                     self.list_state.select(Some(state.logs.len() - 1));
                 }
                 KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
-                    match self.copy_to_clipboard(&state.logs[i]) {
-                        Ok(_) => emit(AppEvent::ToastRequested(Toast::normal("copied")))?,
-                        Err(e) => {
-                            emit(AppEvent::ToastRequested(Toast::error("copy failed")))?;
-                            tracing::error!("copy failed: {:?}", e);
-                        }
-                    }
+                    emit(AppEvent::CopyToClipboardRequested(
+                        state.logs[i].clone().into(),
+                    ))?;
                 }
                 _ => {}
             },

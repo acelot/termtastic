@@ -16,7 +16,7 @@
             },
             "args": [],
             "env": {
-                "RUST_LOG": "debug"
+                "RUST_LOG": "debug,meshtastic=off"
             },
             "console": "externalTerminal"
         },

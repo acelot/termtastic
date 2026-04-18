@@ -7,7 +7,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::OptionExt;
 
 use crate::{
-    meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
+    meshtastic::types::{CommandToMeshtastic, MeshtasticEvent, TextMessage},
     state::{State, StateAction},
     types::{AppEvent, Channel, ChannelRole, Message, Node},
 };
@@ -79,7 +79,7 @@ impl ChatService {
                                 .expect_or_log("my node key should exists"),
                             channel_id: *key,
                             reply_message_id,
-                            text,
+                            text: TextMessage::Text(text),
                         },
                     )?;
                 }
@@ -95,7 +95,45 @@ impl ChatService {
                                 .expect_or_log("my node key should exists"),
                             node_id: *key,
                             reply_message_id,
-                            text,
+                            text: TextMessage::Text(text),
+                        },
+                    )?;
+                }
+                _ => {}
+            },
+            AppEvent::ChatReactionSubmitted {
+                emoji,
+                reply_message_id,
+            } => match state.get_active_channel() {
+                Some(Channel {
+                    key,
+                    role: ChannelRole::Primary | ChannelRole::Secondary,
+                    ..
+                }) => {
+                    self.meshtastic_command_tx.send(
+                        CommandToMeshtastic::SendBroadcastTextMessage {
+                            my_node_id: state
+                                .my_node_key
+                                .expect_or_log("my node key should exists"),
+                            channel_id: *key,
+                            reply_message_id,
+                            text: TextMessage::Emoji(emoji),
+                        },
+                    )?;
+                }
+                Some(Channel {
+                    key,
+                    role: ChannelRole::Direct,
+                    ..
+                }) => {
+                    self.meshtastic_command_tx.send(
+                        CommandToMeshtastic::SendDirectTextMessage {
+                            my_node_id: state
+                                .my_node_key
+                                .expect_or_log("my node key should exists"),
+                            node_id: *key,
+                            reply_message_id,
+                            text: TextMessage::Emoji(emoji),
                         },
                     )?;
                 }
