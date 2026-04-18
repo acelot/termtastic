@@ -128,7 +128,9 @@ impl<'a> Component for Messenger<'a> {
                         self.emoji_selector_state.handle_event(event.clone());
                     }
                 },
-                _ => {}
+                _ => {
+                    self.emoji_selector_state.handle_event(event.clone());
+                }
             };
 
             return Ok(true);

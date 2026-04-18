@@ -32,7 +32,7 @@ impl<'a> EmojiSelectorState<'a> {
         Self {
             input_widget,
             list_state: ListState::default(),
-            emojis: emoji::search::search_name(""),
+            emojis: emoji::search::search_annotation("", "en"),
         }
     }
 
@@ -44,7 +44,7 @@ impl<'a> EmojiSelectorState<'a> {
 
     pub fn reset(&mut self) {
         self.input_widget.clear();
-        self.emojis = emoji::search::search_name("");
+        self.emojis = emoji::search::search_annotation("", "en");
         self.list_state.select(Some(0));
     }
 
@@ -59,7 +59,8 @@ impl<'a> EmojiSelectorState<'a> {
                 }
                 _ => {
                     self.input_widget.input(event);
-                    self.emojis = emoji::search::search_name(&self.input_widget.lines()[0]);
+                    self.emojis =
+                        emoji::search::search_annotation(&self.input_widget.lines()[0], "en");
 
                     if !self.emojis.is_empty() {
                         self.list_state.select(Some(0));
