@@ -169,7 +169,7 @@ impl ConnectionService {
                         .get(&p.to)
                         .and_then(|n| Some(n.short_name.clone()));
 
-                    tracing::debug!(node_from = from, node_to = to, "MESH PACKET {:?}", p);
+                    tracing::debug!("PACKET from=\"{:?}\" to=\"{:?}\": {:?}", from, to, p);
                 } else {
                     tracing::debug!("PACKET {:?}", packet);
                 }

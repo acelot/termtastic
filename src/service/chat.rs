@@ -245,7 +245,7 @@ impl ChatService {
                     PortNum::RangeTestApp => {
                         let state = &self.state_rx.borrow();
                         let text = String::from_utf8(data.payload.clone())
-                            .unwrap_or("can't decoded payload".to_owned());
+                            .unwrap_or("can't decode payload".to_owned());
                         let unknown_node = Node::unknown();
                         let node = state.nodes.get(&packet.from).unwrap_or(&unknown_node);
 

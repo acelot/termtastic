@@ -30,12 +30,12 @@ impl<'a> Error for FormDataDeserializerError {
     }
 }
 
-pub struct FormDataDeserializer<'a> {
+struct FormDataDeserializer<'a> {
     data: &'a FormData,
 }
 
 impl<'a> FormDataDeserializer<'a> {
-    pub fn new(data: &'a FormData) -> Self {
+    fn new(data: &'a FormData) -> Self {
         Self { data }
     }
 }

@@ -27,7 +27,7 @@ use crate::{
 const TICK_INTERVAL_MILLIS: u64 = 33;
 const RX_TIMEOUT_MILLIS: u128 = 250;
 const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
-const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 1000;
+const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 1500;
 
 pub struct Store {
     state: State,

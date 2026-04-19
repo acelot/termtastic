@@ -29,12 +29,12 @@ impl Error for FormDataSerializerError {
     }
 }
 
-pub struct FormDataSerializer {
+struct FormDataSerializer {
     pub data: FormData,
 }
 
 impl FormDataSerializer {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             data: HashMap::new(),
         }
