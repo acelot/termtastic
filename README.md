@@ -6,7 +6,7 @@
 
 <p align="center">
   <img src="./logo-mpowered.png" height="20" alt="M-Powered"/>
-  <img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat" alt="GPLv3"/>
+  <img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat" alt="GPL-3.0-only"/>
 </p>
 
 <table>
