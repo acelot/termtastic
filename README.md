@@ -1,27 +1,21 @@
-<center><img src="./logo.png" width="466" alt="termtastic"></center>
+<p align="center"><img src="./logo.png" width="466" alt="termtastic"></p>
 
-<center>
+<p align="center">
+  <bold>termtastic</bold> is a feature-rich handmade <a href="https://meshtastic.org">Meshtastic®</a> console client written in Rust.
+</p>
 
-**termtastic** is a feature-rich handmade [Meshtastic®](https://meshtastic.org) console client written in Rust.
-
-</center>
-
-<center>
+<p align="center">
   <img src="./logo-mpowered.png" height="20" alt="M-Powered"/>
   <img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat" alt="GPLv3"/>
-</center>
+</p>
 
-<div style="display: flex; justify-content: space-around; text-align: center;">
-  <div>
-    <img src="./screenshots/chat.png" alt="Chat"/>
-  </div>
-  <div>
-    <img src="./screenshots/nodes.png" alt="Nodes"/>
-  </div>
-  <div>
-    <img src="./screenshots/settings.png" alt="Settings"/>
-  </div>
-</div>
+<table>
+  <tr>
+    <td><img src="./screenshots/chat.png" alt="Chat"/></td>
+    <td><img src="./screenshots/nodes.png" alt="Nodes"/></td>
+    <td><img src="./screenshots/settings.png" alt="Settings"/></td>
+  </tr>
+</table>
 
 # Features
 

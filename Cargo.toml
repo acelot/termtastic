@@ -50,3 +50,9 @@ tracing-appender = { version = "0.2.4" }
 tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0.1" }
 tui-widget-list = { version = "0.15.2" }
+
+[target.x86_64-unknown-linux-gnu.dependencies]
+libdbus-sys = { version = "0.2.7", features = ["vendored"] }
+
+[target.aarch64-unknown-linux-gnu.dependencies]
+libdbus-sys = { version = "0.2.7", features = ["vendored"] }
