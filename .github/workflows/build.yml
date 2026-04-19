@@ -21,40 +21,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows
-          - name: Windows x86_64
-            os: windows-2025
+          - os: windows-2025
             target: x86_64-pc-windows-msvc
             artifact_name: termtastic.exe
-            asset_name: termtastic-windows-am64.exe
+            asset_name: termtastic-windows-x86-64.exe
 
-          # Linux
-          - name: Linux x86_64
-            os: ubuntu-24.04
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             artifact_name: termtastic
-            asset_name: termtastic-linux-amd64
+            asset_name: termtastic-linux-x86-64
 
-          # Linux ARM
-          - name: Linux aarch64
-            os: ubuntu-24.04-arm
+          - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             artifact_name: termtastic
-            asset_name: termtastic-linux-amd64
+            asset_name: termtastic-linux-aarch64
 
-          # macOS
-          - name: macOS x86_64
-            os: macos-15-intel
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: termtastic
-            asset_name: termtastic-darwin-amd64
+            asset_name: termtastic-darwin-x86-64
 
-          # macOS ARM
-          - name: macOS aarch64
-            os: macos-15
+          - os: macos-15
             target: aarch64-apple-darwin
             artifact_name: termtastic
-            asset_name: termtastic-darwin-arm64
+            asset_name: termtastic-darwin-aarch64
 
     steps:
       - name: Checkout code
