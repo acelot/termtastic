@@ -1,17 +1,13 @@
-| :warning: WARNING                                                                        |
-| :--------------------------------------------------------------------------------------- |
-| Project is under active development, things could be changed completely without warning. |
-
 <p align="center"><img src="./logo.png" width="466" alt="termtastic"></p>
 
 <p align="center">
-  <bold>termtastic</bold> is a feature-rich handmade <a href="https://meshtastic.org">Meshtastic®</a> console client written in Rust.
+  <b>termtastic</b> is a feature-rich handmade <a href="https://meshtastic.org">Meshtastic®</a> console client written in Rust.
 </p>
 
 <p align="center">
-  <img src="https://github.com/acelot/termtastic/actions/workflows/build.yml/badge.svg?event=push)" height="20" alt="Build"/>
-  <img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat" height="20" alt="GPL-3.0-only"/>
-  <img src="./logo-mpowered.png" height="20" alt="M-Powered"/>
+  <a href="https://github.com/acelot/termtastic/actions"><img src="https://github.com/acelot/termtastic/actions/workflows/build.yml/badge.svg?event=push" height="20" alt="Build"/></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat" height="20" alt="GPL-3.0-only"/></a>
+  <a href="https://meshtastic.org"><img src="./logo-mpowered.png" height="20" alt="M-Powered"/></a>
 </p>
 
 <table>
@@ -22,12 +18,16 @@
   </tr>
 </table>
 
+| :warning: WARNING                                                                        |
+| :--------------------------------------------------------------------------------------- |
+| Project is under active development, things could be changed completely without warning. |
+
 ## Features
 
 > [!NOTE]  
 > Unchecked items are not implemented yet.
 
-- Chat tab
+- **Chat tab**
   - Channels
     - [x] Scrollable channels list (Primary, Secondary)
     - [x] Direct conversations
@@ -45,7 +45,7 @@
     - [x] Ability to reply to the messages
     - [x] Ability to send the reactions (emojis)
     - [x] Limiting the message length to 200 chars (with counter)
-- Nodes tab
+- **Nodes tab**
   - Nodes list
     - [x] Scrollable nodes list
     - [x] Ability to start direct conversation with selected node
@@ -60,7 +60,7 @@
     - [ ] Traceroute feature
     - [ ] Ignore feature
     - [ ] TBD
-- Settings tab
+- **Settings tab**
   - [x] Loading device configuration (generic feature)s
   - [x] Saving device configuration (generic feature)
   - Radio
@@ -85,7 +85,7 @@
     - [ ] Neighbor Info
   - App
     - [ ] UI
-- Connection tab
+- **Connection tab**
   - [x] Scrollable devices list (TCP, BLE, Serial)
   - [x] Connection via TCP
   - [x] Connection via BLE
@@ -94,7 +94,7 @@
   - [x] Storing TCP connections into config file
   - [x] Discovering of BLE and Serial devices feature
   - [x] Reconnection feature with exponential backoff timeouts 
-- Logs tab
+- **Logs tab**
   - [x] Writing logs into files using daily rolling strategy
   - [x] Mirroring logs into log list with scroll
   - [x] Ability to expand the single log record (useful for long logs)
