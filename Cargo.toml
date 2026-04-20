@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 ansi-to-tui = { version = "8.0.1" }
 anyhow = { version = "1.0.102" }
-arboard = { version = "3.6.1" }
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 bluest = { version = "0.6.9" }
 chrono = { version = "0.4.44" }
 clap = { version = "4.6.1", features = ["derive"] }
@@ -38,15 +38,15 @@ meshtastic = { git = "https://github.com/meshtastic/rust", branch = "main", feat
 ] }
 ordermap = { version = "1.2.0" }
 ratatui = { version = "0.30.0", features = ["unstable-rendered-line-info"] }
-ratatui-textarea = { version = "0.9.0" }
+ratatui-textarea = { version = "0.9.1" }
 regex = { version = "*" }
 serde = { version = "1.0.228" }
 strum = { version = "0.28.0", features = ["derive"] }
 thiserror = { version = "2.0.18" }
-tokio = { version = "1.52.0", features = ["full"] }
+tokio = { version = "1.52.1", features = ["full"] }
 tokio-graceful-shutdown = { version = "0.19.3" }
 tracing = { version = "0.1.44" }
-tracing-appender = { version = "0.2.4" }
+tracing-appender = { version = "0.2.5" }
 tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0.1" }
 tui-widget-list = { version = "0.15.2" }
