@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub const APP_NAME: &str = env!("CARGO_PKG_NAME");
-pub const APP_VERSION: &str = env!("GIT_REF_NAME");
+pub const APP_VERSION: &str = env!("APP_VERSION");
 
 #[tokio::main]
 async fn main() {

@@ -12,7 +12,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  GITHUB_REF_NAME: ${{ github.ref_name }}
+  GIT_REF_TYPE: ${{ github.ref_type }}
+  GIT_REF_NAME: ${{ github.ref_name }}
+  GIT_SHA: ${{ github.sha }}
 
 jobs:
   build:
