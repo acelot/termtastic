@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{config, module_config};
+use meshtastic::protobufs::{User, config, module_config};
 
 use crate::types::{
     AppConfig, Channel, Device, FormData, FormId, FormValue, LogRecord, Message, Node, NodesSortBy,
@@ -26,6 +26,7 @@ pub enum StateAction {
     DeviceDiscoveringDone(Vec<Device>),
     DeviceConfigSet(config::PayloadVariant),
     DeviceModuleConfigSet(module_config::PayloadVariant),
+    DeviceUserSet(User),
     DevicesRemoveTcp(HostAddr<String>),
     LogRecordAdd(LogRecord),
     DirectChatStart(u32),

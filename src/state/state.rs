@@ -4,6 +4,7 @@ use std::{
 };
 
 use hostaddr::HostAddr;
+use meshtastic::protobufs::User;
 
 use crate::types::*;
 
@@ -20,6 +21,7 @@ pub struct State {
     pub device_discovering_state: DeviceDiscoveringState,
     pub device_config: DeviceConfig,
     pub device_module_config: DeviceModuleConfig,
+    pub device_user: Option<User>,
     pub discovered_devices: Vec<Device>,
     pub logs: Vec<LogRecord>,
     pub messages: HashMap<u32, VecDeque<Message>>,
@@ -49,35 +51,36 @@ impl Default for State {
         Self {
             active_channel_key: None,
             active_device: None,
-            active_tab: Tab::default(),
+            active_tab: Default::default(),
             app_name: crate::APP_NAME.to_owned(),
             app_version: crate::APP_VERSION.to_owned(),
             channels: HashMap::with_capacity(10),
             connection_attempt: 0,
-            connection_state: ConnectionState::NotConnected,
-            device_discovering_state: DeviceDiscoveringState::NotStarted,
-            device_config: DeviceConfig::default(),
-            device_module_config: DeviceModuleConfig::default(),
+            connection_state: Default::default(),
+            device_discovering_state: Default::default(),
+            device_config: Default::default(),
+            device_module_config: Default::default(),
+            device_user: None,
             discovered_devices: Vec::default(),
             logs: Vec::with_capacity(1000),
-            messages: HashMap::default(),
+            messages: Default::default(),
             my_node_key: None,
             need_clear_frame: false,
-            nodes_sort_by: NodesSortBy::Hops,
+            nodes_sort_by: Default::default(),
             nodes_sort: Vec::with_capacity(200),
             nodes: HashMap::with_capacity(200),
             online_nodes: 0,
             reconnection_backoff: None,
             rx_t: Instant::now(),
             rx: false,
-            settings_form_state: SettingsFormState::Inactive,
+            settings_form_state: Default::default(),
             settings_form_original_data: None,
             settings_form_data: None,
             settings_form_is_changed: false,
             splash_logo_t: Instant::now(),
             splash_logo: false,
-            tcp_devices: Vec::default(),
-            toast_queue: VecDeque::default(),
+            tcp_devices: Default::default(),
+            toast_queue: Default::default(),
             toast_t: Instant::now(),
             toast: None,
         }

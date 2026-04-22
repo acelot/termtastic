@@ -287,8 +287,9 @@ impl<'a> Serializer for FieldSerializer<'a> {
         Err(FormDataSerializerError::UnsupportedType("i64"))
     }
 
-    fn serialize_u8(self, _v: u8) -> Result<Self::Ok, Self::Error> {
-        Err(FormDataSerializerError::UnsupportedType("u8"))
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
+        self.data.insert(self.key, FormValue::UnsignedInt8(v));
+        Ok(())
     }
 
     fn serialize_u16(self, _v: u16) -> Result<Self::Ok, Self::Error> {
@@ -327,14 +328,32 @@ impl<'a> Serializer for FieldSerializer<'a> {
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-        Err(FormDataSerializerError::UnsupportedType("none"))
+        self.data.insert(self.key, FormValue::Option(None));
+        Ok(())
     }
 
-    fn serialize_some<T>(self, _value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        Err(FormDataSerializerError::UnsupportedType("some"))
+        let mut temp_map = HashMap::new();
+        let temp_key = "serialized_value";
+
+        let serializer = FieldSerializer {
+            data: &mut temp_map,
+            key: temp_key,
+        };
+
+        value.serialize(serializer)?;
+
+        let nested_value = if let Some(serialized_value) = temp_map.get(temp_key) {
+            Some(Box::new(serialized_value.clone()))
+        } else {
+            None
+        };
+
+        self.data.insert(self.key, FormValue::Option(nested_value));
+        Ok(())
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
@@ -452,8 +471,7 @@ impl<'a> SerializeSeq for UniversalVecSerializer<'a> {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        self.data
-            .insert(self.key, FormValue::VecOfFormValue(self.vec));
+        self.data.insert(self.key, FormValue::Vec(self.vec));
         Ok(())
     }
 }
@@ -503,8 +521,9 @@ impl<'a> Serializer for UniversalElementSerializer<'a> {
         Err(Self::Error::UnsupportedType("i64"))
     }
 
-    fn serialize_u8(self, _v: u8) -> Result<Self::Ok, Self::Error> {
-        Err(Self::Error::UnsupportedType("u8"))
+    fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
+        self.vec.push(FormValue::UnsignedInt8(v));
+        Ok(())
     }
 
     fn serialize_u16(self, _v: u16) -> Result<Self::Ok, Self::Error> {

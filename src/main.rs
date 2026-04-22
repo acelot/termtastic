@@ -1,4 +1,5 @@
 mod log2state;
+mod macros;
 mod meshtastic;
 mod serde;
 mod service;

@@ -17,7 +17,7 @@ use crate::{
     types::{AppEvent, Node},
 };
 
-const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 5;
+const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 2;
 const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 
 #[allow(dead_code)]
@@ -28,6 +28,7 @@ pub struct NodesService {
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
+    local_my_node_num: Option<u32>,
 }
 
 impl NodesService {
@@ -46,6 +47,7 @@ impl NodesService {
             state_action_tx,
             meshtastic_command_tx,
             meshtastic_event_rx,
+            local_my_node_num: None,
         }
     }
 
@@ -92,6 +94,8 @@ impl NodesService {
     fn handle_meshtastic_packet(&mut self, packet: PayloadVariant) -> anyhow::Result<()> {
         match packet {
             PayloadVariant::MyInfo(my_info) => {
+                self.local_my_node_num = Some(my_info.my_node_num);
+
                 self.state_action_tx
                     .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
             }
@@ -109,6 +113,12 @@ impl NodesService {
                         );
                     }
                 };
+
+                if Some(node_info.num) == self.local_my_node_num {
+                    self.state_action_tx.send(StateAction::DeviceUserSet(
+                        node_info.user.expect("should be Some"),
+                    ))?;
+                }
             }
             PayloadVariant::Packet(packet) => match &packet.payload_variant {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {

@@ -162,11 +162,11 @@ impl<'a> Deserializer<'a> for FormDataDeserializer<'a> {
         Err(FormDataDeserializerError::UnsupportedType("byte_buf"))
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("option"))
+        visitor.visit_some(self)
     }
 
     fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -324,12 +324,18 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         match self.value {
             FormValue::String(v) => visitor.visit_string(v.to_owned()),
             FormValue::Int32(v) => visitor.visit_i32(*v),
+            FormValue::UnsignedInt8(v) => visitor.visit_u8(*v),
             FormValue::UnsignedInt32(v) => visitor.visit_u32(*v),
             FormValue::Float32(v) => visitor.visit_f32(*v),
             FormValue::Bool(v) => visitor.visit_bool(*v),
-            FormValue::VecOfFormValue(vec) => {
-                visitor.visit_seq(FormValueSeqAccess { vec, index: 0 })
-            }
+            FormValue::Option(v) => match v {
+                Some(value) => {
+                    let deserializer = FormValueDeserializer { value };
+                    visitor.visit_some(deserializer)
+                }
+                None => visitor.visit_none(),
+            },
+            FormValue::Vec(vec) => visitor.visit_seq(FormValueSeqAccess { vec, index: 0 }),
         }
     }
 
@@ -380,11 +386,17 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         Err(FormDataDeserializerError::UnsupportedType("i64"))
     }
 
-    fn deserialize_u8<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("u8"))
+        match self.value {
+            FormValue::UnsignedInt8(v) => visitor.visit_u8(*v),
+            other => Err(FormDataDeserializerError::InvalidType {
+                expected: "u8".to_owned(),
+                actual: format!("{:?}", other),
+            }),
+        }
     }
 
     fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -475,11 +487,23 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         Err(FormDataDeserializerError::UnsupportedType("byte_buf"))
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("option"))
+        match self.value {
+            FormValue::Option(opt) => match opt {
+                Some(value) => {
+                    let deserializer = FormValueDeserializer { value };
+                    visitor.visit_some(deserializer)
+                }
+                None => visitor.visit_none(),
+            },
+            other => {
+                let deserializer = FormValueDeserializer { value: other };
+                visitor.visit_some(deserializer)
+            }
+        }
     }
 
     fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -516,9 +540,7 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         V: Visitor<'a>,
     {
         match self.value {
-            FormValue::VecOfFormValue(v) => {
-                visitor.visit_seq(FormValueSeqAccess { vec: v, index: 0 })
-            }
+            FormValue::Vec(v) => visitor.visit_seq(FormValueSeqAccess { vec: v, index: 0 }),
             other => Err(FormDataDeserializerError::InvalidType {
                 expected: "seq".to_owned(),
                 actual: format!("{:?}", other),

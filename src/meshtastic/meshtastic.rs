@@ -3,7 +3,7 @@ use std::time::Duration;
 use meshtastic::{
     api::ConnectedStreamApi,
     packet::{PacketDestination, PacketRouter},
-    protobufs::{Config, FromRadio, ModuleConfig, PortNum, from_radio},
+    protobufs::{Config, FromRadio, PortNum, from_radio},
     types::{EncodedMeshPacketData, MeshChannel, NodeId},
 };
 use tokio::{
@@ -80,20 +80,6 @@ impl MeshtasticService {
                 self.event_tx.send(MeshtasticEvent::ConnectionError(
                     "connection channel was closed unexpectedly".to_owned(),
                 ))?;
-            }
-            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::Config(Config {
-                payload_variant: Some(variant),
-            })) => {
-                self.event_tx
-                    .send(MeshtasticEvent::IncomingConfig(variant))?;
-            }
-            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::ModuleConfig(
-                ModuleConfig {
-                    payload_variant: Some(variant),
-                },
-            )) => {
-                self.event_tx
-                    .send(MeshtasticEvent::IncomingModuleConfig(variant))?;
             }
             _ => {}
         }
@@ -297,6 +283,41 @@ impl MeshtasticService {
 
                         self.event_tx
                             .send(MeshtasticEvent::ConfigSaveError(e.to_string()))?;
+                    }
+                }
+            }
+            CommandToMeshtastic::SaveUser { my_node_id, user } => {
+                let api = self
+                    .stream_api
+                    .as_mut()
+                    .expect_or_log("should be connected");
+
+                match timeout(
+                    Duration::from_secs(SAVE_CONFIG_TIMEOUT_SECS),
+                    api.update_user(
+                        &mut LocalPacketRouter {
+                            my_node_id,
+                            event_tx: &self.event_tx,
+                        },
+                        user,
+                    ),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => {
+                        self.event_tx.send(MeshtasticEvent::UserSaved)?;
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("save user error: {:?}", e);
+
+                        self.event_tx
+                            .send(MeshtasticEvent::UserSaveError(e.to_string()))?;
+                    }
+                    Err(e) => {
+                        tracing::error!("save user timeout: {:?}", e);
+
+                        self.event_tx
+                            .send(MeshtasticEvent::UserSaveError(e.to_string()))?;
                     }
                 }
             }

@@ -1,14 +1,12 @@
 use emoji::Emoji;
 use hostaddr::HostAddr;
-use meshtastic::protobufs::{config, from_radio, module_config};
+use meshtastic::protobufs::{User, config, from_radio};
 
 #[derive(Debug, Clone)]
 pub enum MeshtasticEvent {
     Connected,
     ConnectionError(String),
     Disconnected,
-    IncomingConfig(config::PayloadVariant),
-    IncomingModuleConfig(module_config::PayloadVariant),
     IncomingPacket(from_radio::PayloadVariant),
     MessageAccepted,
     #[allow(dead_code)]
@@ -16,6 +14,8 @@ pub enum MeshtasticEvent {
     RadioStopped,
     ConfigSaveError(String),
     ConfigSaved,
+    UserSaveError(String),
+    UserSaved,
 }
 
 #[derive(Debug, Clone)]
@@ -45,5 +45,9 @@ pub enum CommandToMeshtastic {
     SaveConfig {
         my_node_id: u32,
         config: config::PayloadVariant,
+    },
+    SaveUser {
+        my_node_id: u32,
+        user: User,
     },
 }

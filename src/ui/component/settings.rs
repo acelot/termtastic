@@ -149,6 +149,7 @@ impl<'a> Settings<'a> {
         match &form_item.kind {
             FormItemKind::InputOfString
             | FormItemKind::InputOfInt32
+            | FormItemKind::InputOfUnsignedInt8
             | FormItemKind::InputOfUnsignedInt32
             | FormItemKind::InputOfFloat32 => {
                 self.active_form_item = Some(form_item);
@@ -169,7 +170,14 @@ impl<'a> Settings<'a> {
             FormItemKind::Switch => {
                 emit(AppEvent::SettingsFormItemSubmitted(
                     form_item,
-                    FormValue::Bool(!value.as_bool().expect("invalid value")),
+                    match value {
+                        FormValue::Bool(v) => FormValue::Bool(!v),
+                        FormValue::Option(Some(b)) if let FormValue::Bool(v) = **b => {
+                            FormValue::Option(Some(Box::new(FormValue::Bool(!v))))
+                        }
+                        FormValue::Option(None) => FormValue::Option(None),
+                        _ => unreachable!(),
+                    },
                 ))?;
             }
             _ => unimplemented!(),
@@ -307,6 +315,7 @@ impl<'a> Component for Settings<'a> {
                             self.is_exit_confirm_visible = true;
                         } else {
                             emit(AppEvent::SettingsFormCancelRequested)?;
+                            self.form_list_state = ListState::default();
                         }
                     }
                     (KeyCode::Char('r'), SettingsFormState::Loaded { .. }) => {
@@ -367,6 +376,11 @@ impl<'a> Component for Settings<'a> {
                 is_selected: context.is_selected,
                 is_highlighted: context.is_selected
                     && state.settings_form_state != SettingsFormState::Inactive,
+                is_implemented: if let SettingsItem::Form { id, .. } = settings_item {
+                    FORMS.contains_key(id)
+                } else {
+                    true
+                },
             };
 
             (item, 1)
@@ -466,6 +480,10 @@ fn handle_popup_input_submit<'a>(
             let value = FormValue::from(input_value.parse::<i32>()?);
             (form_item.validator)(&value).and_then(|_| Ok(value))
         }
+        FormItemKind::InputOfUnsignedInt8 => {
+            let value = FormValue::from(input_value.parse::<u8>()?);
+            (form_item.validator)(&value).and_then(|_| Ok(value))
+        }
         FormItemKind::InputOfUnsignedInt32 => {
             let value = FormValue::from(input_value.parse::<u32>()?);
             (form_item.validator)(&value).and_then(|_| Ok(value))
@@ -482,6 +500,7 @@ struct SettingsItemWidget<'a> {
     settings_item: &'a SettingsItem,
     is_selected: bool,
     is_highlighted: bool,
+    is_implemented: bool,
 }
 
 impl<'a> Widget for SettingsItemWidget<'a> {
@@ -514,7 +533,11 @@ impl<'a> Widget for SettingsItemWidget<'a> {
                     } else {
                         Span::from("  ")
                     },
-                    Span::from(*title),
+                    Span::from(*title).add_modifier(if !self.is_implemented {
+                        Modifier::DIM
+                    } else {
+                        Modifier::empty()
+                    }),
                 ])
                 .fg(if self.is_selected {
                     Color::Yellow
@@ -571,7 +594,13 @@ impl<'a> Widget for FormItemWidget<'a> {
 
         // value
         let formatted_value = if matches!(self.form_item.kind, FormItemKind::Switch) {
-            if self.value.as_bool().expect("invalid FormValue") == true {
+            let value = match self.value {
+                FormValue::Bool(v) => *v,
+                FormValue::Option(Some(b)) => b.as_bool().expect("invalid FormValue"),
+                _ => unreachable!(),
+            };
+
+            if value == true {
                 "[✔]".to_owned()
             } else {
                 "[ ]".to_owned()

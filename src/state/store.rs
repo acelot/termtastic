@@ -121,10 +121,17 @@ impl Store {
                 is_changed = true;
             }
             StateAction::ConnectionStop => {
-                self.state.connection_state = ConnectionState::NotConnected;
+                self.state.connection_state = Default::default();
                 self.state.connection_attempt = 0;
                 self.state.reconnection_backoff = None;
                 self.state.active_device = None;
+                self.state.settings_form_state = Default::default();
+                self.state.settings_form_data = None;
+                self.state.settings_form_original_data = None;
+                self.state.settings_form_is_changed = false;
+                self.state.device_config = Default::default();
+                self.state.device_module_config = Default::default();
+                self.state.device_user = Default::default();
                 self.state.channels.clear();
                 self.state.nodes_sort.clear();
                 self.state.nodes.clear();
@@ -251,11 +258,15 @@ impl Store {
 
                 is_changed = true;
             }
+            StateAction::DeviceUserSet(user) => {
+                self.state.device_user = Some(user);
+                is_changed = true;
+            }
             StateAction::DevicesRemoveTcp(hostaddr) => {
                 self.state
                     .tcp_devices
                     .iter()
-                    .position(|h| h == &hostaddr)
+                    .position(|addr| addr == &hostaddr)
                     .map(|index| {
                         self.state.tcp_devices.remove(index);
                         is_changed = true;
@@ -296,8 +307,10 @@ impl Store {
                 is_changed = true;
             }
             StateAction::NodesOnlineSet(count) => {
-                self.state.online_nodes = count;
-                is_changed = true;
+                if self.state.online_nodes != count {
+                    self.state.online_nodes = count;
+                    is_changed = true;
+                }
             }
             StateAction::NodeUpdateLastHeard {
                 node_key,
@@ -318,6 +331,7 @@ impl Store {
             }
             StateAction::MyNodeKeySet(number) => {
                 self.state.my_node_key = Some(number);
+                tracing::debug!("MyInfo!!!!");
 
                 if let Some(node) = self.state.nodes.get_mut(&number) {
                     node.my = true;

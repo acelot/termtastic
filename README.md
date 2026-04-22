@@ -18,9 +18,9 @@
   </tr>
 </table>
 
-| :warning: WARNING                                                                        |
-| :--------------------------------------------------------------------------------------- |
-| Project is under active development, things could be changed completely without warning. |
+| :warning: WARNING                                                                       |
+| :-------------------------------------------------------------------------------------- |
+| Project is under active development, things could be changed completely without notice. |
 
 ## Features
 
@@ -68,7 +68,7 @@
     - [ ] Channels
     - [ ] Security
   - Device
-    - [ ] User
+    - [x] User
     - [ ] Device
     - [ ] Position
     - [ ] Power
@@ -99,29 +99,53 @@
   - [x] Mirroring logs into log list with scroll
   - [x] Ability to expand the single log record (useful for long logs)
   - [x] Ability to copy log record into clipboard
+- **General features**
+  - [x] RX indicator
+  - [x] Online/Total nodes counter 
 
 ## Stack
 
-| Feature                          | Library                                                         |
-| :------------------------------- | :-------------------------------------------------------------- |
-| TUI: Framework                   | [Ratatui](https://ratatui.rs)                                   |
-| TUI: Backend                     | [crossterm](https://github.com/crossterm-rs/crossterm)          |
-| TUI: Inputs                      | [ratatui-textarea](https://github.com/ratatui/ratatui-textarea) |
-| TUI: Lists                       | [tui-widget-list](https://github.com/preiter93/tui-widget-list) |
-| Interaction with Meshtastic node | [meshtastic](https://github.com/meshtastic/rust)                |
-| Clipboard functionality          | [arboard](https://github.com/1Password/arboard)                 |
-| Bluetooth devices discovery      | [bluest](https://github.com/alexmoon/bluest/)                   |
-| Logging                          | [tracing](https://github.com/tokio-rs/tracing)                  |
-| Async/Channels                   | [tokio](https://github.com/tokio-rs/tokio)                      |
-| Configuration                    | [confy](https://github.com/rust-cli/confy)                      |
-| Errors                           | [anyhow](https://github.com/dtolnay/anyhow)                     |
-| Datetime                         | [chrono](https://github.com/chronotope/chrono)                  |
-| Emoji selector                   | [emoji](https://github.com/Shizcow/emoji-rs)                    |
+| Feature                     | Library                                                         |
+| :-------------------------- | :-------------------------------------------------------------- |
+| TUI: Framework              | [Ratatui](https://ratatui.rs)                                   |
+| TUI: Backend                | [crossterm](https://github.com/crossterm-rs/crossterm)          |
+| TUI: Inputs                 | [ratatui-textarea](https://github.com/ratatui/ratatui-textarea) |
+| TUI: Lists                  | [tui-widget-list](https://github.com/preiter93/tui-widget-list) |
+| Interaction with Meshtastic | [meshtastic](https://github.com/meshtastic/rust)                |
+| Clipboard functionality     | [arboard](https://github.com/1Password/arboard)                 |
+| Bluetooth devices discovery | [bluest](https://github.com/alexmoon/bluest/)                   |
+| Logging                     | [tracing](https://github.com/tokio-rs/tracing)                  |
+| Async/Channels              | [tokio](https://github.com/tokio-rs/tokio)                      |
+| Configuration               | [confy](https://github.com/rust-cli/confy)                      |
+| Errors                      | [anyhow](https://github.com/dtolnay/anyhow)                     |
+| Datetime                    | [chrono](https://github.com/chronotope/chrono)                  |
+| Emoji selector              | [emoji](https://github.com/Shizcow/emoji-rs)                    |
 
 ## Compatibility
 
-todo
+✅ - tested, 🔬 - untested, ❌ - not working
 
-## Installation
+| Feature                  | 🐧 Linux | 🍏 macOS | 🪟 Windows |
+| :----------------------- | :-----: | :-----: | :-------: |
+| BLE devices discovery    |    ✅    |    ✅    |     🔬     |
+| Serial devices discovery |    ✅    |    ✅    |     🔬     |
 
-todo
+## Download
+
+| Source             | Link                                                      |
+| :----------------- | :-------------------------------------------------------- |
+| Manual download    | [Releases](https://github.com/acelot/termtastic/releases) |
+| Debian PPA         | 🏗️ TBA                                                     |
+| Arch Linux AUR     | 🏗️ TBA                                                     |
+| macOS Brew         | 🏗️ TBA                                                     |
+| Windows Chocolatey | 🏗️ TBA                                                     |
+
+## FAQ
+
+### How to launch manually downloaded app on macOS?
+
+In order to run unsigned application on macOS you need dequarantine it using the command below:
+
+```sh
+xattr -d com.apple.quarantine ./path/to/termtastic
+```

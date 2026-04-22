@@ -101,18 +101,23 @@ impl Ord for Device {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum DeviceDiscoveringState {
+    #[default]
     NotStarted,
     Discovering,
     Failed(String),
     Done,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum ConnectionState {
+    #[default]
     NotConnected,
-    ProblemDetected { since: Instant, error: String },
+    ProblemDetected {
+        since: Instant,
+        error: String,
+    },
     Connecting,
     Connected,
 }
@@ -264,20 +269,15 @@ impl Toast {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub enum NodesSortBy {
+    #[default]
     Hops,
     ShortName,
     LongName,
     LastHeard,
     Role,
     HwModel,
-}
-
-impl Default for NodesSortBy {
-    fn default() -> Self {
-        Self::Hops
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -508,12 +508,20 @@ pub enum FormId {
     AppUi,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum SettingsFormState {
+    #[default]
     Inactive,
-    Loading { id: FormId },
-    LoadingFailed { id: FormId, error: String },
-    Loaded { id: FormId },
+    Loading {
+        id: FormId,
+    },
+    LoadingFailed {
+        id: FormId,
+        error: String,
+    },
+    Loaded {
+        id: FormId,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -538,10 +546,12 @@ pub type FormData = HashMap<&'static str, FormValue>;
 pub enum FormValue {
     String(String),
     Int32(i32),
+    UnsignedInt8(u8),
     UnsignedInt32(u32),
     Float32(f32),
     Bool(bool),
-    VecOfFormValue(Vec<FormValue>),
+    Option(Option<Box<FormValue>>),
+    Vec(Vec<FormValue>),
 }
 
 impl FormValue {
@@ -555,6 +565,14 @@ impl FormValue {
 
     pub fn as_i32(&self) -> Option<i32> {
         if let Self::Int32(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_u8(&self) -> Option<u8> {
+        if let Self::UnsignedInt8(value) = self {
             Some(*value)
         } else {
             None
@@ -585,14 +603,17 @@ impl FormValue {
         }
     }
 
-    pub fn as_vec_of_u32(&self) -> Option<Vec<u32>> {
-        if let Self::VecOfFormValue(value) = self {
-            Some(
-                value
-                    .iter()
-                    .map(|v| v.as_u32().expect("invalid value"))
-                    .collect(),
-            )
+    pub fn as_option(&self) -> Option<Self> {
+        if let Self::Option(value) = self {
+            value.as_ref().map(|v| (**v).clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn as_vec(&self) -> Option<&Vec<Self>> {
+        if let Self::Vec(value) = self {
+            Some(value)
         } else {
             None
         }
@@ -604,6 +625,7 @@ impl std::fmt::Display for FormValue {
         match self {
             Self::String(v) => write!(f, "{}", v),
             Self::Int32(v) => write!(f, "{}", v),
+            Self::UnsignedInt8(v) => write!(f, "{}", v),
             Self::UnsignedInt32(v) => write!(f, "{}", v),
             Self::Float32(v) => write!(f, "{}", v),
             Self::Bool(v) => {
@@ -613,7 +635,8 @@ impl std::fmt::Display for FormValue {
                     write!(f, "false")
                 }
             }
-            Self::VecOfFormValue(v) => write!(f, "{:?}", v),
+            Self::Option(v) => write!(f, "{:?}", v),
+            Self::Vec(v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -627,6 +650,12 @@ impl From<String> for FormValue {
 impl From<i32> for FormValue {
     fn from(value: i32) -> Self {
         Self::Int32(value)
+    }
+}
+
+impl From<u8> for FormValue {
+    fn from(value: u8) -> Self {
+        Self::UnsignedInt8(value)
     }
 }
 
@@ -683,6 +712,7 @@ impl FormItem {
 pub enum FormItemKind {
     InputOfString,
     InputOfInt32,
+    InputOfUnsignedInt8,
     InputOfUnsignedInt32,
     InputOfFloat32,
     Enum(Vec<FormEnumVariant>),
