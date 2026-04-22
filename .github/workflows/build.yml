@@ -12,6 +12,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  GITHUB_REF_NAME: ${{ github.ref_name }}
 
 jobs:
   build:
@@ -89,7 +90,7 @@ jobs:
         if: runner.os != 'Windows'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Attest
+      - name: Attest artifact
         uses: actions/attest@v4
         with:
           subject-path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}

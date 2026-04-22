@@ -28,7 +28,7 @@ impl Component for Header {
         let app_info = vec![
             Span::from(state.app_name.clone()).magenta().bold(),
             Span::from(" "),
-            Span::from(format!("v{}", state.app_version)).dark_gray(),
+            Span::from(&state.app_version).dark_gray(),
         ];
 
         frame.render_widget(Paragraph::new(Line::from(app_info)), v[0]);

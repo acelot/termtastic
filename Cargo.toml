@@ -1,5 +1,6 @@
 [package]
 name = "termtastic"
+# unused, app version propagated by git tags
 version = "0.1.0"
 edition = "2024"
 authors = ["acelot <provaleriy@gmail.com>"]
@@ -8,6 +9,7 @@ license-file = "LICENSE"
 repository = "https://github.com/acelot/termtastic"
 readme = "README.md"
 keywords = ["cli", "tui", "meshtastic"]
+build = "build.rs"
 
 [badges]
 github-actions = { workflow = "build.yml", branch = "master" }
