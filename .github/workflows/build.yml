@@ -29,31 +29,31 @@ jobs:
             os: windows-2025
             archive_ext: zip
             archive_cmd: |
-              7z a -tzip ${BINARY_NAME}-${{ matrix.target }}.zip ${BINARY_NAME}.exe
+              7z a -tzip ${BINARY_NAME}-${MATRIX_TARGET}.zip ${BINARY_NAME}.exe
             binary_ext: .exe
 
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
             archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${{ matrix.target }}.tar.gz ${BINARY_NAME}
+            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
             binary_ext: ""
 
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
             archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${{ matrix.target }}.tar.gz ${BINARY_NAME}
+            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
             binary_ext: ""
 
           - target: x86_64-apple-darwin
             os: macos-15
             archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${{ matrix.target }}.tar.gz ${BINARY_NAME}
+            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
             binary_ext: ""
 
           - target: aarch64-apple-darwin
             os: macos-15
             archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${{ matrix.target }}.tar.gz ${BINARY_NAME}
+            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
             binary_ext: ""
 
     steps:
@@ -93,11 +93,16 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare binary for packaging
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
+          BINARY_EXT: ${{ matrix.binary_ext }}
         run: |
-          cp target/${{ matrix.target }}/release/${BINARY_NAME}${{ matrix.binary_ext }} .
-          chmod +x ${BINARY_NAME}${{ matrix.binary_ext }} || true
+          cp target/${MATRIX_TARGET}/release/${BINARY_NAME}${BINARY_EXT} .
+          chmod +x ${BINARY_NAME}${BINARY_EXT} || true
 
       - name: Create archive
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
         run: ${{ matrix.archive_cmd }}
 
       - name: Upload archive as artifact
