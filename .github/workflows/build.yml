@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  BINARY_NAME: termtastic
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   GIT_REF_TYPE: ${{ github.ref_type }}
@@ -24,30 +25,36 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2025
-            target: x86_64-pc-windows-msvc
-            artifact_name: termtastic.exe
-            asset_name: termtastic-windows-x86-64.exe
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+            archive_ext: zip
+            archive_cmd: |
+              7z a -tzip ${{ env.BINARY_NAME }}-${{ matrix.target }}.zip ${{ env.BINARY_NAME }}.exe
+            binary_ext: .exe
 
-          - os: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            artifact_name: termtastic
-            asset_name: termtastic-linux-x86-64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+            archive_ext: tar.gz
+            archive_cmd: tar -czf ${{ env.BINARY_NAME }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+            binary_ext: ""
 
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            artifact_name: termtastic
-            asset_name: termtastic-linux-aarch64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+            archive_ext: tar.gz
+            archive_cmd: tar -czf ${{ env.BINARY_NAME }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+            binary_ext: ""
 
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            artifact_name: termtastic
-            asset_name: termtastic-darwin-x86-64
+          - target: x86_64-apple-darwin
+            os: macos-15
+            archive_ext: tar.gz
+            archive_cmd: tar -czf ${{ env.BINARY_NAME }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+            binary_ext: ""
 
-          - os: macos-15
-            target: aarch64-apple-darwin
-            artifact_name: termtastic
-            asset_name: termtastic-darwin-aarch64
+          - target: aarch64-apple-darwin
+            os: macos-15
+            archive_ext: tar.gz
+            archive_cmd: tar -czf ${{ env.BINARY_NAME }}-${{ matrix.target }}.tar.gz ${{ env.BINARY_NAME }}
+            binary_ext: ""
 
     steps:
       - name: Checkout code
@@ -77,23 +84,33 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
             ${{ runner.os }}-cargo-
 
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Strip debug symbols (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+      - name: Prepare binary for packaging
+        run: |
+          cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${{ matrix.binary_ext }} .
+          chmod +x ${{ env.BINARY_NAME }}${{ matrix.binary_ext }} || true
 
-      - name: Upload artifact
+      - name: Create archive
+        run: ${{ matrix.archive_cmd }}
+
+      - name: Upload archive as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-          if-no-files-found: error
+          name: ${{ env.BINARY_NAME }}-${{ matrix.target }}
+          path: ${{ env.BINARY_NAME }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+          retention-days: 7
+
+      - name: Attest archive
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.BINARY_NAME }}-${{ matrix.target }}.${{ matrix.archive_ext }}
 
   create-release:
     name: Create Release
@@ -111,16 +128,12 @@ jobs:
           path: artifacts
 
       - name: List artifacts
-        run: ls -R
+        run: ls -la artifacts/
 
-      - name: Create Release and Upload Assets
+      - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+          prerelease: false
           files: |
-            artifacts/*.zip
-
-      - name: Attest artifacts
-        uses: actions/attest@v4
-        with:
-          subject-path: artifacts/termtastic-*
+            artifacts/**/*
