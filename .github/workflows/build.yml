@@ -118,7 +118,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            artifacts/termtastic-*
+            artifacts/*
 
       - name: Attest artifacts
         uses: actions/attest@v4
