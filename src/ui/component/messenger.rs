@@ -545,7 +545,7 @@ impl<'a> Widget for MessageWidget<'a> {
         }
 
         if !self.node.my {
-            if let Some(hops) = self.node.hops_away
+            if let Some(hops) = self.message.hops
                 && hops > 0
             {
                 Span::from("❱".repeat(hops as usize))

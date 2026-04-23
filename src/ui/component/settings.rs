@@ -436,6 +436,25 @@ impl<'a> Component for Settings<'a> {
                     form_block_area,
                     frame.buffer_mut(),
                 );
+
+                // Active input popup
+                if let Some(state) = self.popup_input_state.as_mut() {
+                    PopupInputWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
+                }
+
+                // Active dropdown popup
+                if let Some(state) = self.popup_dropdown_state.as_mut() {
+                    PopupDropdownWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
+                }
+
+                // Confirm popup
+                if self.is_exit_confirm_visible {
+                    PopupConfirmWidget::new(
+                        "There are unsaved settings, do you want to reset the fields?",
+                        36,
+                    )
+                    .render(form_block_area, frame.buffer_mut());
+                }
             }
         }
 
@@ -443,25 +462,6 @@ impl<'a> Component for Settings<'a> {
 
         // Hotkeys
         HotkeysWidget::new(&self.get_hotkeys(&state)).render(v[2], frame.buffer_mut());
-
-        // Active input popup
-        if let Some(state) = self.popup_input_state.as_mut() {
-            PopupInputWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
-        }
-
-        // Active dropdown popup
-        if let Some(state) = self.popup_dropdown_state.as_mut() {
-            PopupDropdownWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
-        }
-
-        // Confirm popup
-        if self.is_exit_confirm_visible {
-            PopupConfirmWidget::new(
-                "There are unsaved settings, do you want to reset the fields?",
-                36,
-            )
-            .render(form_block_area, frame.buffer_mut());
-        }
     }
 }
 

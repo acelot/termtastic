@@ -428,7 +428,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
             ),
             FormItem::new(
                 name_of!(is_licensed in User),
-                "Licensed amateur radio (HAM)",
+                "Licensed (HAM)",
                 Some("Enabling this option disables encryption and is not compatible with \
                       the default Meshtastic network."),
                 FormItemKind::Switch,
