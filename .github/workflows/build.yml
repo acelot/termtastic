@@ -117,7 +117,7 @@ jobs:
       - name: Attest archive
         uses: actions/attest@v4
         with:
-          path: ${{ env.ARCHIVE_NAME }}
+          subject-path: ${{ env.ARCHIVE_NAME }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
