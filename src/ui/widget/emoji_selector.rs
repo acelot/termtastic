@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use emoji::Emoji;
 use ratatui::{
     buffer::Buffer,
@@ -50,7 +50,7 @@ impl<'a> EmojiSelectorState<'a> {
 
     pub fn handle_event(&mut self, event: Event) {
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == KeyEventKind::Press => match code {
                 KeyCode::Up => {
                     self.list_state.previous();
                 }

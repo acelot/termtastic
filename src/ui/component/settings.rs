@@ -195,7 +195,7 @@ impl<'a> Component for Settings<'a> {
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<bool> {
         match event {
-            Event::Key(KeyEvent { code, .. }) => {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => {
                 // Confirm popup
                 if self.is_exit_confirm_visible {
                     match code {

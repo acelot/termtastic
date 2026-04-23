@@ -12,7 +12,9 @@ pub mod prelude {
     pub use crate::types::*;
     pub use crate::ui::component::Component;
     pub use crate::ui::widget::*;
-    pub use crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+    pub use crossterm::event::{
+        Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind,
+    };
     pub use ratatui::layout::Flex;
     pub use ratatui::prelude::*;
     pub use ratatui::symbols::scrollbar::Set as ScrollbarSet;

@@ -20,15 +20,15 @@ impl Component for Tabs {
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<bool> {
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => match code {
                 KeyCode::Tab => {
                     emit(AppEvent::NextTabRequested)?;
                     return Ok(true);
-                },
+                }
                 KeyCode::BackTab => {
                     emit(AppEvent::PreviousTabRequested)?;
                     return Ok(true);
-                },
+                }
                 _ => {}
             },
             _ => {}

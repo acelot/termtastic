@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     buffer::Buffer,
     layout::Rect,
@@ -48,7 +48,7 @@ impl<'a> PopupDropdownState<'a> {
 
     pub fn handle_event(&mut self, event: Event) {
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == KeyEventKind::Press => match code {
                 KeyCode::Up => self.list_state.previous(),
                 KeyCode::Down => self.list_state.next(),
                 _ => {}

@@ -43,6 +43,7 @@ impl<'a> Component for Layout<'a> {
     ) -> anyhow::Result<bool> {
         if let Event::Key(KeyEvent {
             code: KeyCode::F(12),
+            kind: KeyEventKind::Press,
             ..
         }) = event
         {
@@ -50,11 +51,11 @@ impl<'a> Component for Layout<'a> {
         }
 
         if self.header_component.handle_event(state, event, emit)? {
-            return Ok(true)
+            return Ok(true);
         }
 
         if self.tabs_component.handle_event(state, event, emit)? {
-            return Ok(true)
+            return Ok(true);
         }
 
         match state.active_tab {

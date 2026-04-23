@@ -88,25 +88,27 @@ impl<'a> Component for Connection<'a> {
     ) -> anyhow::Result<bool> {
         if self.is_form_visible {
             match event {
-                Event::Key(KeyEvent { code, .. }) => match code {
-                    KeyCode::Enter => {
-                        match self.form_input.lines()[0].parse::<HostAddr<String>>() {
-                            Ok(addr) => {
-                                emit(AppEvent::TcpDeviceSubmitted(addr))?;
-                                self.is_form_visible = false;
-                            }
-                            Err(e) => {
-                                self.form_error = Some(format!("invalid address: {}", e));
+                Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => {
+                    match code {
+                        KeyCode::Enter => {
+                            match self.form_input.lines()[0].parse::<HostAddr<String>>() {
+                                Ok(addr) => {
+                                    emit(AppEvent::TcpDeviceSubmitted(addr))?;
+                                    self.is_form_visible = false;
+                                }
+                                Err(e) => {
+                                    self.form_error = Some(format!("invalid address: {}", e));
+                                }
                             }
                         }
+                        KeyCode::Esc => {
+                            self.is_form_visible = false;
+                        }
+                        _ => {
+                            self.form_input.input(event.clone());
+                        }
                     }
-                    KeyCode::Esc => {
-                        self.is_form_visible = false;
-                    }
-                    _ => {
-                        self.form_input.input(event.clone());
-                    }
-                },
+                }
                 _ => {}
             }
 

@@ -38,7 +38,7 @@ impl<'a> Component for Channels {
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<bool> {
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => match code {
                 KeyCode::Up => self.list_state.previous(),
                 KeyCode::Down => self.list_state.next(),
                 KeyCode::Enter => {

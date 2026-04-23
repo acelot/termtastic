@@ -138,39 +138,41 @@ impl<'a> Component for Messenger<'a> {
 
         if is_replying_to {
             match event {
-                Event::Key(KeyEvent { code, .. }) => match code {
-                    KeyCode::F(5) => {
-                        self.is_emoji_selector_visible = true;
-                    }
-                    KeyCode::Enter if is_replying_to => {
-                        if input_widget.lines()[0].len() <= INPUT_VALUE_MAX_LENGTH
-                            && let Some((_, message_id)) =
-                                self.replying_to.remove(&active_channel_key)
-                        {
-                            if let Some(emoji) =
-                                emoji::lookup_by_glyph::lookup(&input_widget.lines()[0])
+                Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => {
+                    match code {
+                        KeyCode::F(5) => {
+                            self.is_emoji_selector_visible = true;
+                        }
+                        KeyCode::Enter if is_replying_to => {
+                            if input_widget.lines()[0].len() <= INPUT_VALUE_MAX_LENGTH
+                                && let Some((_, message_id)) =
+                                    self.replying_to.remove(&active_channel_key)
                             {
-                                emit(AppEvent::ChatReactionSubmitted {
-                                    emoji,
-                                    reply_message_id: Some(message_id),
-                                })?;
-                            } else {
-                                emit(AppEvent::ChatMessageSubmitted {
-                                    text: input_widget.lines()[0].clone(),
-                                    reply_message_id: Some(message_id),
-                                })?;
-                            }
+                                if let Some(emoji) =
+                                    emoji::lookup_by_glyph::lookup(&input_widget.lines()[0])
+                                {
+                                    emit(AppEvent::ChatReactionSubmitted {
+                                        emoji,
+                                        reply_message_id: Some(message_id),
+                                    })?;
+                                } else {
+                                    emit(AppEvent::ChatMessageSubmitted {
+                                        text: input_widget.lines()[0].clone(),
+                                        reply_message_id: Some(message_id),
+                                    })?;
+                                }
 
-                            input_widget.clear();
+                                input_widget.clear();
+                            }
+                        }
+                        KeyCode::Esc if is_replying_to => {
+                            self.replying_to.remove(&active_channel_key);
+                        }
+                        _ => {
+                            input_widget.input(event.clone());
                         }
                     }
-                    KeyCode::Esc if is_replying_to => {
-                        self.replying_to.remove(&active_channel_key);
-                    }
-                    _ => {
-                        input_widget.input(event.clone());
-                    }
-                },
+                }
                 _ => {}
             };
 
@@ -179,8 +181,11 @@ impl<'a> Component for Messenger<'a> {
 
         match event {
             Event::Key(KeyEvent {
-                code, modifiers, ..
-            }) => match code {
+                code,
+                modifiers,
+                kind,
+                ..
+            }) if kind == &KeyEventKind::Press => match code {
                 KeyCode::Up => {
                     self.follow_chat.insert(active_channel_key, false);
                     list_state.previous()

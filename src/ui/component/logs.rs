@@ -68,21 +68,23 @@ impl Component for Logs {
     ) -> anyhow::Result<bool> {
         if self.popup_record.is_some() {
             match event {
-                Event::Key(KeyEvent { code, .. }) => match code {
-                    KeyCode::Up => {
-                        self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
+                Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => {
+                    match code {
+                        KeyCode::Up => {
+                            self.popup_scroll_offset = self.popup_scroll_offset.saturating_sub(1)
+                        }
+                        KeyCode::Down => {
+                            self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
+                        }
+                        KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
+                            emit(AppEvent::CopyToClipboardRequested(
+                                state.logs[i].clone().into(),
+                            ))?;
+                        }
+                        KeyCode::Esc => self.popup_record = None,
+                        _ => {}
                     }
-                    KeyCode::Down => {
-                        self.popup_scroll_offset = self.popup_scroll_offset.saturating_add(1);
-                    }
-                    KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
-                        emit(AppEvent::CopyToClipboardRequested(
-                            state.logs[i].clone().into(),
-                        ))?;
-                    }
-                    KeyCode::Esc => self.popup_record = None,
-                    _ => {}
-                },
+                }
                 _ => {}
             }
 
@@ -90,7 +92,7 @@ impl Component for Logs {
         }
 
         match event {
-            Event::Key(KeyEvent { code, .. }) => match code {
+            Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => match code {
                 KeyCode::Up => {
                     self.follow = false;
                     self.list_state.previous();
