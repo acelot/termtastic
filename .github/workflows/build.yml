@@ -107,6 +107,7 @@ jobs:
       - name: Create archive
         env:
           MATRIX_TARGET: ${{ matrix.target }}
+          BINARY_NAME: ${{ env.BINARY_NAME }}
         run: ${{ matrix.archive_cmd }}
 
       - name: Upload archive as artifact
