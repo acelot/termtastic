@@ -33,7 +33,7 @@ jobs:
             os: windows-2025
             archive_ext: zip
             archive_cmd: |
-              7z a -tzip %BINARY_NAME%-%MATRIX_TARGET%.zip %BINARY_NAME%.exe
+              7z a -tzip "{{ env.BINARY_NAME }}-{{ env.MATRIX_TARGET }}.zip" "{{ env.BINARY_NAME }}.exe"
             binary_ext: .exe
 
           - target: x86_64-unknown-linux-gnu
@@ -107,7 +107,6 @@ jobs:
       - name: Create archive
         env:
           MATRIX_TARGET: ${{ matrix.target }}
-          BINARY_NAME: ${{ env.BINARY_NAME }}
         run: ${{ matrix.archive_cmd }}
 
       - name: Upload archive as artifact
