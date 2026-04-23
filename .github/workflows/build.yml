@@ -10,7 +10,6 @@ on:
   workflow_dispatch:
 
 env:
-  BINARY_NAME: termtastic
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   GIT_REF_TYPE: ${{ github.ref_type }}
@@ -25,40 +24,37 @@ jobs:
       id-token: write
       attestations: write
       contents: write
+    env:
+      BINARY_NAME: ${{ matrix.binary_name }}
+      ARCHIVE_NAME: termtastic-${{ matrix.target }}${{ matrix.archive_ext }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: x86_64-pc-windows-msvc
-            os: windows-2025
-            archive_ext: zip
-            archive_cmd: |
-              7z a -tzip "{{ env.BINARY_NAME }}-{{ env.MATRIX_TARGET }}.zip" "{{ env.BINARY_NAME }}.exe"
-            binary_ext: .exe
+            os: windows-latest
+            archive_ext: .zip
+            binary_name: termtastic.exe
 
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-24.04
-            archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
-            binary_ext: ""
+            archive_ext: .tar.gz
+            binary_name: termtastic
 
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
-            archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
-            binary_ext: ""
+            archive_ext: .tar.gz
+            binary_name: termtastic
 
           - target: x86_64-apple-darwin
-            os: macos-15
-            archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
-            binary_ext: ""
+            os: macos-latest
+            archive_ext: .tar.gz
+            binary_name: termtastic
 
           - target: aarch64-apple-darwin
-            os: macos-15
-            archive_ext: tar.gz
-            archive_cmd: tar -czf ${BINARY_NAME}-${MATRIX_TARGET}.tar.gz ${BINARY_NAME}
-            binary_ext: ""
+            os: macos-latest
+            archive_ext: .tar.gz
+            binary_name: termtastic
 
     steps:
       - name: Checkout code
@@ -96,30 +92,38 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Prepare binary for packaging
-        env:
-          MATRIX_TARGET: ${{ matrix.target }}
-          BINARY_EXT: ${{ matrix.binary_ext }}
+      - name: Prepare binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: cp target/${{ matrix.target }}/release/termtastic.exe ${{ env.BINARY_NAME }}
+
+      - name: Prepare binary (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
         run: |
-          cp target/${MATRIX_TARGET}/release/${BINARY_NAME}${BINARY_EXT} .
-          chmod +x ${BINARY_NAME}${BINARY_EXT} || true
+          cp target/${{ matrix.target }}/release/termtastic ${{ env.BINARY_NAME }}
+          chmod +x ${{ env.BINARY_NAME }} || true
 
-      - name: Create archive
-        env:
-          MATRIX_TARGET: ${{ matrix.target }}
-        run: ${{ matrix.archive_cmd }}
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: 7z a -tzip ${{ env.ARCHIVE_NAME }} ${{ env.BINARY_NAME }}
 
-      - name: Upload archive as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.BINARY_NAME }}-${{ matrix.target }}
-          path: ${{ env.BINARY_NAME }}-${{ matrix.target }}.${{ matrix.archive_ext }}
-          retention-days: 7
+      - name: Create archive (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: tar czf ${{ env.ARCHIVE_NAME }} ${{ env.BINARY_NAME }}
 
       - name: Attest archive
         uses: actions/attest@v4
         with:
-          subject-path: ${{ env.BINARY_NAME }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+          path: ${{ env.ARCHIVE_NAME }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ${{ env.ARCHIVE_NAME }}
 
   create-release:
     name: Create Release
