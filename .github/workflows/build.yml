@@ -21,6 +21,10 @@ jobs:
   build:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
     strategy:
       fail-fast: false
       matrix:
