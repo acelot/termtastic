@@ -2,15 +2,17 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use maplit::hashmap;
+use meshtastic::Message;
 use meshtastic::protobufs::config::device_config::{RebroadcastMode, Role};
 use meshtastic::protobufs::config::lo_ra_config::{ModemPreset, RegionCode};
 use meshtastic::protobufs::config::{self, DeviceConfig, LoRaConfig};
-use meshtastic::protobufs::{Config, ModuleConfig, User, from_radio};
+use meshtastic::protobufs::{
+    AdminMessage, Config, ModuleConfig, PortNum, User, admin_message, from_radio, mesh_packet,
+};
 use strum::IntoEnumIterator;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::name_of;
 use crate::serde::{from_formdata, to_formdata};
 use crate::types::{AppEvent, FormData, FormId, Toast};
 use crate::types::{FormEnumVariant, FormItem, FormItemKind, SettingsItem};
@@ -18,6 +20,7 @@ use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
 };
+use nameof::name_of;
 
 pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(|| build_settings());
 pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(|| build_forms());
@@ -112,21 +115,10 @@ impl SettingsService {
         Ok(())
     }
 
-    fn handle_meshtastic_event(&self, event: MeshtasticEvent) -> anyhow::Result<()> {
+    fn handle_meshtastic_event(&mut self, event: MeshtasticEvent) -> anyhow::Result<()> {
         match event {
-            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::Config(Config {
-                payload_variant: Some(variant),
-            })) => {
-                self.state_action_tx
-                    .send(StateAction::DeviceConfigSet(variant))?;
-            }
-            MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::ModuleConfig(
-                ModuleConfig {
-                    payload_variant: Some(variant),
-                },
-            )) => {
-                self.state_action_tx
-                    .send(StateAction::DeviceModuleConfigSet(variant))?;
+            MeshtasticEvent::IncomingPacket(packet) => {
+                self.handle_meshtastic_packet(packet)?;
             }
             MeshtasticEvent::ConfigSaveError(e) | MeshtasticEvent::UserSaveError(e) => {
                 self.state_action_tx
@@ -139,6 +131,57 @@ impl SettingsService {
                 self.state_action_tx
                     .send(StateAction::SettingsFormSavingDone)?;
             }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn handle_meshtastic_packet(
+        &mut self,
+        packet: from_radio::PayloadVariant,
+    ) -> anyhow::Result<()> {
+        match packet {
+            from_radio::PayloadVariant::Config(Config {
+                payload_variant: Some(variant),
+            }) => {
+                self.state_action_tx
+                    .send(StateAction::DeviceConfigSet(variant))?;
+            }
+            from_radio::PayloadVariant::ModuleConfig(ModuleConfig {
+                payload_variant: Some(variant),
+            }) => {
+                self.state_action_tx
+                    .send(StateAction::DeviceModuleConfigSet(variant))?;
+            }
+            from_radio::PayloadVariant::Packet(mesh_packet) => match &mesh_packet.payload_variant {
+                Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
+                    PortNum::AdminApp => match AdminMessage::decode(&*data.payload) {
+                        Ok(admin_message) => match admin_message.payload_variant {
+                            Some(admin_message::PayloadVariant::SetConfig(Config {
+                                payload_variant: Some(variant),
+                            })) => {
+                                self.state_action_tx
+                                    .send(StateAction::DeviceConfigSet(variant))?;
+                            }
+                            Some(admin_message::PayloadVariant::SetModuleConfig(
+                                ModuleConfig {
+                                    payload_variant: Some(variant),
+                                },
+                            )) => {
+                                self.state_action_tx
+                                    .send(StateAction::DeviceModuleConfigSet(variant))?;
+                            }
+                            _ => {}
+                        },
+                        Err(e) => {
+                            tracing::debug!("can't decode AdminMessage payload: {:?}", e);
+                        }
+                    },
+                    _ => {}
+                },
+                _ => {}
+            },
             _ => {}
         }
 
@@ -460,6 +503,88 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                         .and_then(|r| Ok(r.as_str_name().to_owned()))
                         .unwrap_or("?".to_owned()),
                 |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(node_info_broadcast_secs in DeviceConfig),
+                "NodeInfo Broadcast Interval",
+                None,
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Unset", 0 as u32),
+                    FormEnumVariant::new("3 hours", 3 * 3600 as u32),
+                    FormEnumVariant::new("4 hours", 4 * 3600 as u32),
+                    FormEnumVariant::new("5 hours", 5 * 3600 as u32),
+                    FormEnumVariant::new("6 hours", 6 * 3600 as u32),
+                    FormEnumVariant::new("12 hours", 12 * 3600 as u32),
+                    FormEnumVariant::new("18 hours", 18 * 3600 as u32),
+                    FormEnumVariant::new("24 hours", 24 * 3600 as u32),
+                    FormEnumVariant::new("36 hours", 36 * 3600 as u32),
+                    FormEnumVariant::new("48 hours", 48 * 3600 as u32),
+                    FormEnumVariant::new("72 hours", 72 * 3600 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    if secs > 0 {
+                        format!("{} hours", secs / 3600)
+                    } else {
+                        "Unset".to_owned()
+                    }
+                },
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(double_tap_as_button_press in DeviceConfig),
+                "Double Tap as Button",
+                Some("Treat double tap interrupt on supported accelerometers as a button press if set to true."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(disable_triple_click in DeviceConfig),
+                "Triple Click Ad Hoc Ping",
+                Some("Disables the triple-press of user button to enable or disable GPS."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(led_heartbeat_disabled in DeviceConfig),
+                "Disable LED Heartbeat",
+                Some("If true, disable the default blinking LED (LED_PIN) behavior on the device."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(tzdef in DeviceConfig),
+                "Time Zone",
+                Some("POSIX Timezone definition string."),
+                FormItemKind::InputOfString,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(button_gpio in DeviceConfig),
+                "Button GPIO",
+                None,
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+            FormItem::new(
+                name_of!(buzzer_gpio in DeviceConfig),
+                "Buzzer GPIO",
+                None,
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
             ),
         ],
         FormId::AppUi => vec![

@@ -1796,9 +1796,8 @@ dependencies = [
 [[package]]
 name = "meshtastic"
 version = "0.1.8"
-source = "git+https://github.com/meshtastic/rust?branch=main#e28f13c06b6d96363bcd7bebf3d6911ae06ae922"
+source = "git+https://github.com/acelot/rust-meshtastic?branch=main#6892175d2b18a7fd14f79a5ffa1c873459963367"
 dependencies = [
- "bluez-async",
  "btleplug",
  "futures",
  "futures-util",

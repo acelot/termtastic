@@ -37,7 +37,7 @@ hostaddr = { version = "0.2.4", features = ["serde"] }
 itertools = { version = "0.14.0" }
 maplit = { version = "1.0.2" }
 #meshtastic = { version = "0.1", features = ["bluetooth-le"] }
-meshtastic = { git = "https://github.com/meshtastic/rust", branch = "main", features = [
+meshtastic = { git = "https://github.com/acelot/rust-meshtastic", branch = "main", features = [
     "bluetooth-le",
 ] }
 nameof = { version = "1.3.0" }

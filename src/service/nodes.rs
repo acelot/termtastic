@@ -3,7 +3,7 @@ use std::time::Duration;
 use chrono::Utc;
 use meshtastic::{
     Message as _,
-    protobufs::{MeshPacket, PortNum, User, from_radio::PayloadVariant, mesh_packet},
+    protobufs::{AdminMessage, MeshPacket, PortNum, User, admin_message, from_radio, mesh_packet},
 };
 use tokio::{
     sync::{broadcast, mpsc, watch},
@@ -91,15 +91,18 @@ impl NodesService {
         Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, packet: PayloadVariant) -> anyhow::Result<()> {
+    fn handle_meshtastic_packet(
+        &mut self,
+        packet: from_radio::PayloadVariant,
+    ) -> anyhow::Result<()> {
         match packet {
-            PayloadVariant::MyInfo(my_info) => {
+            from_radio::PayloadVariant::MyInfo(my_info) => {
                 self.local_my_node_num = Some(my_info.my_node_num);
 
                 self.state_action_tx
                     .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
             }
-            PayloadVariant::NodeInfo(node_info) => {
+            from_radio::PayloadVariant::NodeInfo(node_info) => {
                 match Node::try_from(&node_info) {
                     Ok(node) => {
                         self.state_action_tx.send(StateAction::NodeAdd(node))?;
@@ -120,35 +123,47 @@ impl NodesService {
                     ))?;
                 }
             }
-            PayloadVariant::Packet(packet) => match &packet.payload_variant {
-                Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
-                    PortNum::NodeinfoApp => match User::decode(&*data.payload) {
-                        Ok(user) => {
-                            match Node::try_from((&packet, &user)) {
-                                Ok(node) => {
-                                    self.state_action_tx.send(StateAction::NodeAdd(node))?
+            from_radio::PayloadVariant::Packet(mesh_packet) => {
+                match &mesh_packet.payload_variant {
+                    Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
+                        PortNum::NodeinfoApp => match User::decode(&*data.payload) {
+                            Ok(user) => {
+                                match Node::try_from((&mesh_packet, &user)) {
+                                    Ok(node) => {
+                                        self.state_action_tx.send(StateAction::NodeAdd(node))?
+                                    }
+                                    Err(e) => {
+                                        tracing::debug!(
+                                            node_key = mesh_packet.from,
+                                            "can't convert NodeInfo into Node: {:?}",
+                                            e
+                                        );
+                                    }
+                                };
+                            }
+                            Err(e) => {
+                                tracing::debug!("can't decode NodeinfoApp payload: {:?}", e);
+                            }
+                        },
+                        PortNum::AdminApp => match AdminMessage::decode(&*data.payload) {
+                            Ok(admin_message) => match admin_message.payload_variant {
+                                Some(admin_message::PayloadVariant::SetOwner(user)) => {
+                                    self.state_action_tx
+                                        .send(StateAction::DeviceUserSet(user))?;
                                 }
-                                Err(e) => {
-                                    tracing::debug!(
-                                        node_key = packet.from,
-                                        "can't convert NodeInfo into Node: {:?}",
-                                        e
-                                    );
-                                }
-                            };
-                        }
-                        Err(e) => {
-                            tracing::debug!("can't decode NodeinfoApp payload: {:?}", e);
-                        }
+                                _ => {}
+                            },
+                            Err(e) => {
+                                tracing::debug!("can't decode AdminMessage payload: {:?}", e);
+                            }
+                        },
+                        _ => {}
                     },
-                    _ => {
-                        self.send_node_update_last_heard(&packet)?;
-                    }
-                },
-                _ => {
-                    self.send_node_update_last_heard(&packet)?;
+                    _ => {}
                 }
-            },
+
+                self.send_node_update_last_heard(&mesh_packet)?;
+            }
             _ => {}
         }
 

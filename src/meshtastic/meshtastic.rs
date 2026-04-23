@@ -384,9 +384,13 @@ enum LocalPacketRouterErr {
 impl<'a> PacketRouter<(), LocalPacketRouterErr> for LocalPacketRouter<'a> {
     fn handle_packet_from_radio(
         &mut self,
-        _packet: meshtastic::protobufs::FromRadio,
+        packet: meshtastic::protobufs::FromRadio,
     ) -> Result<(), LocalPacketRouterErr> {
-        todo!("not implemented")
+        self.event_tx.send(MeshtasticEvent::IncomingPacket(
+            packet.payload_variant.expect("should be Some"),
+        ))?;
+
+        Ok(())
     }
 
     fn handle_mesh_packet(
