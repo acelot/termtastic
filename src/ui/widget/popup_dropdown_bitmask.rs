@@ -10,40 +10,29 @@ use ratatui::{
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
-use crate::{
-    types::{FormEnumVariant, FormValue},
-    ui::helpers::default_scrollbar,
-};
+use crate::{types::FormBitMaskVariant, ui::helpers::default_scrollbar};
 
 const MAX_VISIBLE_DROPDOWN_ITEMS: usize = 8;
 
-pub struct PopupDropdownState<'a> {
+pub struct PopupDropdownBitmaskState<'a> {
     title: &'a str,
-    variants: &'a Vec<FormEnumVariant>,
-    selected_variant: Option<FormValue>,
+    variants: &'a Vec<FormBitMaskVariant>,
+    selected: u32,
     list_state: ListState,
 }
 
-impl<'a> PopupDropdownState<'a> {
-    pub fn new(
-        title: &'a str,
-        variants: &'a Vec<FormEnumVariant>,
-        selected_variant: Option<FormValue>,
-    ) -> Self {
+impl<'a> PopupDropdownBitmaskState<'a> {
+    pub fn new(title: &'a str, variants: &'a Vec<FormBitMaskVariant>, selected: u32) -> Self {
         Self {
             title,
             variants,
-            selected_variant,
+            selected,
             list_state: ListState::default(),
         }
     }
 
-    pub fn get_value(&self) -> Option<&FormValue> {
-        if let Some(index) = self.list_state.selected {
-            return Some(&self.variants[index].value);
-        }
-
-        None
+    pub fn get_value(&self) -> u32 {
+        self.selected
     }
 
     pub fn handle_event(&mut self, event: Event) {
@@ -51,6 +40,16 @@ impl<'a> PopupDropdownState<'a> {
             Event::Key(KeyEvent { code, kind, .. }) if kind == KeyEventKind::Press => match code {
                 KeyCode::Up => self.list_state.previous(),
                 KeyCode::Down => self.list_state.next(),
+                KeyCode::Char(' ') if let Some(index) = self.list_state.selected => {
+                    let variant = self.variants.iter().nth(index).unwrap();
+                    let is_checked = self.selected & variant.value > 0;
+
+                    if is_checked {
+                        self.selected = self.selected & !variant.value;
+                    } else {
+                        self.selected = self.selected | variant.value;
+                    }
+                }
                 _ => {}
             },
             _ => {}
@@ -58,12 +57,12 @@ impl<'a> PopupDropdownState<'a> {
     }
 }
 
-pub struct PopupDropdownWidget<'a> {
+pub struct PopupDropdownBitmaskWidget<'a> {
     width: u16,
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a> PopupDropdownWidget<'a> {
+impl<'a> PopupDropdownBitmaskWidget<'a> {
     pub fn new(width: u16) -> Self {
         Self {
             width,
@@ -72,8 +71,8 @@ impl<'a> PopupDropdownWidget<'a> {
     }
 }
 
-impl<'a> StatefulWidget for PopupDropdownWidget<'a> {
-    type State = PopupDropdownState<'a>;
+impl<'a> StatefulWidget for PopupDropdownBitmaskWidget<'a> {
+    type State = PopupDropdownBitmaskState<'a>;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let height = state.variants.len().min(MAX_VISIBLE_DROPDOWN_ITEMS) as u16 + 2;
@@ -96,19 +95,19 @@ impl<'a> StatefulWidget for PopupDropdownWidget<'a> {
         popup_block.render(popup_area, buf);
 
         if state.list_state.selected.is_none() && !state.variants.is_empty() {
-            state.list_state.select(Some(
-                state
-                    .selected_variant
-                    .as_ref()
-                    .and_then(|s| state.variants.iter().position(|v| &v.value == s))
-                    .unwrap_or(0),
-            ));
+            state.list_state.select(Some(0));
         }
 
         let list_builder = ListBuilder::new(|context| {
             let variant = state.variants.iter().nth(context.index).unwrap();
+            let is_checked = state.selected & variant.value > 0;
 
-            let item = Line::from(Span::from(&variant.title)).patch_style(if context.is_selected {
+            let item = Line::from(vec![
+                Span::from(if is_checked { "[✔]" } else { "[ ]" }),
+                Span::from(" "),
+                Span::from(&variant.title),
+            ])
+            .patch_style(if context.is_selected {
                 Style::new().black().on_yellow()
             } else {
                 Style::new()

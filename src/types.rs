@@ -716,7 +716,7 @@ pub enum FormItemKind {
     InputOfUnsignedInt32,
     InputOfFloat32,
     Enum(Vec<FormEnumVariant>),
-    BitMask(Vec<FormEnumVariant>),
+    BitMask(Vec<FormBitMaskVariant>),
     Switch,
     Button { event: AppEvent, confirm: bool },
 }
@@ -738,6 +738,21 @@ impl FormEnumVariant {
         Self {
             title: title.into(),
             value: value.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FormBitMaskVariant {
+    pub title: String,
+    pub value: u32,
+}
+
+impl FormBitMaskVariant {
+    pub fn new<S: Into<String>>(title: S, value: u32) -> Self {
+        Self {
+            title: title.into(),
+            value,
         }
     }
 }

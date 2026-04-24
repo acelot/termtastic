@@ -5,7 +5,8 @@ use maplit::hashmap;
 use meshtastic::Message;
 use meshtastic::protobufs::config::device_config::{RebroadcastMode, Role};
 use meshtastic::protobufs::config::lo_ra_config::{ModemPreset, RegionCode};
-use meshtastic::protobufs::config::{self, DeviceConfig, LoRaConfig};
+use meshtastic::protobufs::config::position_config::{GpsMode, PositionFlags};
+use meshtastic::protobufs::config::{self, DeviceConfig, LoRaConfig, PositionConfig};
 use meshtastic::protobufs::{
     AdminMessage, Config, ModuleConfig, PortNum, User, admin_message, from_radio, mesh_packet,
 };
@@ -14,7 +15,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
-use crate::types::{AppEvent, FormData, FormId, Toast};
+use crate::types::{AppEvent, FormBitMaskVariant, FormData, FormId, Toast};
 use crate::types::{FormEnumVariant, FormItem, FormItemKind, SettingsItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -212,6 +213,13 @@ impl SettingsService {
                     .as_ref()
                     .ok_or(anyhow::anyhow!("User config not loaded"))?,
             )?,
+            FormId::DevicePosition => to_formdata(
+                state
+                    .device_config
+                    .position
+                    .as_ref()
+                    .ok_or(anyhow::anyhow!("Position config not loaded"))?,
+            )?,
             _ => return Err(anyhow::anyhow!("Loader not implemented for FormId: {}", id)),
         };
 
@@ -246,6 +254,15 @@ impl SettingsService {
                     .send(CommandToMeshtastic::SaveUser {
                         my_node_id: state.my_node_key.expect("should be Some"),
                         user: from_formdata::<User>(&form_data)?,
+                    })?;
+            }
+            FormId::DevicePosition => {
+                self.meshtastic_command_tx
+                    .send(CommandToMeshtastic::SaveConfig {
+                        my_node_id: state.my_node_key.expect("should be Some"),
+                        config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(
+                            &form_data,
+                        )?),
                     })?;
             }
             _ => unimplemented!(),
@@ -579,6 +596,196 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 name_of!(buzzer_gpio in DeviceConfig),
                 "Buzzer GPIO",
                 None,
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+        ],
+        FormId::DevicePosition => vec![
+            FormItem::new(
+                name_of!(position_broadcast_secs in PositionConfig),
+                "Broadcast Interval",
+                Some("The maximum interval that can elapse without a node broadcasting a position. Default 15 minutes."),
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Default", 0 as u32),
+                    FormEnumVariant::new("1 minute", 60 as u32),
+                    FormEnumVariant::new("90 seconds", 90 as u32),
+                    FormEnumVariant::new("5 minutes", 300 as u32),
+                    FormEnumVariant::new("15 minutes", 900 as u32),
+                    FormEnumVariant::new("1 hour", 1 * 3600 as u32),
+                    FormEnumVariant::new("2 hours", 2 * 3600 as u32),
+                    FormEnumVariant::new("3 hours", 3 * 3600 as u32),
+                    FormEnumVariant::new("4 hours", 4 * 3600 as u32),
+                    FormEnumVariant::new("5 hours", 5 * 3600 as u32),
+                    FormEnumVariant::new("6 hours", 6 * 3600 as u32),
+                    FormEnumVariant::new("12 hours", 12 * 3600 as u32),
+                    FormEnumVariant::new("18 hours", 18 * 3600 as u32),
+                    FormEnumVariant::new("24 hours", 24 * 3600 as u32),
+                    FormEnumVariant::new("36 hours", 36 * 3600 as u32),
+                    FormEnumVariant::new("48 hours", 48 * 3600 as u32),
+                    FormEnumVariant::new("72 hours", 72 * 3600 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    match secs {
+                        0 => "Default".to_string(),
+                        60 => "1 minute".to_string(),
+                        90 => "90 seconds".to_string(),
+                        1..3600 => format!("{} minutes", secs / 60),
+                        3600 => "1 hour".to_string(),
+                        3601..=u32::MAX => format!("{} hours", secs / 3600),
+                    }
+                },
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(position_broadcast_smart_enabled in PositionConfig),
+                "Smart Position",
+                Some("Adaptive position broadcast."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(broadcast_smart_minimum_interval_secs in PositionConfig),
+                "Smart Position Minimum Interval",
+                Some("The minimum number of seconds (since the last send) before we can send a position."),
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Default", 0 as u32),
+                    FormEnumVariant::new("15 seconds", 15 as u32),
+                    FormEnumVariant::new("30 seconds", 30 as u32),
+                    FormEnumVariant::new("45 seconds", 45 as u32),
+                    FormEnumVariant::new("1 minute", 60 as u32),
+                    FormEnumVariant::new("5 minutes", 300 as u32),
+                    FormEnumVariant::new("10 minutes", 600 as u32),
+                    FormEnumVariant::new("15 minutes", 900 as u32),
+                    FormEnumVariant::new("30 minutes", 1800 as u32),
+                    FormEnumVariant::new("1 hour", 3600 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    match secs {
+                        0 => "Default".to_string(),
+                        1..60 => format!("{} seconds", secs),
+                        60 => "1 minute".to_string(),
+                        61..3600 => format!("{} minutes", secs / 60),
+                        3600 => "1 hour".to_string(),
+                        3600..=u32::MAX => format!("{} hours", secs / 3600),
+                    }
+                },
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(broadcast_smart_minimum_distance in PositionConfig),
+                "Smart Position Minimum Distance",
+                Some("The minimum distance in meters traveled (since the last send) before we can send a position."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| format!("{} meters", v.as_u32().expect("invalid value")),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+            FormItem::new(
+                name_of!(fixed_position in PositionConfig),
+                "Fixed Position",
+                Some("If set, this node is at a fixed position."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(gps_mode in PositionConfig),
+                "GPS Mode",
+                Some("Set where GPS is enabled, disabled, or not present."),
+                FormItemKind::Enum(GpsMode::iter()
+                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                    .collect()),
+                |v| GpsMode::try_from(v.as_i32().expect("invalid FormValue"))
+                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                        .unwrap_or("?".to_owned()),
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(gps_update_interval in PositionConfig),
+                "GPS Update Interval",
+                Some("How often should we try to get GPS position (in seconds). Default once every 30 seconds."),
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Default", 0 as u32),
+                    FormEnumVariant::new("8 seconds", 8 as u32),
+                    FormEnumVariant::new("20 seconds", 20 as u32),
+                    FormEnumVariant::new("40 seconds", 40 as u32),
+                    FormEnumVariant::new("1 minute", 60 as u32),
+                    FormEnumVariant::new("80 seconds", 80 as u32),
+                    FormEnumVariant::new("2 minutes", 120 as u32),
+                    FormEnumVariant::new("5 minutes", 300 as u32),
+                    FormEnumVariant::new("10 minutes", 600 as u32),
+                    FormEnumVariant::new("15 minutes", 900 as u32),
+                    FormEnumVariant::new("30 minutes", 1800 as u32),
+                    FormEnumVariant::new("1 hour", 3600 as u32),
+                    FormEnumVariant::new("6 hours", 6 * 3600 as u32),
+                    FormEnumVariant::new("12 hours", 12 * 3600 as u32),
+                    FormEnumVariant::new("24 hours", 24 * 3600 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    match secs {
+                        0 => "Default".to_string(),
+                        60 => "1 minute".to_string(),
+                        1..120 => format!("{} seconds", secs),
+                        120..3600 => format!("{} minutes", secs / 60),
+                        3600 => "1 hour".to_string(),
+                        3600..=u32::MAX => format!("{} hours", secs / 3600),
+                    }
+                },
+                |_| Ok(())
+            ),
+            FormItem::new(
+                name_of!(position_flags in PositionConfig),
+                "Position Flags",
+                Some("Bit field of boolean configuration options for POSITION messages."),
+                FormItemKind::BitMask(PositionFlags::iter()
+                    .filter(|v| v != &PositionFlags::Unset)
+                    .map(|v| FormBitMaskVariant::new(v.as_str_name(), v as u32))
+                    .collect()),
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+            FormItem::new(
+                name_of!(rx_gpio in PositionConfig),
+                "GPS RX GPIO",
+                Some("GPS_RX_PIN for your board."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+            FormItem::new(
+                name_of!(tx_gpio in PositionConfig),
+                "GPS TX GPIO",
+                Some("GPS_TX_PIN for your board."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| (0..=u32::MAX)
+                    .contains(&v.as_u32().expect("invalid value"))
+                    .then_some(())
+                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+            ),
+            FormItem::new(
+                name_of!(gps_en_gpio in PositionConfig),
+                "GPS EN GPIO",
+                Some("PIN_GPS_EN for your board."),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
                 |v| (0..=u32::MAX)

@@ -11,6 +11,7 @@ pub struct Settings<'a> {
     active_form_item: Option<&'static FormItem>,
     popup_input_state: Option<PopupInputState<'a>>,
     popup_dropdown_state: Option<PopupDropdownState<'a>>,
+    popup_dropdown_bitmask_state: Option<PopupDropdownBitmaskState<'a>>,
     is_exit_confirm_visible: bool,
 }
 
@@ -22,6 +23,7 @@ impl<'a> Settings<'a> {
             active_form_item: None,
             popup_input_state: None,
             popup_dropdown_state: None,
+            popup_dropdown_bitmask_state: None,
             is_exit_confirm_visible: false,
         }
     }
@@ -34,10 +36,21 @@ impl<'a> Settings<'a> {
             ],
             SettingsFormState::Loading { .. } => vec![Some(Hotkey::new("esc", "cancel"))],
             SettingsFormState::LoadingFailed { .. } => vec![Some(Hotkey::new("esc", "return"))],
-            SettingsFormState::Loaded { .. } if self.active_form_item.is_some() => vec![
+            SettingsFormState::Loaded { .. } if self.popup_input_state.is_some() => vec![
                 Some(Hotkey::new("enter", "submit")),
                 Some(Hotkey::new("esc", "cancel")),
             ],
+            SettingsFormState::Loaded { .. } if self.popup_dropdown_state.is_some() => vec![
+                Some(Hotkey::new("enter", "select")),
+                Some(Hotkey::new("esc", "cancel")),
+            ],
+            SettingsFormState::Loaded { .. } if self.popup_dropdown_bitmask_state.is_some() => {
+                vec![
+                    Some(Hotkey::new("space", "toggle")),
+                    Some(Hotkey::new("enter", "submit")),
+                    Some(Hotkey::new("esc", "cancel")),
+                ]
+            }
             SettingsFormState::Loaded { .. } => vec![
                 Some(Hotkey::new("↑↓", "scroll")),
                 self.form_list_state
@@ -167,6 +180,14 @@ impl<'a> Settings<'a> {
                     Some(value.clone()),
                 ));
             }
+            FormItemKind::BitMask(variants) => {
+                self.active_form_item = Some(form_item);
+                self.popup_dropdown_bitmask_state = Some(PopupDropdownBitmaskState::new(
+                    form_item.title,
+                    variants,
+                    value.as_u32().expect("invalid value"),
+                ));
+            }
             FormItemKind::Switch => {
                 emit(AppEvent::SettingsFormItemSubmitted(
                     form_item,
@@ -196,7 +217,7 @@ impl<'a> Component for Settings<'a> {
     ) -> anyhow::Result<bool> {
         match event {
             Event::Key(KeyEvent { code, kind, .. }) if kind == &KeyEventKind::Press => {
-                // Confirm popup
+                // confirm popup
                 if self.is_exit_confirm_visible {
                     match code {
                         KeyCode::Enter => {
@@ -212,7 +233,7 @@ impl<'a> Component for Settings<'a> {
                     return Ok(true);
                 }
 
-                // Input popup
+                // input popup
                 if let Some(popup_input_state) = self.popup_input_state.as_mut() {
                     let form_item = self.active_form_item.expect("should be Some");
 
@@ -241,7 +262,7 @@ impl<'a> Component for Settings<'a> {
                     return Ok(true);
                 }
 
-                // Dropdown popup
+                // dropdown popup
                 if let Some(popup_dropdown_state) = self.popup_dropdown_state.as_mut()
                     && let Some(value) = popup_dropdown_state.get_value()
                 {
@@ -263,6 +284,34 @@ impl<'a> Component for Settings<'a> {
                         }
                         _ => {
                             popup_dropdown_state.handle_event(event.clone());
+                        }
+                    }
+
+                    return Ok(true);
+                }
+
+                // bitmask dropdown popup
+                if let Some(popup_dropdown_bitmask_state) =
+                    self.popup_dropdown_bitmask_state.as_mut()
+                {
+                    let form_item = self.active_form_item.expect("should be Some");
+
+                    match code {
+                        KeyCode::Enter => {
+                            emit(AppEvent::SettingsFormItemSubmitted(
+                                form_item,
+                                FormValue::UnsignedInt32(popup_dropdown_bitmask_state.get_value()),
+                            ))?;
+
+                            self.active_form_item = None;
+                            self.popup_dropdown_bitmask_state = None;
+                        }
+                        KeyCode::Esc => {
+                            self.active_form_item = None;
+                            self.popup_dropdown_bitmask_state = None;
+                        }
+                        _ => {
+                            popup_dropdown_bitmask_state.handle_event(event.clone());
                         }
                     }
 
@@ -437,17 +486,26 @@ impl<'a> Component for Settings<'a> {
                     frame.buffer_mut(),
                 );
 
-                // Active input popup
+                // active input popup
                 if let Some(state) = self.popup_input_state.as_mut() {
                     PopupInputWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
                 }
 
-                // Active dropdown popup
+                // active dropdown popup
                 if let Some(state) = self.popup_dropdown_state.as_mut() {
                     PopupDropdownWidget::new(40).render(form_block_area, frame.buffer_mut(), state);
                 }
 
-                // Confirm popup
+                // active bitmask dropdown popup
+                if let Some(state) = self.popup_dropdown_bitmask_state.as_mut() {
+                    PopupDropdownBitmaskWidget::new(40).render(
+                        form_block_area,
+                        frame.buffer_mut(),
+                        state,
+                    );
+                }
+
+                // confirm popup
                 if self.is_exit_confirm_visible {
                     PopupConfirmWidget::new(
                         "There are unsaved settings, do you want to reset the fields?",
