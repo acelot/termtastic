@@ -10,6 +10,7 @@ pub struct PlaceholderWidget<'a> {
     text: Paragraph<'a>,
 }
 
+#[allow(dead_code)]
 impl<'a> PlaceholderWidget<'a> {
     pub fn new(text: Paragraph<'a>) -> Self {
         Self { text }
