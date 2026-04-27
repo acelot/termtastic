@@ -54,6 +54,7 @@
 - [x] Ability to reply to the messages
 - [x] Ability to send the reactions (emojis)
 - [x] Limiting the message length to 200 chars (with counter)
+- [ ] Clickable links
 
 ### Nodes tab
 
@@ -94,7 +95,7 @@
 - [x] User
 - [x] Device
 - [x] Position
-- [ ] Power
+- [x] Power
 - [ ] Display
 - [ ] Bluetooth
 
