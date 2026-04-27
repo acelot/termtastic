@@ -323,7 +323,7 @@ impl<'a> Component for Messenger<'a> {
 
             list.render(v[0], frame.buffer_mut(), list_state);
         } else {
-            PlaceholderWidget::dark_gray("no messages").render(v[0], frame.buffer_mut());
+            PlaceholderWidget::black_on_dark_gray(" no messages ").render(v[0], frame.buffer_mut());
         }
 
         // input

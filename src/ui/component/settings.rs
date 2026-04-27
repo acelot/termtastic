@@ -164,6 +164,7 @@ impl<'a> Settings<'a> {
             | FormItemKind::InputOfInt32
             | FormItemKind::InputOfUnsignedInt8
             | FormItemKind::InputOfUnsignedInt32
+            | FormItemKind::InputOfUnsignedInt64
             | FormItemKind::InputOfFloat32 => {
                 self.active_form_item = Some(form_item);
                 self.popup_input_state = Some(PopupInputState::new(
@@ -469,7 +470,16 @@ impl<'a> Component for Settings<'a> {
                     .render(form_block_area, frame.buffer_mut());
             }
             SettingsFormState::LoadingFailed { error, .. } => {
-                PlaceholderWidget::red(error).render(form_block_area, frame.buffer_mut());
+                PlaceholderWidget::new(
+                    Paragraph::new(vec![
+                        Line::from(format!(" {} ", error)).white().on_red(),
+                        Line::from(""),
+                        Line::from("Try to (re)connect to the device").dark_gray(),
+                    ])
+                    .centered()
+                    .wrap(Wrap { trim: false }),
+                )
+                .render(form_block_area, frame.buffer_mut());
             }
             SettingsFormState::Loaded { id } => {
                 let data = state.settings_form_data.as_ref().expect("should be Some");
@@ -544,6 +554,10 @@ fn handle_popup_input_submit<'a>(
         }
         FormItemKind::InputOfUnsignedInt32 => {
             let value = FormValue::from(input_value.parse::<u32>()?);
+            (form_item.validator)(&value).and_then(|_| Ok(value))
+        }
+        FormItemKind::InputOfUnsignedInt64 => {
+            let value = FormValue::from(input_value.parse::<u64>()?);
             (form_item.validator)(&value).and_then(|_| Ok(value))
         }
         FormItemKind::InputOfFloat32 => {
@@ -629,6 +643,7 @@ impl<'a> Widget for FormItemWidget<'a> {
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Fill(3),
+                Constraint::Length(1),
                 Constraint::Fill(4),
                 Constraint::Length(2),
             ])
@@ -677,6 +692,6 @@ impl<'a> Widget for FormItemWidget<'a> {
                 _ => Style::new(),
             },
         ))
-        .render(h[1], buf);
+        .render(h[2], buf);
     }
 }

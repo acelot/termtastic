@@ -326,6 +326,7 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
             FormValue::Int32(v) => visitor.visit_i32(*v),
             FormValue::UnsignedInt8(v) => visitor.visit_u8(*v),
             FormValue::UnsignedInt32(v) => visitor.visit_u32(*v),
+            FormValue::UnsignedInt64(v) => visitor.visit_u64(*v),
             FormValue::Float32(v) => visitor.visit_f32(*v),
             FormValue::Bool(v) => visitor.visit_bool(*v),
             FormValue::Option(v) => match v {
@@ -419,11 +420,17 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         }
     }
 
-    fn deserialize_u64<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("u64"))
+        match self.value {
+            FormValue::UnsignedInt64(v) => visitor.visit_u64(*v),
+            other => Err(FormDataDeserializerError::InvalidType {
+                expected: "u64".to_owned(),
+                actual: format!("{:?}", other),
+            }),
+        }
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value, Self::Error>

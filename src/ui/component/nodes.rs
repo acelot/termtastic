@@ -107,7 +107,7 @@ impl Component for Nodes {
 
             list.render(v[0], frame.buffer_mut(), &mut self.list_state);
         } else {
-            PlaceholderWidget::dark_gray("no nodes").render(v[0], frame.buffer_mut());
+            PlaceholderWidget::black_on_dark_gray(" no nodes ").render(v[0], frame.buffer_mut());
         }
 
         HotkeysWidget::new(&self.hotkeys).render(v[2], frame.buffer_mut());

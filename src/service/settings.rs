@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use maplit::hashmap;
 use meshtastic::Message;
 use meshtastic::protobufs::config::device_config::{RebroadcastMode, Role};
 use meshtastic::protobufs::config::lo_ra_config::{ModemPreset, RegionCode};
 use meshtastic::protobufs::config::position_config::{GpsMode, PositionFlags};
-use meshtastic::protobufs::config::{self, DeviceConfig, LoRaConfig, PositionConfig};
+use meshtastic::protobufs::config::{self, DeviceConfig, LoRaConfig, PositionConfig, PowerConfig};
 use meshtastic::protobufs::{
     AdminMessage, Config, ModuleConfig, PortNum, User, admin_message, from_radio, mesh_packet,
 };
@@ -73,19 +72,13 @@ impl SettingsService {
                     .send(StateAction::SettingsFormLoadingStart { id: id.clone() })?;
 
                 match self.load_config(&id) {
-                    Ok(data) => {
-                        self.state_action_tx
-                            .send(StateAction::SettingsFormLoadingDone {
-                                id: id.clone(),
-                                data,
-                            })?
-                    }
-                    Err(e) => self
+                    Ok(data) => self
                         .state_action_tx
-                        .send(StateAction::SettingsFormLoadingFail {
-                            id: id.clone(),
-                            error: e.to_string(),
-                        })?,
+                        .send(StateAction::SettingsFormLoadingDone { id: id.clone(), data })?,
+                    Err(e) => self.state_action_tx.send(StateAction::SettingsFormLoadingFail {
+                        id: id.clone(),
+                        error: e.to_string(),
+                    })?,
                 }
             }
             AppEvent::SettingsFormCancelRequested => {
@@ -104,11 +97,10 @@ impl SettingsService {
                 self.save_config(&form_id)?;
             }
             AppEvent::SettingsFormItemSubmitted(form_item, value) => {
-                self.state_action_tx
-                    .send(StateAction::SettingsFormValueSet {
-                        key: form_item.key,
-                        value,
-                    })?;
+                self.state_action_tx.send(StateAction::SettingsFormValueSet {
+                    key: form_item.key,
+                    value,
+                })?;
             }
             _ => {}
         }
@@ -122,15 +114,13 @@ impl SettingsService {
                 self.handle_meshtastic_packet(packet)?;
             }
             MeshtasticEvent::ConfigSaveError(e) | MeshtasticEvent::UserSaveError(e) => {
-                self.state_action_tx
-                    .send(StateAction::Toast(Toast::error(e)))?;
+                self.state_action_tx.send(StateAction::Toast(Toast::error(e)))?;
             }
             MeshtasticEvent::ConfigSaved | MeshtasticEvent::UserSaved => {
                 self.state_action_tx
                     .send(StateAction::Toast(Toast::success("config saved")))?;
 
-                self.state_action_tx
-                    .send(StateAction::SettingsFormSavingDone)?;
+                self.state_action_tx.send(StateAction::SettingsFormSavingDone)?;
             }
             _ => {}
         }
@@ -138,22 +128,17 @@ impl SettingsService {
         Ok(())
     }
 
-    fn handle_meshtastic_packet(
-        &mut self,
-        packet: from_radio::PayloadVariant,
-    ) -> anyhow::Result<()> {
+    fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) -> anyhow::Result<()> {
         match packet {
             from_radio::PayloadVariant::Config(Config {
                 payload_variant: Some(variant),
             }) => {
-                self.state_action_tx
-                    .send(StateAction::DeviceConfigSet(variant))?;
+                self.state_action_tx.send(StateAction::DeviceConfigSet(variant))?;
             }
             from_radio::PayloadVariant::ModuleConfig(ModuleConfig {
                 payload_variant: Some(variant),
             }) => {
-                self.state_action_tx
-                    .send(StateAction::DeviceModuleConfigSet(variant))?;
+                self.state_action_tx.send(StateAction::DeviceModuleConfigSet(variant))?;
             }
             from_radio::PayloadVariant::Packet(mesh_packet) => match &mesh_packet.payload_variant {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
@@ -162,16 +147,12 @@ impl SettingsService {
                             Some(admin_message::PayloadVariant::SetConfig(Config {
                                 payload_variant: Some(variant),
                             })) => {
-                                self.state_action_tx
-                                    .send(StateAction::DeviceConfigSet(variant))?;
+                                self.state_action_tx.send(StateAction::DeviceConfigSet(variant))?;
                             }
-                            Some(admin_message::PayloadVariant::SetModuleConfig(
-                                ModuleConfig {
-                                    payload_variant: Some(variant),
-                                },
-                            )) => {
-                                self.state_action_tx
-                                    .send(StateAction::DeviceModuleConfigSet(variant))?;
+                            Some(admin_message::PayloadVariant::SetModuleConfig(ModuleConfig {
+                                payload_variant: Some(variant),
+                            })) => {
+                                self.state_action_tx.send(StateAction::DeviceModuleConfigSet(variant))?;
                             }
                             _ => {}
                         },
@@ -220,6 +201,13 @@ impl SettingsService {
                     .as_ref()
                     .ok_or(anyhow::anyhow!("Position config not loaded"))?,
             )?,
+            FormId::DevicePower => to_formdata(
+                state
+                    .device_config
+                    .power
+                    .as_ref()
+                    .ok_or(anyhow::anyhow!("Power config not loaded"))?,
+            )?,
             _ => return Err(anyhow::anyhow!("Loader not implemented for FormId: {}", id)),
         };
 
@@ -232,38 +220,34 @@ impl SettingsService {
 
         match id {
             FormId::RadioLora => {
-                self.meshtastic_command_tx
-                    .send(CommandToMeshtastic::SaveConfig {
-                        my_node_id: state.my_node_key.expect("should be Some"),
-                        config: config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(
-                            &form_data,
-                        )?),
-                    })?;
+                self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
+                    my_node_id: state.my_node_key.expect("should be Some"),
+                    config: config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(&form_data)?),
+                })?;
             }
             FormId::DeviceDevice => {
-                self.meshtastic_command_tx
-                    .send(CommandToMeshtastic::SaveConfig {
-                        my_node_id: state.my_node_key.expect("should be Some"),
-                        config: config::PayloadVariant::Device(from_formdata::<DeviceConfig>(
-                            &form_data,
-                        )?),
-                    })?;
+                self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
+                    my_node_id: state.my_node_key.expect("should be Some"),
+                    config: config::PayloadVariant::Device(from_formdata::<DeviceConfig>(&form_data)?),
+                })?;
             }
             FormId::DeviceUser => {
-                self.meshtastic_command_tx
-                    .send(CommandToMeshtastic::SaveUser {
-                        my_node_id: state.my_node_key.expect("should be Some"),
-                        user: from_formdata::<User>(&form_data)?,
-                    })?;
+                self.meshtastic_command_tx.send(CommandToMeshtastic::SaveUser {
+                    my_node_id: state.my_node_key.expect("should be Some"),
+                    user: from_formdata::<User>(&form_data)?,
+                })?;
             }
             FormId::DevicePosition => {
-                self.meshtastic_command_tx
-                    .send(CommandToMeshtastic::SaveConfig {
-                        my_node_id: state.my_node_key.expect("should be Some"),
-                        config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(
-                            &form_data,
-                        )?),
-                    })?;
+                self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
+                    my_node_id: state.my_node_key.expect("should be Some"),
+                    config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(&form_data)?),
+                })?;
+            }
+            FormId::DevicePower => {
+                self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
+                    my_node_id: state.my_node_key.expect("should be Some"),
+                    config: config::PayloadVariant::Power(from_formdata::<PowerConfig>(&form_data)?),
+                })?;
             }
             _ => unimplemented!(),
         };
@@ -272,74 +256,91 @@ impl SettingsService {
     }
 }
 
-fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
-    hashmap! {
-        FormId::RadioLora => vec![
+fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
+    let mut forms = HashMap::new();
+
+    forms.insert(
+        FormId::RadioLora,
+        Vec::from([
             FormItem::new(
                 name_of!(region in LoRaConfig),
                 "Region",
                 Some("The region where you will be using your node."),
-                FormItemKind::Enum(RegionCode::iter()
-                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
-                    .collect()),
-                |v| RegionCode::try_from(v.as_i32().expect("invalid FormValue"))
+                FormItemKind::Enum(
+                    RegionCode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    RegionCode::try_from(v.as_i32().expect("invalid FormValue"))
                         .and_then(|r| Ok(r.as_str_name().to_owned()))
-                        .unwrap_or("?".to_owned()),
-                |_| Ok(())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(use_preset in LoRaConfig),
                 "Use Preset",
-                Some("If enabled then \"Bandwidth\", \"Spread Factor\" and \"Coding Rate\" \
-                      fields will be ignored."),
+                Some("If enabled then \"Bandwidth\", \"Spread Factor\" and \"Coding Rate\" fields will be ignored."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(modem_preset in LoRaConfig),
                 "Preset",
                 Some("The field only makes sense if \"Use Preset\" field is set to true."),
-                FormItemKind::Enum(ModemPreset::iter()
-                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
-                    .collect()),
-                |v| ModemPreset::try_from(v.as_i32().expect("invalid FormValue"))
-                    .and_then(|r| Ok(r.as_str_name().to_owned()))
-                    .unwrap_or("?".to_owned()),
-                |_| Ok(())
+                FormItemKind::Enum(
+                    ModemPreset::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    ModemPreset::try_from(v.as_i32().expect("invalid FormValue"))
+                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(bandwidth in LoRaConfig),
                 "Bandwidth *",
-                Some("Certain bandwidth numbers are 'special' and will be converted to \
-                      the appropriate floating point value: 31 -> 31.25 kHz. \
-                      (*) The field only makes sense if \"Use Preset\" field is set to false."),
+                Some(
+                    "Certain bandwidth numbers are 'special' and will be converted to the appropriate floating point \
+                    value: 31 -> 31.25 kHz. (*) The field only makes sense if \"Use Preset\" field is set to false.",
+                ),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| format!("{} kHz", v.to_string()),
-                |v| (31..=500)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 31 and 500"))
-
+                |v| {
+                    (31..=500)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 31 and 500"))
+                },
             ),
             FormItem::new(
                 name_of!(spread_factor in LoRaConfig),
                 "Spread Factor *",
-                Some("A number from 5 to 12. Indicates number of chirps per symbol as \
-                      1<<spread_factor. (*) The field only makes sense if \"Use Preset\" field \
-                      is set to false."),
+                Some(
+                    "A number from 5 to 12. Indicates number of chirps per symbol as 1<<spread_factor. (*) The field \
+                    only makes sense if \"Use Preset\" field is set to false.",
+                ),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (5..=12)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 5 and 12"))
+                |v| {
+                    (5..=12)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 5 and 12"))
+                },
             ),
             FormItem::new(
                 name_of!(coding_rate in LoRaConfig),
                 "Coding Rate *",
-                Some("The denominator of the coding rate. (*) The field only makes sense \
-                    if \"Use Preset\" field is set to false."),
+                Some(
+                    "The denominator of the coding rate. (*) The field only makes sense if \"Use Preset\" field is \
+                    set to false.",
+                ),
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("4/5", 5 as u32),
                     FormEnumVariant::new("4/6", 6 as u32),
@@ -347,16 +348,18 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("4/8", 8 as u32),
                 ]),
                 |v| format!("4/{}", v),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(ignore_mqtt in LoRaConfig),
                 "Ignore MQTT",
-                Some("If true, the device will not process any packets received via LoRa \
-                      that passed via MQTT anywhere on the path towards it."),
+                Some(
+                    "If true, the device will not process any packets received via LoRa \
+                      that passed via MQTT anywhere on the path towards it.",
+                ),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(config_ok_to_mqtt in LoRaConfig),
@@ -364,7 +367,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Allow your packets to be published into MQTT."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(tx_enabled in LoRaConfig),
@@ -372,24 +375,26 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Disabling TX is useful for hot-swapping antennas and other tests."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(override_duty_cycle in LoRaConfig),
                 "Override Duty Cycle",
-                Some("If true, duty cycle limits will be exceeded and thus you're possibly \
-                      not following the local regulations if you're not a HAM. Has no effect \
-                      if the duty cycle of the used region is 100%."),
+                Some(
+                    "If true, duty cycle limits will be exceeded and thus you're possibly not following the local \
+                    regulations if you're not a HAM. Has no effect if the duty cycle of the used region is 100%.",
+                ),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(hop_limit in LoRaConfig),
                 "Hops Limit",
-                Some("Sets the maximum number of hops, default is 3. Increasing hops also \
-                     increases congestion and should be used carefully. 0 hop broadcast messages \
-                     will not get ACKs."),
+                Some(
+                    "Sets the maximum number of hops, default is 3. Increasing hops also increases congestion and \
+                    should be used carefully. 0 hop broadcast messages will not get ACKs.",
+                ),
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("0 hops", 0 as u32),
                     FormEnumVariant::new("1 hop", 1 as u32),
@@ -401,71 +406,94 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("7 hops", 7 as u32),
                 ]),
                 |v| format!("{} hop(s)", v.to_string()),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(channel_num in LoRaConfig),
                 "Frequency Slot",
-                Some("Your node's operating frequency is calculated based on the region, \
-                      modem preset, and this field. When 0, the slot is automatically calculated \
-                      based on the primary channel name and will change from the default \
-                      public slot. Change back to the public default slot if private primary \
-                      and public secondary channels are configured."),
+                Some(
+                    "Your node's operating frequency is calculated based on the region, modem preset, and this field. \
+                    When 0, the slot is automatically calculated based on the primary channel name and will change \
+                    from the default public slot. Change back to the public default slot if private primary and \
+                    public secondary channels are configured.",
+                ),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=20)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and 20"))
+                |v| {
+                    (0..=20)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and 20"))
+                },
             ),
             FormItem::new(
                 name_of!(sx126x_rx_boosted_gain in LoRaConfig),
                 "RX Boosted Gain",
-                Some("This is an option specific to the SX126x chip series which allows \
-                      the chip to consume a small amount of additional power to \
-                      increase RX sensitivity."),
+                Some(
+                    "This is an option specific to the SX126x chip series which allows the chip to consume a small \
+                    amount of additional power to increase RX sensitivity.",
+                ),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(override_frequency in LoRaConfig),
                 "Frequency Override",
-                Some("This parameter is for advanced users and licensed HAM radio operators. \
-                      When enabled, the channel calculation will be ignored, and the set \
-                      frequency will be used instead (frequency_offset still applies). \
-                      This will allow you to use out-of-band frequencies."),
+                Some(
+                    "This parameter is for advanced users and licensed HAM radio operators. When enabled, the \
+                    channel calculation will be ignored, and the set frequency will be used instead \
+                    (frequency_offset still applies). This will allow you to use out-of-band frequencies.",
+                ),
                 FormItemKind::InputOfFloat32,
-                |v| if v.as_f32().expect("invalid value") > 0.0 { format!("{} MHz", v.to_string()) } else { "not set".to_owned() },
-                |v| (0.0..=2500.0)
-                    .contains(&v.as_f32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and 2500"))
+                |v| {
+                    if v.as_f32().expect("invalid value") > 0.0 {
+                        format!("{} MHz", v.to_string())
+                    } else {
+                        "not set".to_owned()
+                    }
+                },
+                |v| {
+                    (0.0..=2500.0)
+                        .contains(&v.as_f32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and 2500"))
+                },
             ),
             FormItem::new(
                 name_of!(tx_power in LoRaConfig),
                 "Transmit Power",
-                Some("In dBm. If zero, then use default max legal continuous power (i.e. something \
-                      that won't burn out the radio hardware)."),
+                Some(
+                    "In dBm. If zero, then use default max legal continuous power (i.e. something that won't burn \
+                    out the radio hardware).",
+                ),
                 FormItemKind::InputOfInt32,
                 |v| format!("{} dBm", v.to_string()),
-                |v| (-100..=100)
-                    .contains(&v.as_i32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
+                |v| {
+                    (-100..=100)
+                        .contains(&v.as_i32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
+                },
             ),
-        ],
-        FormId::DeviceUser => vec![
+        ]),
+    );
+
+    forms.insert(
+        FormId::DeviceUser,
+        Vec::from([
             FormItem::new(
                 name_of!(long_name in User),
                 "Long Name",
                 Some("Full name of your node."),
                 FormItemKind::InputOfString,
                 |v| v.to_string(),
-                |v| (1..=38)
-                    .contains(&v.as_string().expect("invalid value").len())
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Min length is 1, max 38"))
+                |v| {
+                    (1..=38)
+                        .contains(&v.as_string().expect("invalid value").len())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Min length is 1, max 38"))
+                },
             ),
             FormItem::new(
                 name_of!(short_name in User),
@@ -473,10 +501,12 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Short name of your node."),
                 FormItemKind::InputOfString,
                 |v| v.to_string(),
-                |v| (1..=4)
-                    .contains(&v.as_string().expect("invalid value").len())
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Min length is 1, max 4"))
+                |v| {
+                    (1..=4)
+                        .contains(&v.as_string().expect("invalid value").len())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Min length is 1, max 4"))
+                },
             ),
             FormItem::new(
                 name_of!(is_unmessagable in User),
@@ -484,42 +514,56 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Whether or not the node can be messaged."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(is_licensed in User),
                 "Licensed (HAM)",
-                Some("Enabling this option disables encryption and is not compatible with \
-                      the default Meshtastic network."),
+                Some(
+                    "Enabling this option disables encryption and is not compatible with the default Meshtastic \
+                    network.",
+                ),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
-        ],
-        FormId::DeviceDevice => vec![
+        ]),
+    );
+
+    forms.insert(
+        FormId::DeviceDevice,
+        Vec::from([
             FormItem::new(
                 name_of!(role in DeviceConfig),
                 "Device Role",
                 None,
-                FormItemKind::Enum(Role::iter()
-                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
-                    .collect()),
-                |v| Role::try_from(v.as_i32().expect("invalid FormValue"))
+                FormItemKind::Enum(
+                    Role::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    Role::try_from(v.as_i32().expect("invalid FormValue"))
                         .and_then(|r| Ok(r.as_str_name().to_owned()))
-                        .unwrap_or("?".to_owned()),
-                |_| Ok(())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(rebroadcast_mode in DeviceConfig),
                 "Rebroadcast Mode",
                 None,
-                FormItemKind::Enum(RebroadcastMode::iter()
-                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
-                    .collect()),
-                |v| RebroadcastMode::try_from(v.as_i32().expect("invalid FormValue"))
+                FormItemKind::Enum(
+                    RebroadcastMode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    RebroadcastMode::try_from(v.as_i32().expect("invalid FormValue"))
                         .and_then(|r| Ok(r.as_str_name().to_owned()))
-                        .unwrap_or("?".to_owned()),
-                |_| Ok(())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(node_info_broadcast_secs in DeviceConfig),
@@ -547,7 +591,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                         "Unset".to_owned()
                     }
                 },
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(double_tap_as_button_press in DeviceConfig),
@@ -555,7 +599,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Treat double tap interrupt on supported accelerometers as a button press if set to true."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(disable_triple_click in DeviceConfig),
@@ -563,7 +607,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("Disables the triple-press of user button to enable or disable GPS."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(led_heartbeat_disabled in DeviceConfig),
@@ -571,7 +615,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("If true, disable the default blinking LED (LED_PIN) behavior on the device."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(tzdef in DeviceConfig),
@@ -579,7 +623,7 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("POSIX Timezone definition string."),
                 FormItemKind::InputOfString,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(button_gpio in DeviceConfig),
@@ -587,10 +631,12 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 None,
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
             FormItem::new(
                 name_of!(buzzer_gpio in DeviceConfig),
@@ -598,17 +644,25 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 None,
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
-        ],
-        FormId::DevicePosition => vec![
+        ]),
+    );
+
+    forms.insert(
+        FormId::DevicePosition,
+        Vec::from([
             FormItem::new(
                 name_of!(position_broadcast_secs in PositionConfig),
                 "Broadcast Interval",
-                Some("The maximum interval that can elapse without a node broadcasting a position. Default 15 minutes."),
+                Some(
+                    "The maximum interval that can elapse without a node broadcasting a position. Default 15 minutes.",
+                ),
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Default", 0 as u32),
                     FormEnumVariant::new("1 minute", 60 as u32),
@@ -640,19 +694,19 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                         3601..=u32::MAX => format!("{} hours", secs / 3600),
                     }
                 },
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(position_broadcast_smart_enabled in PositionConfig),
-                "Smart Position",
+                "Smart Position (SP)",
                 Some("Adaptive position broadcast."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(broadcast_smart_minimum_interval_secs in PositionConfig),
-                "Smart Position Minimum Interval",
+                "SP Minimum Interval",
                 Some("The minimum number of seconds (since the last send) before we can send a position."),
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Default", 0 as u32),
@@ -678,18 +732,20 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                         3600..=u32::MAX => format!("{} hours", secs / 3600),
                     }
                 },
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(broadcast_smart_minimum_distance in PositionConfig),
-                "Smart Position Minimum Distance",
+                "SP Minimum Distance",
                 Some("The minimum distance in meters traveled (since the last send) before we can send a position."),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| format!("{} meters", v.as_u32().expect("invalid value")),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
             FormItem::new(
                 name_of!(fixed_position in PositionConfig),
@@ -697,19 +753,23 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("If set, this node is at a fixed position."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(gps_mode in PositionConfig),
                 "GPS Mode",
                 Some("Set where GPS is enabled, disabled, or not present."),
-                FormItemKind::Enum(GpsMode::iter()
-                    .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
-                    .collect()),
-                |v| GpsMode::try_from(v.as_i32().expect("invalid FormValue"))
+                FormItemKind::Enum(
+                    GpsMode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    GpsMode::try_from(v.as_i32().expect("invalid FormValue"))
                         .and_then(|r| Ok(r.as_str_name().to_owned()))
-                        .unwrap_or("?".to_owned()),
-                |_| Ok(())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(gps_update_interval in PositionConfig),
@@ -744,21 +804,25 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                         3600..=u32::MAX => format!("{} hours", secs / 3600),
                     }
                 },
-                |_| Ok(())
+                |_| Ok(()),
             ),
             FormItem::new(
                 name_of!(position_flags in PositionConfig),
                 "Position Flags",
                 Some("Bit field of boolean configuration options for POSITION messages."),
-                FormItemKind::BitMask(PositionFlags::iter()
-                    .filter(|v| v != &PositionFlags::Unset)
-                    .map(|v| FormBitMaskVariant::new(v.as_str_name(), v as u32))
-                    .collect()),
+                FormItemKind::BitMask(
+                    PositionFlags::iter()
+                        .filter(|v| v != &PositionFlags::Unset)
+                        .map(|v| FormBitMaskVariant::new(v.as_str_name(), v as u32))
+                        .collect(),
+                ),
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
             FormItem::new(
                 name_of!(rx_gpio in PositionConfig),
@@ -766,10 +830,12 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("GPS_RX_PIN for your board."),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
             FormItem::new(
                 name_of!(tx_gpio in PositionConfig),
@@ -777,10 +843,12 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("GPS_TX_PIN for your board."),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
             FormItem::new(
                 name_of!(gps_en_gpio in PositionConfig),
@@ -788,23 +856,172 @@ fn build_forms<'a>() -> HashMap<FormId, Vec<FormItem>> {
                 Some("PIN_GPS_EN for your board."),
                 FormItemKind::InputOfUnsignedInt32,
                 |v| v.to_string(),
-                |v| (0..=u32::MAX)
-                    .contains(&v.as_u32().expect("invalid value"))
-                    .then_some(())
-                    .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
             ),
-        ],
-        FormId::AppUi => vec![
+        ]),
+    );
+
+    forms.insert(
+        FormId::DevicePower,
+        Vec::from([
             FormItem::new(
-                "paddings",
-                "Hide global padding",
-                None,
+                name_of!(is_power_saving in PowerConfig),
+                "Power Saving Mode",
+                Some(
+                    "Will sleep everything as mush as possible, for the tracker ad sensor role this will also \
+                    include the Lora radio. Don't use this setting if you want to use your device with the phone \
+                    apps or are using a device without a power button.",
+                ),
                 FormItemKind::Switch,
                 |v| v.to_string(),
-                |_| Ok(())
-            )
-        ]
-    }
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                name_of!(on_battery_shutdown_after_secs in PowerConfig),
+                "Shutdown on Power Loss",
+                Some("If non-zero, the device will fully power off this many seconds after external power is removed."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| match v.as_u32().expect("invalid value") {
+                    0 => "Always On".to_owned(),
+                    _ => format!("{} secs", v),
+                },
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
+            ),
+            FormItem::new(
+                name_of!(adc_multiplier_override in PowerConfig),
+                "ADC Multiplier Override",
+                Some(
+                    "Ratio of voltage divider for battery pin eg. 3.20 (R1=100k, R2=220k). Overrides the \
+                    ADC_MULTIPLIER defined in variant for battery voltage calculation. 0 – disable override.",
+                ),
+                FormItemKind::InputOfFloat32,
+                |v| match v.as_f32().expect("invalid value") {
+                    0.0 => "Disabled".to_owned(),
+                    _ => v.to_string(),
+                },
+                |v| {
+                    let v = v.as_f32().expect("invalid value");
+                    if v == 0.0 {
+                        return Ok(());
+                    }
+
+                    (2.0..=6.0)
+                        .contains(&v)
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 2.0 and 6.0, or 0 for disable"))
+                },
+            ),
+            FormItem::new(
+                name_of!(wait_bluetooth_secs in PowerConfig),
+                "Wait for Bluetooth Timeout",
+                Some("The number of seconds for to wait before turning off BLE in No Bluetooth states."),
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Unset", 0 as u32),
+                    FormEnumVariant::new("1 second", 1 as u32),
+                    FormEnumVariant::new("5 seconds", 5 as u32),
+                    FormEnumVariant::new("10 seconds", 10 as u32),
+                    FormEnumVariant::new("15 seconds", 15 as u32),
+                    FormEnumVariant::new("30 seconds", 30 as u32),
+                    FormEnumVariant::new("1 minute", 60 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    match secs {
+                        0 => "Unset".to_string(),
+                        1 => "1 second".to_string(),
+                        60 => "1 minute".to_string(),
+                        1..=u32::MAX => format!("{} seconds", secs),
+                    }
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                name_of!(sds_secs in PowerConfig),
+                "Super Deep Sleep Duration",
+                Some(
+                    "While in Light Sleep if mesh_sds_timeout_secs is exceeded we will lower into super deep sleep \
+                    for this value (default 1 year) or a button press. 0 for default of one year.",
+                ),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| match v.as_u32().expect("invalid value") {
+                    0 => "Default".to_owned(),
+                    _ => format!("{} secs", v),
+                },
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
+            ),
+            FormItem::new(
+                name_of!(min_wake_secs in PowerConfig),
+                "Minimum Wake Time",
+                Some(
+                    "While in light sleep when we receive packets on the LoRa radio we will wake and handle them \
+                    and stay awake in no BLE mode for this value.",
+                ),
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Unset", 0 as u32),
+                    FormEnumVariant::new("1 second", 1 as u32),
+                    FormEnumVariant::new("5 seconds", 5 as u32),
+                    FormEnumVariant::new("10 seconds", 10 as u32),
+                    FormEnumVariant::new("15 seconds", 15 as u32),
+                    FormEnumVariant::new("30 seconds", 30 as u32),
+                    FormEnumVariant::new("1 minute", 60 as u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32().expect("invalid value");
+
+                    match secs {
+                        0 => "Unset".to_string(),
+                        1 => "1 second".to_string(),
+                        60 => "1 minute".to_string(),
+                        1..=u32::MAX => format!("{} seconds", secs),
+                    }
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                name_of!(device_battery_ina_address in PowerConfig),
+                "Battery INA_2XX I2C Address",
+                Some("I2C address of INA_2XX to use for reading device battery voltage."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| v.to_string(),
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32().expect("invalid value"))
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
+            ),
+        ]),
+    );
+
+    forms.insert(
+        FormId::AppUi,
+        Vec::from([FormItem::new(
+            "paddings",
+            "Hide global padding",
+            None,
+            FormItemKind::Switch,
+            |v| v.to_string(),
+            |_| Ok(()),
+        )]),
+    );
+
+    forms
 }
 
 fn build_settings() -> Vec<SettingsItem> {

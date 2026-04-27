@@ -1,28 +1,41 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Stylize},
-    text::{Line, Span},
-    widgets::Widget,
+    style::Stylize,
+    text::Span,
+    widgets::{Paragraph, Widget, Wrap},
 };
 
 pub struct PlaceholderWidget<'a> {
-    text: &'a str,
-    color: Color,
+    text: Paragraph<'a>,
 }
 
 impl<'a> PlaceholderWidget<'a> {
+    pub fn new(text: Paragraph<'a>) -> Self {
+        Self { text }
+    }
+
     pub fn dark_gray(text: &'a str) -> Self {
         Self {
-            text,
-            color: Color::DarkGray,
+            text: Paragraph::new(Span::from(text).dark_gray())
+                .centered()
+                .wrap(Wrap { trim: false }),
+        }
+    }
+
+    pub fn black_on_dark_gray(text: &'a str) -> Self {
+        Self {
+            text: Paragraph::new(Span::from(text).black().on_dark_gray())
+                .centered()
+                .wrap(Wrap { trim: false }),
         }
     }
 
     pub fn red(text: &'a str) -> Self {
         Self {
-            text,
-            color: Color::Red,
+            text: Paragraph::new(Span::from(text).red())
+                .centered()
+                .wrap(Wrap { trim: false }),
         }
     }
 }
@@ -36,14 +49,11 @@ impl<'a> Widget for PlaceholderWidget<'a> {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(1),
+                Constraint::Length(self.text.line_count(area.width) as u16),
                 Constraint::Fill(1),
             ])
             .split(area);
 
-        Line::from(Span::from(self.text))
-            .fg(self.color)
-            .centered()
-            .render(v[1], buf);
+        self.text.render(v[1], buf);
     }
 }

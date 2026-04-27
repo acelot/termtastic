@@ -548,6 +548,7 @@ pub enum FormValue {
     Int32(i32),
     UnsignedInt8(u8),
     UnsignedInt32(u32),
+    UnsignedInt64(u64),
     Float32(f32),
     Bool(bool),
     Option(Option<Box<FormValue>>),
@@ -581,6 +582,14 @@ impl FormValue {
 
     pub fn as_u32(&self) -> Option<u32> {
         if let Self::UnsignedInt32(value) = self {
+            Some(*value)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<u64> {
+        if let Self::UnsignedInt64(value) = self {
             Some(*value)
         } else {
             None
@@ -627,6 +636,7 @@ impl std::fmt::Display for FormValue {
             Self::Int32(v) => write!(f, "{}", v),
             Self::UnsignedInt8(v) => write!(f, "{}", v),
             Self::UnsignedInt32(v) => write!(f, "{}", v),
+            Self::UnsignedInt64(v) => write!(f, "{}", v),
             Self::Float32(v) => write!(f, "{}", v),
             Self::Bool(v) => {
                 if *v {
@@ -662,6 +672,12 @@ impl From<u8> for FormValue {
 impl From<u32> for FormValue {
     fn from(value: u32) -> Self {
         Self::UnsignedInt32(value)
+    }
+}
+
+impl From<u64> for FormValue {
+    fn from(value: u64) -> Self {
+        Self::UnsignedInt64(value)
     }
 }
 
@@ -714,6 +730,7 @@ pub enum FormItemKind {
     InputOfInt32,
     InputOfUnsignedInt8,
     InputOfUnsignedInt32,
+    InputOfUnsignedInt64,
     InputOfFloat32,
     Enum(Vec<FormEnumVariant>),
     BitMask(Vec<FormBitMaskVariant>),

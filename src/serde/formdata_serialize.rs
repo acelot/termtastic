@@ -301,8 +301,9 @@ impl<'a> Serializer for FieldSerializer<'a> {
         Ok(())
     }
 
-    fn serialize_u64(self, _v: u64) -> Result<Self::Ok, Self::Error> {
-        Err(FormDataSerializerError::UnsupportedType("u64"))
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
+        self.data.insert(self.key, FormValue::UnsignedInt64(v));
+        Ok(())
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
@@ -535,8 +536,9 @@ impl<'a> Serializer for UniversalElementSerializer<'a> {
         Ok(())
     }
 
-    fn serialize_u64(self, _v: u64) -> Result<Self::Ok, Self::Error> {
-        Err(Self::Error::UnsupportedType("u64"))
+    fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
+        self.vec.push(FormValue::UnsignedInt64(v));
+        Ok(())
     }
 
     fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {

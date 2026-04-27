@@ -278,7 +278,7 @@ impl<'a> Component for Connection<'a> {
                     vec![Line::from(Span::from("not connected").dark_gray())]
                 }
                 ConnectionState::ProblemDetected { error, .. } => vec![
-                    Line::from(Span::from("connection problem").red()),
+                    Line::from(Span::from(" connection problem ").white().on_red()),
                     Line::from(""),
                     Line::from(Span::from(error).dark_gray()),
                 ],
