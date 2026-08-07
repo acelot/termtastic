@@ -1,9 +1,13 @@
-use std::time::Duration;
+use std::{ops::Sub, time::Duration};
 
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use meshtastic::{
     Message as _,
-    protobufs::{AdminMessage, MeshPacket, PortNum, Telemetry, User, admin_message, from_radio, mesh_packet},
+    protobufs::{
+        AdminMessage, MeshPacket, PortNum, RouteDiscovery, Telemetry, User, admin_message, from_radio, log_record,
+        mesh_packet::{self, TransportMechanism},
+    },
 };
 use tokio::{
     sync::{broadcast, mpsc, watch},
@@ -12,7 +16,7 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::state::State;
-use crate::types::{NodeTelemetry, Toast};
+use crate::types::{NodeTelemetry, Toast, TracerouteItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
@@ -21,6 +25,7 @@ use crate::{
 
 pub const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 2;
+const TRACEROUTE_COOLDOWN_SECS: i64 = 30;
 
 pub struct NodesService {
     app_event_tx: broadcast::Sender<AppEvent>,
@@ -111,11 +116,36 @@ impl NodesService {
                 AppEvent::NodeInfoPopupCloseRequested => {
                     self.state_action_tx.send(StateAction::NodeInfoUnset)?;
                 }
-                AppEvent::NodeDeleteRequested(node_num) => {
+                AppEvent::NodeDeleteRequested(node_key) => {
                     let my_node_num = state.my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::DeleteNode { node_num, my_node_num })?;
+                    self.meshtastic_command_tx.send(CommandToMeshtastic::DeleteNode {
+                        node_num: node_key,
+                        my_node_num,
+                    })?;
+                }
+                AppEvent::TracerouteRequested(node_key) => {
+                    let last_run = state
+                        .traceroutes
+                        .last()
+                        .and_then(|(_, t)| Some(t.datetime))
+                        .unwrap_or_default();
+
+                    let seconds_left = TRACEROUTE_COOLDOWN_SECS - Utc::now().sub(last_run).num_seconds();
+
+                    if seconds_left > 0 {
+                        self.state_action_tx.send(StateAction::Toast(Toast::warning(format!(
+                            "traceroute cooldown: wait {} secs...",
+                            seconds_left
+                        ))))?;
+                    } else {
+                        let my_node_num = state.my_node_key.expect("should be Some");
+
+                        self.meshtastic_command_tx.send(CommandToMeshtastic::RunTraceroute {
+                            node_num: node_key,
+                            my_node_num,
+                        })?;
+                    }
                 }
                 _ => {}
             },
@@ -152,6 +182,16 @@ impl NodesService {
 
                     self.state_action_tx
                         .send(StateAction::Toast(Toast::error("node remove failed")))?;
+                }
+                MeshtasticEvent::TracerouteStarted => {
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::normal("traceroute started")))?;
+                }
+                MeshtasticEvent::TracerouteFailed(e) => {
+                    tracing::error!("traceroute failed: {:?}", e);
+
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("traceroute failed")))?;
                 }
                 _ => {}
             },
@@ -255,12 +295,57 @@ impl NodesService {
                                 tracing::debug!("can't decode TelemetryApp payload: {:?}", e);
                             }
                         },
+                        PortNum::TracerouteApp => match RouteDiscovery::decode(&*data.payload) {
+                            Ok(route_discovery) => {
+                                if mesh_packet.transport_mechanism() == TransportMechanism::TransportInternal {
+                                    self.state_action_tx.send(StateAction::TracerouteStart {
+                                        node_key: mesh_packet.to,
+                                        message_id: mesh_packet.id,
+                                        datetime: DateTime::from_timestamp_secs(mesh_packet.rx_time as i64)
+                                            .unwrap_or_else(|| Utc::now()),
+                                    })?;
+                                } else {
+                                    let route_towards = route_discovery
+                                        .snr_towards
+                                        .into_iter()
+                                        .map(TracerouteItem::Snr)
+                                        .interleave(route_discovery.route.into_iter().map(TracerouteItem::Node))
+                                        .collect();
+
+                                    let route_back = route_discovery
+                                        .snr_back
+                                        .into_iter()
+                                        .map(TracerouteItem::Snr)
+                                        .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
+                                        .collect();
+
+                                    self.state_action_tx.send(StateAction::TracerouteFinish {
+                                        message_id: data.request_id,
+                                        datetime: DateTime::from_timestamp_secs(mesh_packet.rx_time as i64)
+                                            .unwrap_or_else(|| Utc::now()),
+                                        route_towards,
+                                        route_back,
+                                    })?;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::debug!("can't decode TracerouteApp payload: {:?}", e);
+                            }
+                        },
                         _ => {}
                     },
                     _ => {}
                 }
 
                 self.send_node_update_last_heard(&mesh_packet)?;
+            }
+            from_radio::PayloadVariant::ClientNotification(notification) => {
+                self.state_action_tx
+                    .send(StateAction::Toast(match notification.level() {
+                        log_record::Level::Warning => Toast::warning(notification.message),
+                        log_record::Level::Error | log_record::Level::Critical => Toast::error(notification.message),
+                        _ => Toast::normal(notification.message),
+                    }))?;
             }
             _ => {}
         }

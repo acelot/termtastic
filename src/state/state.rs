@@ -33,6 +33,7 @@ pub struct State {
     pub nodeinfo: Option<u32>,
     pub nodeinfo_telemetry: Vec<TelemetryItem>,
     pub nodes: HashMap<u32, Node>,
+    pub nodes_traceroutes: HashMap<u32, Vec<u32>>,
     pub nodes_stash: Vec<Node>,
     pub nodes_stash_cap: u32,
     pub nodes_last_telemetry: HashMap<u32, NodeLastTelemetry>,
@@ -52,6 +53,7 @@ pub struct State {
     pub toast: Option<Toast>,
     pub toast_queue: VecDeque<Toast>,
     pub toast_t: Instant,
+    pub traceroutes: OrderMap<u32, Traceroute>,
     pub ui_config: UiConfig,
 }
 
@@ -79,6 +81,7 @@ impl Default for State {
             my_node_user_hash: Default::default(),
             nodeinfo: None,
             nodeinfo_telemetry: Default::default(),
+            nodes_traceroutes: Default::default(),
             nodes_last_telemetry: Default::default(),
             nodes_sort_by: Default::default(),
             nodes_filter: Default::default(),
@@ -99,6 +102,7 @@ impl Default for State {
             toast_queue: Default::default(),
             toast_t: Instant::now(),
             toast: None,
+            traceroutes: Default::default(),
             ui_config: Default::default(),
         }
     }

@@ -1,6 +1,7 @@
+use chrono::{DateTime, Utc};
 use meshtastic::{
-    protobufs::{from_radio::PayloadVariant, mesh_packet, routing, PortNum, Routing},
     Message as _,
+    protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
@@ -165,6 +166,8 @@ impl ChatService {
                                 self.state_action_tx.send(StateAction::MessageErrorSet {
                                     message_id: data.request_id,
                                     error: Some(routing::Error::try_from(e).expect("invalid routing error")),
+                                    datetime: DateTime::from_timestamp_secs(packet.rx_time as i64)
+                                        .unwrap_or(Utc::now()),
                                 })?;
                             }
                         }

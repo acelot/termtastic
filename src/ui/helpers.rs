@@ -319,7 +319,7 @@ where
     trimmed
 }
 
-pub fn humanize_last_heard<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
+pub fn humanize_time_delta<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
     if delta.num_seconds() < 60 {
         return vec![Span::from("now").green()];
     }
@@ -339,7 +339,7 @@ pub fn humanize_last_heard<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
     }
 
     vec![
-        Span::from(format!("{}d", delta.num_days())),
+        Span::from(format!("{}d", delta.num_days())).dark_gray(),
         Span::from(" ago").dark_gray(),
     ]
 }
@@ -403,7 +403,7 @@ pub fn short_name_to_span(node: &Node, my: bool) -> Span<'_> {
 pub fn last_heard_to_spans(node: &Node, my: bool) -> Vec<Span<'_>> {
     match node.last_heard {
         Some(_) if my => vec![Span::from("now").blue()],
-        Some(dt) => humanize_last_heard(Utc::now().round_subsecs(0) - dt),
+        Some(dt) => humanize_time_delta(Utc::now().round_subsecs(0) - dt),
         None => vec![Span::from("?").dark_gray()],
     }
 }

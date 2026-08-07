@@ -96,22 +96,28 @@ impl Component for Header {
                     .my_node_key
                     .and_then(|my_node_key| state.nodes_last_telemetry.get(&my_node_key))
                     .and_then(|telemetry| telemetry.device_metrics.as_ref())
-                    .and_then(|device_metrics| device_metrics.data.battery_level.min(Some(100)))
+                    .and_then(|device_metrics| device_metrics.data.battery_level)
                 {
-                    let color = battery_level.battery_level_to_color();
+                    if battery_level > 100 {
+                        Line::from(vec![Span::from("\u{1F50C} PWR").dark_gray()])
+                            .right_aligned()
+                            .render(h1_h[2], frame.buffer_mut());
+                    } else {
+                        let color = battery_level.battery_level_to_color();
 
-                    Line::from(vec![Span::from(format!("{}%", battery_level)).fg(color)])
-                        .right_aligned()
-                        .render(h1_h[1], frame.buffer_mut());
+                        Line::from(vec![Span::from(format!("{}%", battery_level)).fg(color)])
+                            .right_aligned()
+                            .render(h1_h[1], frame.buffer_mut());
 
-                    LineGauge::default()
-                        .unfilled_symbol("\u{258C}")
-                        .unfilled_style(Style::new().dark_gray())
-                        .filled_symbol("\u{258C}")
-                        .filled_style(Style::new().fg(color))
-                        .ratio(battery_level as f64 / 100.0)
-                        .label("")
-                        .render(h1_h[2], frame.buffer_mut());
+                        LineGauge::default()
+                            .unfilled_symbol("\u{258C}")
+                            .unfilled_style(Style::new().dark_gray())
+                            .filled_symbol("\u{258C}")
+                            .filled_style(Style::new().fg(color))
+                            .ratio(battery_level as f64 / 100.0)
+                            .label("")
+                            .render(h1_h[2], frame.buffer_mut());
+                    }
                 }
 
                 if let Some(my_node) = state.get_my_node() {

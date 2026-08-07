@@ -4,6 +4,7 @@ use crate::ui::{
     prelude::*,
 };
 use crossterm::event::KeyModifiers;
+use itertools::Itertools;
 use ratatui::layout::Layout as RatatuiLayout;
 use std::ops::Sub;
 use std::time::{Duration, Instant};
@@ -90,6 +91,10 @@ impl<'a> Component for Layout<'a> {
                     }
                     NodeInfoWidgetEvent::NodeDeleteRequested => {
                         emit(AppEvent::NodeDeleteRequested(node_key))?;
+                        Ok(())
+                    }
+                    NodeInfoWidgetEvent::TracerouteRequested => {
+                        emit(AppEvent::TracerouteRequested(node_key))?;
                         Ok(())
                     }
                 },
@@ -263,7 +268,13 @@ impl<'a> Component for Layout<'a> {
 
 fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
     NodeInfoContext {
-        maybe_node: state.nodes.get(&node_key),
+        node_key,
+        nodes: &state.nodes,
+        traceroutes: state
+            .nodes_traceroutes
+            .get(&node_key)
+            .map(|ids| ids.iter().filter_map(|id| state.traceroutes.get(id)).sorted().collect())
+            .unwrap_or_default(),
         telemetry: &state.nodeinfo_telemetry,
         uptime: state
             .nodes_last_telemetry

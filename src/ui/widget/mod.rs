@@ -9,6 +9,7 @@ mod popup_input;
 mod reaction_viewer;
 mod tabs;
 mod terminal_size;
+mod three_column;
 
 pub use emoji_selector::*;
 pub use hotkeys::*;
@@ -21,3 +22,4 @@ pub use popup_input::*;
 pub use reaction_viewer::*;
 pub use tabs::*;
 pub use terminal_size::*;
+pub use three_column::*;

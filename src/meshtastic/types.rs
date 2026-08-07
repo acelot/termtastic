@@ -23,6 +23,8 @@ pub enum MeshtasticEvent {
     NodeInfoBroadcastFailed(String),
     NodeRemoveAccepted,
     NodeRemoveFailed(String),
+    TracerouteStarted,
+    TracerouteFailed(String),
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +92,10 @@ pub enum CommandToMeshtastic {
     },
     SaveCannedMessages {
         messages: String,
+        my_node_num: u32,
+    },
+    RunTraceroute {
+        node_num: u32,
         my_node_num: u32,
     },
 }

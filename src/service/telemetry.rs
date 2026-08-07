@@ -44,7 +44,13 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "battery level",
             device_metrics.data.battery_level,
-            device_metrics.data.battery_level.and_then(|v| Some(format!("{}%", v))),
+            device_metrics.data.battery_level.and_then(|v| {
+                if v > 100 {
+                    Some("\u{1F50C} PWR".to_owned())
+                } else {
+                    Some(format!("{}%", v))
+                }
+            }),
         ));
 
         items.push(TelemetryItem::item(

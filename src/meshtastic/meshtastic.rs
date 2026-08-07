@@ -2,7 +2,7 @@ use meshtastic::{
     Message,
     api::ConnectedStreamApi,
     packet::{PacketDestination, PacketRouter},
-    protobufs::{Config, FromRadio, MeshPacket, ModuleConfig, PortNum, admin_message, from_radio},
+    protobufs::{Config, FromRadio, MeshPacket, ModuleConfig, PortNum, RouteDiscovery, admin_message, from_radio},
     types::{EncodedMeshPacketData, MeshChannel, NodeId},
 };
 use std::convert::Infallible;
@@ -485,6 +485,34 @@ impl MeshtasticService {
                     Err(e) => self.event_tx.send(MeshtasticEvent::NodeRemoveFailed(e.to_string()))?,
                 };
             }
+            CommandToMeshtastic::RunTraceroute { node_num, my_node_num } => {
+                let mut packet_router = RetransmitPacketRouter {
+                    my_node_num,
+                    event_tx: &self.event_tx,
+                };
+
+                match self
+                    .stream_api
+                    .as_mut()
+                    .expect_or_log("should be connected")
+                    .send_mesh_packet(
+                        &mut packet_router,
+                        EncodedMeshPacketData::new(RouteDiscovery::default().encode_to_vec()),
+                        PortNum::TracerouteApp,
+                        PacketDestination::Node(NodeId::new(node_num)),
+                        MeshChannel::new(0)?,
+                        false, // want_ack
+                        true,  // want_response
+                        true,  // echo_response
+                        None,  // reply_id
+                        None,  // emoji
+                    )
+                    .await
+                {
+                    Ok(()) => self.event_tx.send(MeshtasticEvent::TracerouteStarted)?,
+                    Err(e) => self.event_tx.send(MeshtasticEvent::TracerouteFailed(e.to_string()))?,
+                };
+            }
         };
 
         Ok(())
@@ -556,7 +584,7 @@ impl MeshtasticService {
             .expect_or_log("should be connected")
             .send_mesh_packet(
                 &mut packet_router,
-                EncodedMeshPacketData::new(packet.encode_to_vec().into()),
+                EncodedMeshPacketData::new(packet.encode_to_vec()),
                 PortNum::AdminApp,
                 PacketDestination::Local,
                 MeshChannel::new(0)?,

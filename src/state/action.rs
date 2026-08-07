@@ -1,10 +1,11 @@
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use meshtastic::protobufs::{config, module_config, routing};
 
 use crate::types::{
     AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node,
-    NodeTelemetry, NodeUser, NodesSortBy, Toast, UiConfig,
+    NodeTelemetry, NodeUser, NodesSortBy, Toast, TracerouteItem, UiConfig,
 };
 
 #[derive(Debug)]
@@ -37,6 +38,7 @@ pub enum StateAction {
     MessageErrorSet {
         message_id: u32,
         error: Option<routing::Error>,
+        datetime: DateTime<Utc>,
     },
     MyNodeKeySet(u32),
     NodesStashPush(Node),
@@ -63,6 +65,20 @@ pub enum StateAction {
     TabSwitchToNext,
     TabSwitchToPrevious,
     Toast(Toast),
+    TracerouteStart {
+        message_id: u32,
+        node_key: u32,
+        datetime: DateTime<Utc>,
+    },
+    TracerouteTimeout {
+        message_id: u32,
+    },
+    TracerouteFinish {
+        message_id: u32,
+        datetime: DateTime<Utc>,
+        route_towards: Vec<TracerouteItem>,
+        route_back: Vec<TracerouteItem>,
+    },
     SettingsFormLoadingStart {
         id: FormId,
     },

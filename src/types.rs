@@ -1,7 +1,7 @@
 use crate::state::State;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use emoji::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
@@ -100,6 +100,7 @@ pub enum AppEvent {
     TelemetryArrived(NodeTelemetry),
     TabNextRequested,
     TabPreviousRequested,
+    TracerouteRequested(u32),
     TryingToQuit,
     QuitRequested,
 }
@@ -900,6 +901,59 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
             routing_error: None,
         })
     }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+pub struct Traceroute {
+    pub message_id: u32,
+    pub node_key: u32,
+    pub datetime: DateTime<Utc>,
+    pub routing_error: Option<routing::Error>,
+    pub duration: TimeDelta,
+    pub route_towards: Vec<TracerouteItem>,
+    pub route_back: Vec<TracerouteItem>,
+    pub state: TracerouteState,
+}
+
+impl Ord for Traceroute {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.datetime.cmp(&other.datetime).reverse()
+    }
+}
+
+impl Eq for Traceroute {}
+
+impl HopsSnrRssiAware for Vec<TracerouteItem> {
+    fn hops(&self) -> Option<u32> {
+        Some(self.iter().filter(|i| matches!(i, TracerouteItem::Node(_))).count() as u32)
+    }
+
+    fn snr(&self) -> f32 {
+        if let Some(TracerouteItem::Snr(snr)) = self.first() {
+            return *snr as f32;
+        }
+
+        0.0
+    }
+
+    fn rssi(&self) -> Option<i32> {
+        None
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+pub enum TracerouteState {
+    #[default]
+    Started,
+    RoutingError,
+    TimedOut,
+    Finished,
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+pub enum TracerouteItem {
+    Snr(i32),
+    Node(u32),
 }
 
 #[derive(Debug, Clone, Default)]

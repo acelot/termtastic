@@ -1,5 +1,5 @@
 use chrono::Utc;
-use meshtastic::protobufs::{config, module_config, telemetry};
+use meshtastic::protobufs::{config, module_config, routing, telemetry};
 use nameof::name_of;
 use std::collections::hash_map::Entry;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -11,7 +11,7 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::update_nodeinfo_telemetry;
-use crate::types::{Chat, NodeLastTelemetry, NodeLastTelemetryItem};
+use crate::types::{Chat, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteState};
 use crate::{
     state::{State, StateAction},
     types::{ConnectionState, DeviceDiscoveringState, FormItemKey, SettingsFormState, Tab},
@@ -824,12 +824,29 @@ impl Store {
                     changed.extend([name_of!(chats in State), name_of!(messages in State)]);
                 });
             }
-            StateAction::MessageErrorSet { message_id, error } => {
+            StateAction::MessageErrorSet {
+                message_id,
+                error,
+                datetime,
+            } => {
                 self.state_tx.send_if_modified(|state| {
                     if let Some(message) = state.messages.get_mut(&message_id) {
                         message.routing_error = error;
 
                         changed.push(name_of!(messages in State));
+
+                        return true;
+                    }
+
+                    if let Some(traceroute) = state.traceroutes.get_mut(&message_id) {
+                        traceroute.routing_error = error;
+                        traceroute.duration = datetime - traceroute.datetime;
+
+                        if !matches!(error, Some(routing::Error::None)) {
+                            traceroute.state = TracerouteState::RoutingError;
+                        }
+
+                        changed.push(name_of!(traceroutes in State));
 
                         return true;
                     }
@@ -960,6 +977,67 @@ impl Store {
                     state.ui_config = config;
 
                     changed.push(name_of!(ui_config in State));
+                });
+            }
+            StateAction::TracerouteStart {
+                message_id,
+                node_key,
+                datetime,
+            } => {
+                self.state_tx.send_modify(|state| {
+                    state.traceroutes.insert_sorted(
+                        message_id,
+                        Traceroute {
+                            message_id,
+                            node_key,
+                            datetime,
+                            ..Default::default()
+                        },
+                    );
+
+                    state
+                        .nodes_traceroutes
+                        .entry(node_key)
+                        .and_modify(|nt| nt.push(message_id))
+                        .or_insert(vec![message_id]);
+
+                    changed.extend([name_of!(traceroutes in State), name_of!(nodes_traceroutes in State)]);
+                });
+            }
+            StateAction::TracerouteTimeout { message_id } => {
+                self.state_tx.send_if_modified(|state| {
+                    let mut is_modified = false;
+
+                    state.traceroutes.entry(message_id).and_modify(|t| {
+                        t.state = TracerouteState::TimedOut;
+
+                        changed.push(name_of!(traceroutes in State));
+                        is_modified = true;
+                    });
+
+                    is_modified
+                });
+            }
+            StateAction::TracerouteFinish {
+                message_id,
+                datetime,
+                route_towards,
+                route_back,
+            } => {
+                self.state_tx.send_if_modified(|state| {
+                    let mut is_modified = false;
+
+                    state.traceroutes.entry(message_id).and_modify(|t| {
+                        t.duration = datetime - t.datetime;
+                        t.route_towards = route_towards;
+                        t.route_back = route_back;
+                        t.state = TracerouteState::Finished;
+
+                        changed.push(name_of!(traceroutes in State));
+                        is_modified = true;
+                    });
+
+                    is_modified
                 });
             }
         }

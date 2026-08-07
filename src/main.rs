@@ -40,7 +40,7 @@ Feature-rich handmade Meshtastic® console client written in Rust.
   -h, --help     Print help
   -V, --version  Print version
 
-\x1b[1mDirectories\x1b[22m:
+\x1b[1mDirectories used\x1b[22m:
   \x1b[2m  data\x1b[22m  {}
   \x1b[2mconfig\x1b[22m  {}",
             APP_NAME,
