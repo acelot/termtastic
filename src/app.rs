@@ -6,7 +6,7 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitEx
 use tracing_unwrap::ResultExt;
 
 use crate::APP_NAME;
-use crate::service::PersistenceService;
+use crate::service::{PersistenceService, TracerouteService};
 use crate::{
     log2state::LogToState,
     meshtastic::MeshtasticService,
@@ -71,6 +71,14 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         meshtastic_event_rx.resubscribe(),
     );
 
+    let traceroute_service = TracerouteService::new(
+        app_event_rx.resubscribe(),
+        state_rx.clone(),
+        persisted_state_action_tx.clone(),
+        meshtastic_command_tx.clone(),
+        meshtastic_event_rx.resubscribe(),
+    );
+
     let connection_service = ConnectionService::new(
         app_event_tx.clone(),
         app_event_rx.resubscribe(),
@@ -124,6 +132,11 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         s.start(SubsystemBuilder::new(
             "NodesService",
             async |subsys: &mut SubsystemHandle| nodes_service.run(subsys).await,
+        ));
+
+        s.start(SubsystemBuilder::new(
+            "TracerouteService",
+            async |subsys: &mut SubsystemHandle| traceroute_service.run(subsys).await,
         ));
 
         s.start(SubsystemBuilder::new(

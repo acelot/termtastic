@@ -309,23 +309,25 @@ impl<'a> NodeInfoWidget<'a> {
         // list
         let v0_h = Layout::horizontal([
             Constraint::Fill(4),
+            Constraint::Fill(1),
             Constraint::Fill(3),
             Constraint::Fill(3),
-            Constraint::Fill(3),
-            Constraint::Fill(3),
+            Constraint::Fill(2),
+            Constraint::Fill(2),
         ])
         .split(v[0]);
 
         Line::from(vec![Span::from("STATE").magenta()]).render(v0_h[0], buf);
-        Line::from(vec![Span::from("TOWARDS").magenta()]).render(v0_h[1], buf);
-        Line::from(vec![Span::from("BACK").magenta()]).render(v0_h[2], buf);
-        Line::from(vec![Span::from("TIME").magenta()]).render(v0_h[3], buf);
+        Line::from(vec![Span::from("ACK").magenta()]).render(v0_h[1], buf);
+        Line::from(vec![Span::from("TOWARDS").magenta()]).render(v0_h[2], buf);
+        Line::from(vec![Span::from("BACK").magenta()]).render(v0_h[3], buf);
+        Line::from(vec![Span::from("TIME").magenta()]).render(v0_h[4], buf);
         Line::from(vec![Span::from("WHEN").magenta()])
             .right_aligned()
-            .render(v0_h[4], buf);
+            .render(v0_h[5], buf);
 
         if traceroutes.is_empty() {
-            PlaceholderWidget::dark_gray("press \"r\" to run traceroute").render(v[1], buf);
+            PlaceholderWidget::dark_gray("press <r> to run traceroute").render(v[1], buf);
             return;
         };
 
@@ -464,48 +466,47 @@ impl<'a> Widget for TracerouteWidget<'a> {
 
         let h = Layout::horizontal([
             Constraint::Fill(4),
+            Constraint::Fill(1),
             Constraint::Fill(3),
             Constraint::Fill(3),
-            Constraint::Fill(3),
-            Constraint::Fill(3),
+            Constraint::Fill(2),
+            Constraint::Fill(2),
         ])
         .split(block_area);
 
         let selected_modifier = if self.is_selected {
-            Modifier::UNDERLINED
+            Modifier::UNDERLINED | Modifier::BOLD
         } else {
             Modifier::empty()
         };
 
         match &self.item.state {
             TracerouteState::Started => {
-                Span::from("started")
+                Span::from("pending")
                     .add_modifier(selected_modifier)
                     .yellow()
                     .render(h[0], buf);
-                Span::from("–").dark_gray().render(h[1], buf);
-                Span::from("–").dark_gray().render(h[2], buf);
-                Span::from(humanize_uptime((Utc::now() - self.item.datetime).num_seconds() as u32))
-                    .dark_gray()
-                    .render(h[3], buf);
+
+                Span::from(humanize_uptime(
+                    Utc::now().signed_duration_since(self.item.datetime).num_seconds() as u32,
+                ))
+                .dark_gray()
+                .render(h[4], buf);
             }
             TracerouteState::RoutingError => {
                 routing_error_to_span(self.item.routing_error)
                     .add_modifier(selected_modifier)
                     .render(h[0], buf);
-                Span::from("–").dark_gray().render(h[1], buf);
-                Span::from("–").dark_gray().render(h[2], buf);
+
                 Span::from(humanize_uptime(self.item.duration.num_seconds() as u32))
                     .dark_gray()
-                    .render(h[2], buf);
+                    .render(h[4], buf);
             }
             TracerouteState::TimedOut => {
                 Span::from("timed out")
-                    .red()
+                    .dark_gray()
                     .add_modifier(selected_modifier)
                     .render(h[0], buf);
-                Span::from("–").dark_gray().render(h[1], buf);
-                Span::from("–").dark_gray().render(h[2], buf);
             }
             TracerouteState::Finished => {
                 Span::from("finished")
@@ -513,19 +514,35 @@ impl<'a> Widget for TracerouteWidget<'a> {
                     .add_modifier(selected_modifier)
                     .render(h[0], buf);
 
-                Line::from(hops_to_spans(&self.item.route_towards, false)).render(h[1], buf);
-
-                Line::from(hops_to_spans(&self.item.route_back, false)).render(h[2], buf);
-
                 Span::from(humanize_uptime(self.item.duration.num_seconds() as u32))
                     .dark_gray()
-                    .render(h[3], buf);
+                    .render(h[4], buf);
             }
         }
 
-        Line::from(humanize_time_delta(self.item.duration))
-            .right_aligned()
-            .render(h[4], buf);
+        if self.item.acked {
+            Span::from("\u{2714}").green().render(h[1], buf);
+        } else {
+            Span::from("–").dark_gray().render(h[1], buf);
+        }
+
+        if !self.item.route_towards.is_empty() {
+            Line::from(hops_to_spans(&self.item.route_towards, false)).render(h[2], buf);
+        } else {
+            Span::from("–").dark_gray().render(h[2], buf);
+        }
+
+        if !self.item.route_back.is_empty() {
+            Line::from(hops_to_spans(&self.item.route_back, false)).render(h[3], buf);
+        } else {
+            Span::from("–").dark_gray().render(h[3], buf);
+        }
+
+        Line::from(humanize_time_delta(
+            Utc::now().signed_duration_since(self.item.datetime),
+        ))
+        .right_aligned()
+        .render(h[5], buf);
     }
 }
 

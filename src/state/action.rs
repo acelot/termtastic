@@ -79,6 +79,7 @@ pub enum StateAction {
         route_towards: Vec<TracerouteItem>,
         route_back: Vec<TracerouteItem>,
     },
+    TracerouteTrigger,
     SettingsFormLoadingStart {
         id: FormId,
     },

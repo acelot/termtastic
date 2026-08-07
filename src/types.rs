@@ -908,6 +908,7 @@ pub struct Traceroute {
     pub message_id: u32,
     pub node_key: u32,
     pub datetime: DateTime<Utc>,
+    pub acked: bool,
     pub routing_error: Option<routing::Error>,
     pub duration: TimeDelta,
     pub route_towards: Vec<TracerouteItem>,

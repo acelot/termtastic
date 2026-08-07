@@ -6,6 +6,7 @@ mod nodes;
 mod persistence;
 mod settings;
 mod telemetry;
+mod traceroute;
 mod ui;
 
 pub use chat::*;
@@ -16,4 +17,5 @@ pub use nodes::*;
 pub use persistence::*;
 pub use settings::*;
 pub use telemetry::*;
+pub use traceroute::*;
 pub use ui::*;

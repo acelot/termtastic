@@ -842,7 +842,9 @@ impl Store {
                         traceroute.routing_error = error;
                         traceroute.duration = datetime - traceroute.datetime;
 
-                        if !matches!(error, Some(routing::Error::None)) {
+                        if matches!(error, Some(routing::Error::None)) {
+                            traceroute.acked = true;
+                        } else {
                             traceroute.state = TracerouteState::RoutingError;
                         }
 
@@ -1001,6 +1003,8 @@ impl Store {
                         .and_modify(|nt| nt.push(message_id))
                         .or_insert(vec![message_id]);
 
+                    state.active_traceroutes.insert(message_id);
+
                     changed.extend([name_of!(traceroutes in State), name_of!(nodes_traceroutes in State)]);
                 });
             }
@@ -1010,10 +1014,16 @@ impl Store {
 
                     state.traceroutes.entry(message_id).and_modify(|t| {
                         t.state = TracerouteState::TimedOut;
+                        t.duration = Utc::now().signed_duration_since(t.datetime);
 
                         changed.push(name_of!(traceroutes in State));
                         is_modified = true;
                     });
+
+                    if state.active_traceroutes.remove(&message_id) {
+                        changed.push(name_of!(active_traceroutes in State));
+                        is_modified = true;
+                    }
 
                     is_modified
                 });
@@ -1037,7 +1047,19 @@ impl Store {
                         is_modified = true;
                     });
 
+                    if state.active_traceroutes.remove(&message_id) {
+                        changed.push(name_of!(active_traceroutes in State));
+                        is_modified = true;
+                    }
+
                     is_modified
+                });
+            }
+            StateAction::TracerouteTrigger => {
+                self.state_tx.send_modify(|state| {
+                    state.traceroute_t = Instant::now();
+
+                    changed.push(name_of!(traceroute_t in State));
                 });
             }
         }
@@ -1092,7 +1114,11 @@ impl Store {
                 state.toast = state.toast_queue.pop_front();
                 state.toast_t = Instant::now();
 
-                changed.extend([name_of!(toast in State), name_of!(toast_t in State)]);
+                changed.extend([
+                    name_of!(toast_queue in State),
+                    name_of!(toast in State),
+                    name_of!(toast_t in State),
+                ]);
             }
 
             !changed.is_empty()

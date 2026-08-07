@@ -115,13 +115,13 @@ fn setup_terminal(supports_keyboard_enhancement: bool) -> io::Result<Terminal<Cr
 }
 
 fn restore_terminal(supports_keyboard_enhancement: bool) -> io::Result<()> {
-    disable_raw_mode()?;
-
-    execute!(stdout(), LeaveAlternateScreen, DisableBracketedPaste)?;
-
     if supports_keyboard_enhancement {
         execute!(stdout(), PopKeyboardEnhancementFlags)?;
     }
+
+    execute!(stdout(), DisableBracketedPaste, LeaveAlternateScreen)?;
+
+    disable_raw_mode()?;
 
     Ok(())
 }

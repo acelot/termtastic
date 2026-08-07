@@ -117,6 +117,7 @@ impl<'a> StatefulWidget for PopupInputWidget<'a> {
         textarea_block.render(v[0], buf);
 
         state.textarea.set_style(Style::new().fg(color));
+        state.textarea.set_cursor_line_style(Style::default());
         state.textarea.render(textarea_block_area, buf);
 
         if let Some(text) = &state.error {
