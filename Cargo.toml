@@ -31,7 +31,7 @@ single_match = "allow"
 ansi-to-tui = { version = "8.0.1" }
 anyhow = { version = "1.0.102" }
 arboard = { version = "3.6.1", features = ["wayland-data-control"] }
-base64 = { version = "0.22.1" }
+base64 = { version = "0.23.1" }
 btleplug = { version = "0.12.0" }
 chrono = { version = "0.4.45", features = ["serde"] }
 confy = { version = "2.0.0", default-features = false, features = ["ron_conf"] }
