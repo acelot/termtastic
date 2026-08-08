@@ -2,7 +2,7 @@ use crate::state::State;
 use crate::types::{ChannelRole, Chat, HopsSnrRssiAware, Node};
 use base64::prelude::BASE64_STANDARD;
 use base64::{DecodeError, Engine};
-use chrono::{SubsecRound, TimeDelta, Utc};
+use chrono::{DateTime, SubsecRound, TimeDelta, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use emoji::Emoji;
 use itertools::Itertools;
@@ -167,6 +167,20 @@ impl StringExt for String {
         }
 
         result
+    }
+}
+
+pub trait DateTimeExt {
+    fn timestamp_to_datetime(self) -> Option<DateTime<Utc>>;
+}
+
+impl DateTimeExt for u32 {
+    fn timestamp_to_datetime(self) -> Option<DateTime<Utc>> {
+        if self == 0 {
+            return None;
+        }
+
+        DateTime::from_timestamp_secs(self as i64)
     }
 }
 

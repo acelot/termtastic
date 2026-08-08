@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use meshtastic::{
     Message as _,
     protobufs::{
@@ -14,13 +14,13 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::state::State;
 use crate::types::{NodeTelemetry, Toast};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
     types::{AppEvent, Node},
 };
+use crate::{state::State, ui::helpers::DateTimeExt};
 
 pub const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 2;
@@ -139,7 +139,7 @@ impl NodesService {
     ) -> anyhow::Result<()> {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet)?,
+                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
                 MeshtasticEvent::NodeInfoBroadcastSent => self
                     .state_action_tx
                     .send(StateAction::Toast(Toast::success("NodeInfo broadcast sent")))?,
@@ -243,7 +243,7 @@ impl NodesService {
                             }) => {
                                 let node_telemetry = NodeTelemetry {
                                     node_key: mesh_packet.from,
-                                    datetime: DateTime::from_timestamp(time as i64, 0).unwrap_or_else(|| Utc::now()),
+                                    datetime: time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                     variant: data.clone(),
                                 };
 

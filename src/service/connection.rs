@@ -18,7 +18,7 @@ const RECONNECTION_BACKOFF_BASE_MILLIS: u64 = 1_000;
 const RECONNECTION_BACKOFF_MAX_MILLIS: u64 = 30_000;
 const BLE_DISCOVERY_TIMEOUT_SECS: u64 = 5;
 const MDNS_DISCOVERY_TIMEOUT_SECS: u64 = 5;
-const MDNS_MESHTASTIC_DOMAIN: &'static str = "_meshtastic._tcp.local.";
+const MDNS_MESHTASTIC_DOMAIN: &str = "_meshtastic._tcp.local.";
 
 pub struct ConnectionService {
     app_event_tx: broadcast::Sender<AppEvent>,
@@ -152,7 +152,9 @@ impl ConnectionService {
                         .send(StateAction::Toast(Toast::normal("disconnected")))?;
                 }
                 MeshtasticEvent::IncomingPacket(packet) => {
-                    match &packet {
+                    let packet = &*packet;
+
+                    match packet {
                         from_radio::PayloadVariant::MyInfo(my_info) => {
                             self.my_node_key = Some(my_info.my_node_num);
 
@@ -189,18 +191,19 @@ impl ConnectionService {
                             self.state_action_tx
                                 .send(StateAction::Toast(Toast::success("device has been rebooted")))?;
                         }
+                        from_radio::PayloadVariant::Packet(mesh_packet) => {
+                            let state = &self.state_rx.borrow();
+                            let from = state.nodes.get(&mesh_packet.from).and_then(|n| Some(n.short_name()));
+                            let to = state.nodes.get(&mesh_packet.to).and_then(|n| Some(n.short_name()));
+
+                            tracing::debug!("MESH PACKET from=\"{:?}\" to=\"{:?}\": {:?}", from, to, mesh_packet);
+                        }
                         _ => {}
                     }
 
                     self.state_action_tx.send(StateAction::RxTrigger)?;
 
-                    if let from_radio::PayloadVariant::Packet(p) = packet {
-                        let state = &self.state_rx.borrow();
-                        let from = state.nodes.get(&p.from).and_then(|n| Some(n.short_name()));
-                        let to = state.nodes.get(&p.to).and_then(|n| Some(n.short_name()));
-
-                        tracing::debug!("PACKET from=\"{:?}\" to=\"{:?}\": {:?}", from, to, p);
-                    } else {
+                    if !matches!(packet, from_radio::PayloadVariant::Packet(_)) {
                         tracing::debug!("PACKET {:?}", packet);
                     }
                 }

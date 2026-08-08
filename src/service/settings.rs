@@ -164,7 +164,7 @@ impl SettingsService {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::IncomingPacket(packet) => {
-                    self.handle_meshtastic_packet(packet)?;
+                    self.handle_meshtastic_packet(*packet)?;
                 }
                 MeshtasticEvent::ConfigSaveFailed(form_id)
                 | MeshtasticEvent::ChannelsSaveFailed(form_id)

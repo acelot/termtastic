@@ -9,7 +9,7 @@ pub enum MeshtasticEvent {
     Connected,
     ConnectionError(String),
     Disconnected,
-    IncomingPacket(from_radio::PayloadVariant),
+    IncomingPacket(Box<from_radio::PayloadVariant>),
     MessageAccepted,
     MessageRejected(String),
     RadioStopped,

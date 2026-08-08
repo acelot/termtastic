@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::service::TRACEROUTE_TIMEOUT_SECS;
 use crate::types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteState};
 use crate::ui::helpers::{
     Base64EncoderExt, ListStateExt, default_scrollbar, hops_to_spans, humanize_time_delta, humanize_uptime,
@@ -507,6 +508,10 @@ impl<'a> Widget for TracerouteWidget<'a> {
                     .dark_gray()
                     .add_modifier(selected_modifier)
                     .render(h[0], buf);
+
+                Span::from(humanize_uptime(TRACEROUTE_TIMEOUT_SECS as u32))
+                    .dark_gray()
+                    .render(h[4], buf);
             }
             TracerouteState::Finished => {
                 Span::from("finished")

@@ -22,7 +22,7 @@ const RX_TIMEOUT_MILLIS: u128 = 250;
 const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
 const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 1500;
 
-const NODES_VIEW_WATCHLIST: [&'static str; 4] = [
+const NODES_VIEW_WATCHLIST: [&str; 4] = [
     name_of!(my_node_key in State),
     name_of!(nodes in State),
     name_of!(nodes_filter in State),

@@ -1,4 +1,5 @@
 use crate::state::State;
+use crate::ui::helpers::DateTimeExt;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
 use chrono::{DateTime, TimeDelta, TimeZone, Utc};
@@ -585,17 +586,11 @@ impl TryFrom<&meshtastic::protobufs::NodeInfo> for Node {
     type Error = anyhow::Error;
 
     fn try_from(value: &meshtastic::protobufs::NodeInfo) -> Result<Self, Self::Error> {
-        let last_heard = if value.last_heard > 0 {
-            DateTime::from_timestamp(value.last_heard as i64, 0)
-        } else {
-            None
-        };
-
         let mut node = Self {
             key: value.num,
             user: value.user.as_ref().map(|u| u.into()),
             hops: value.hops_away,
-            last_heard,
+            last_heard: value.last_heard.timestamp_to_datetime(),
             snr: value.snr,
             rssi: None,
             is_favorite: value.is_favorite,
@@ -616,11 +611,7 @@ impl From<&meshtastic::protobufs::MeshPacket> for Node {
             key: packet.from,
             user: None,
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
-            last_heard: if packet.rx_time > 0 {
-                DateTime::from_timestamp(packet.rx_time as i64, 0)
-            } else {
-                None
-            },
+            last_heard: packet.rx_time.timestamp_to_datetime(),
             snr: packet.rx_snr,
             rssi: Some(packet.rx_rssi),
             is_favorite: false,
@@ -641,17 +632,11 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::User)>
     fn try_from(
         (packet, user): (&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::User),
     ) -> Result<Self, Self::Error> {
-        let last_heard = if packet.rx_time > 0 {
-            DateTime::from_timestamp(packet.rx_time as i64, 0)
-        } else {
-            None
-        };
-
         let mut node = Self {
             key: packet.from,
             user: Some(user.into()),
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
-            last_heard,
+            last_heard: packet.rx_time.timestamp_to_datetime(),
             snr: packet.rx_snr,
             rssi: Some(packet.rx_rssi),
             is_favorite: false,

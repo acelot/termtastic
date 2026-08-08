@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use meshtastic::{
     Message as _,
     protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
@@ -7,13 +7,13 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 use tracing_unwrap::OptionExt;
 
-use crate::state::State;
 use crate::types::{Chat, UNKNOWN_NODE};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent, TextMessage},
     state::StateAction,
     types::{AppEvent, Message, Toast},
 };
+use crate::{state::State, ui::helpers::DateTimeExt};
 
 pub struct ChatService {
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -134,7 +134,7 @@ impl ChatService {
     ) -> anyhow::Result<()> {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet)?,
+                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
                 MeshtasticEvent::MessageRejected(e) => {
                     tracing::error!("message rejected: {}", e);
 
@@ -166,8 +166,7 @@ impl ChatService {
                                 self.state_action_tx.send(StateAction::MessageErrorSet {
                                     message_id: data.request_id,
                                     error: Some(routing::Error::try_from(e).expect("invalid routing error")),
-                                    datetime: DateTime::from_timestamp_secs(packet.rx_time as i64)
-                                        .unwrap_or(Utc::now()),
+                                    datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                 })?;
                             }
                         }

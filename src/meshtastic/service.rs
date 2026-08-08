@@ -413,7 +413,7 @@ impl MeshtasticService {
                     .expect_or_log("should be connected")
                     .send_mesh_packet(
                         &mut NullPacketRouter {},
-                        EncodedMeshPacketData::new(user.encode_to_vec().into()),
+                        EncodedMeshPacketData::new(user.encode_to_vec()),
                         PortNum::NodeinfoApp,
                         PacketDestination::Broadcast,
                         MeshChannel::from(channel_id),
@@ -547,11 +547,11 @@ impl MeshtasticService {
             handle.abort();
         }
 
-        if let Some(subsys) = self.radio_subsys.take() {
-            if !subsys.is_finished() {
-                subsys.initiate_shutdown();
-                subsys.join().await?;
-            }
+        if let Some(subsys) = self.radio_subsys.take()
+            && !subsys.is_finished()
+        {
+            subsys.initiate_shutdown();
+            subsys.join().await?;
         }
 
         if let Some(stream_api) = self.stream_api.take() {
@@ -630,17 +630,16 @@ enum RetransmitPacketRouterErr {
 impl<'a> PacketRouter<(), RetransmitPacketRouterErr> for RetransmitPacketRouter<'a> {
     fn handle_packet_from_radio(&mut self, packet: FromRadio) -> Result<(), RetransmitPacketRouterErr> {
         if let Some(payload) = packet.payload_variant {
-            self.event_tx.send(MeshtasticEvent::IncomingPacket(payload))?;
+            self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(payload)))?;
         }
 
         Ok(())
     }
 
     fn handle_mesh_packet(&mut self, packet: MeshPacket) -> Result<(), RetransmitPacketRouterErr> {
-        self.event_tx
-            .send(MeshtasticEvent::IncomingPacket(from_radio::PayloadVariant::Packet(
-                packet,
-            )))?;
+        self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(
+            from_radio::PayloadVariant::Packet(packet),
+        )))?;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use std::{ops::Sub, time::Duration};
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use itertools::Itertools;
 use meshtastic::{
     Message as _,
@@ -15,17 +15,21 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::types::{Toast, TracerouteItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
     types::AppEvent,
 };
 use crate::{state::State, types::TracerouteState};
+use crate::{
+    types::{Toast, TracerouteItem},
+    ui::helpers::DateTimeExt,
+};
+
+pub const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
 
 const CHECK_TRACEROUTE_INTERVAL_SECS: u64 = 1;
 const TRACEROUTE_COOLDOWN_SECS: i64 = 30;
-const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
 
 pub struct TracerouteService {
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -115,7 +119,7 @@ impl TracerouteService {
     ) -> anyhow::Result<()> {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(packet)?,
+                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
                 MeshtasticEvent::TracerouteStarted => {
                     self.state_action_tx
                         .send(StateAction::Toast(Toast::normal("traceroute started")))?;
@@ -147,8 +151,7 @@ impl TracerouteService {
                                 self.state_action_tx.send(StateAction::TracerouteStart {
                                     node_key: mesh_packet.to,
                                     message_id: mesh_packet.id,
-                                    datetime: DateTime::from_timestamp_secs(mesh_packet.rx_time as i64)
-                                        .unwrap_or_else(|| Utc::now()),
+                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                 })?;
                             } else {
                                 let route_towards = route_discovery
@@ -167,8 +170,7 @@ impl TracerouteService {
 
                                 self.state_action_tx.send(StateAction::TracerouteFinish {
                                     message_id: data.request_id,
-                                    datetime: DateTime::from_timestamp_secs(mesh_packet.rx_time as i64)
-                                        .unwrap_or_else(|| Utc::now()),
+                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                     route_towards,
                                     route_back,
                                 })?;
