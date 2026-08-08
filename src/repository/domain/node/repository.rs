@@ -11,7 +11,7 @@ impl Repository {
             .conn
             .call(|conn| -> Result<_, RepositoryError> {
                 let mut statement = conn.prepare(&format!("SELECT * FROM {}", TABLE_NAME))?;
-                let result: Result<_, _> = from_rows::<Node>(statement.query([])?).into_iter().collect();
+                let result: Result<_, _> = from_rows::<Node>(statement.query([])?).collect();
 
                 result.map_err(Into::into)
             })

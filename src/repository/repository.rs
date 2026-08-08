@@ -12,11 +12,11 @@ const MIGRATIONS: Migrations<'_> = Migrations::from_slice(MIGRATIONS_LIST);
 pub async fn create_sqlite_repository<'a>(file_path: PathBuf) -> Result<Repository, anyhow::Error> {
     let conn = Connection::open(file_path).await?;
 
-    conn.call(|mut conn| {
+    conn.call(|conn| {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
 
-        MIGRATIONS.to_latest(&mut conn)
+        MIGRATIONS.to_latest(conn)
     })
     .await?;
 

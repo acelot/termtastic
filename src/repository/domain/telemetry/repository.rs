@@ -13,7 +13,7 @@ impl Repository {
             .conn
             .call(|conn| -> Result<_, RepositoryError> {
                 let mut statement = conn.prepare(&format!("SELECT * FROM {}", TABLE_NAME))?;
-                let result: Result<_, _> = from_rows::<Telemetry>(statement.query([])?).into_iter().collect();
+                let result: Result<_, _> = from_rows::<Telemetry>(statement.query([])?).collect();
 
                 result.map_err(Into::into)
             })
@@ -43,7 +43,6 @@ impl Repository {
                 ))?;
 
                 let result: Result<_, _> = from_rows::<Telemetry>(statement.query(params![node_key])?)
-                    .into_iter()
                     .collect();
 
                 result.map_err(Into::into)
@@ -73,7 +72,6 @@ impl Repository {
                 ))?;
 
                 from_rows::<Telemetry>(statement.query([])?)
-                    .into_iter()
                     .collect::<Result<Vec<Telemetry>, _>>()
                     .map(|valid_items| {
                         valid_items

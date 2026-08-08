@@ -561,7 +561,7 @@ impl Store {
                             if telemetry
                                 .device_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.device_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -573,7 +573,7 @@ impl Store {
                             if telemetry
                                 .environment_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.environment_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -585,7 +585,7 @@ impl Store {
                             if telemetry
                                 .air_quality_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.air_quality_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -597,7 +597,7 @@ impl Store {
                             if telemetry
                                 .power_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.power_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -609,7 +609,7 @@ impl Store {
                             if telemetry
                                 .local_stats
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.local_stats = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -621,7 +621,7 @@ impl Store {
                             if telemetry
                                 .health_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.health_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -633,7 +633,7 @@ impl Store {
                             if telemetry
                                 .host_metrics
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.host_metrics = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -645,7 +645,7 @@ impl Store {
                             if telemetry
                                 .traffic_management_stats
                                 .as_ref()
-                                .map_or(true, |m| node_telemetry.datetime > m.datetime)
+                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
                             {
                                 telemetry.traffic_management_stats = Some(NodeLastTelemetryItem {
                                     data: metrics,
@@ -723,13 +723,12 @@ impl Store {
                         Chat::Channel(key) => {
                             if state
                                 .channels
-                                .get(&key)
-                                .and_then(|ch| Some(ch.role.is_disabled()))
+                                .get(&key).map(|ch| ch.role.is_disabled())
                                 .unwrap_or(false)
                             {
                                 state.chats.remove(&chat);
                             } else {
-                                state.chats.get_mut(&chat).map(|messages| messages.clear());
+                                if let Some(messages) = state.chats.get_mut(&chat) { messages.clear() }
                             }
                         }
                         Chat::Direct(_) => {

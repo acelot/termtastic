@@ -79,10 +79,10 @@ impl ConnectionService {
                     self.meshtastic_command_tx.send(CommandToMeshtastic::Disconnect)?;
                 }
                 AppEvent::DeviceRediscoverRequested => {
-                    if {
+                    let res = {
                         let state = &self.state_rx.borrow();
                         state.device_discovering_state.is_scanning()
-                    } {
+                    }; if res {
                         return Ok(());
                     }
 
@@ -193,8 +193,8 @@ impl ConnectionService {
                         }
                         from_radio::PayloadVariant::Packet(mesh_packet) => {
                             let state = &self.state_rx.borrow();
-                            let from = state.nodes.get(&mesh_packet.from).and_then(|n| Some(n.short_name()));
-                            let to = state.nodes.get(&mesh_packet.to).and_then(|n| Some(n.short_name()));
+                            let from = state.nodes.get(&mesh_packet.from).map(|n| n.short_name());
+                            let to = state.nodes.get(&mesh_packet.to).map(|n| n.short_name());
 
                             tracing::debug!("MESH PACKET from=\"{:?}\" to=\"{:?}\": {:?}", from, to, mesh_packet);
                         }
@@ -253,7 +253,7 @@ impl ConnectionService {
                 .send(CommandToMeshtastic::ConnectViaTcp(address.clone()))?,
             Device::Ble { address, id, .. } => self
                 .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaBle(address.clone(), id.clone()))?,
+                .send(CommandToMeshtastic::ConnectViaBle(*address, id.clone()))?,
             Device::Serial { address, .. } => self
                 .meshtastic_command_tx
                 .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned()))?,
@@ -341,8 +341,7 @@ async fn discover_tcp_devices(state_action_tx: mpsc::UnboundedSender<StateAction
                     for addr in info.addresses.iter() {
                         let short_name = info
                             .txt_properties
-                            .get("shortname")
-                            .and_then(|txt| Some(txt.val_str().to_owned()));
+                            .get("shortname").map(|txt| txt.val_str().to_owned());
 
                         match addr {
                             mdns_sd::ScopedIp::V4(ipv4) => {

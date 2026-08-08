@@ -27,7 +27,7 @@ use crate::{
     state::{State, StateAction},
 };
 
-pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(|| build_settings());
+pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(build_settings);
 
 pub struct SettingsService {
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -266,7 +266,7 @@ impl SettingsService {
         self.state_action_tx
             .send(StateAction::SettingsFormLoadingStart { id: id.clone() })?;
 
-        match self.load_config(&id) {
+        match self.load_config(id) {
             Ok(data) => self
                 .state_action_tx
                 .send(StateAction::SettingsFormLoadingDone { id: id.clone(), data })?,
@@ -457,18 +457,18 @@ impl SettingsService {
         match id {
             FormId::AppUi => {
                 self.state_action_tx.send(StateAction::UiConfigSet {
-                    config: from_formdata::<UiConfig>(&form_data)?,
+                    config: from_formdata::<UiConfig>(form_data)?,
                 })?;
             }
             FormId::RadioLora => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(&form_data)?),
+                    config: config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(form_data)?),
                 })?;
             }
             FormId::RadioChannels => {
-                let channels = from_formdata::<OrderMap<String, Channel>>(&form_data)?;
+                let channels = from_formdata::<OrderMap<String, Channel>>(form_data)?;
                 let msh_channels = channels
                     .iter()
                     .map(|(_, ch)| Into::<MeshtasticChannel>::into(ch))
@@ -486,56 +486,56 @@ impl SettingsService {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Security(from_formdata::<SecurityConfig>(&form_data)?),
+                    config: config::PayloadVariant::Security(from_formdata::<SecurityConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceDevice => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Device(from_formdata::<DeviceConfig>(&form_data)?),
+                    config: config::PayloadVariant::Device(from_formdata::<DeviceConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceUser => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveUser {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    user: from_formdata::<NodeUser>(&form_data)?.into(),
+                    user: from_formdata::<NodeUser>(form_data)?.into(),
                 })?;
             }
             FormId::DevicePosition => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(&form_data)?),
+                    config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(form_data)?),
                 })?;
             }
             FormId::DevicePower => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Power(from_formdata::<PowerConfig>(&form_data)?),
+                    config: config::PayloadVariant::Power(from_formdata::<PowerConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceDisplay => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Display(from_formdata::<DisplayConfig>(&form_data)?),
+                    config: config::PayloadVariant::Display(from_formdata::<DisplayConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceBluetooth => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Bluetooth(from_formdata::<BluetoothConfig>(&form_data)?),
+                    config: config::PayloadVariant::Bluetooth(from_formdata::<BluetoothConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceNetwork => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: config::PayloadVariant::Network(from_formdata::<NetworkConfig>(&form_data)?),
+                    config: config::PayloadVariant::Network(from_formdata::<NetworkConfig>(form_data)?),
                 })?;
             }
             FormId::DeviceAdministration => {}
@@ -543,14 +543,14 @@ impl SettingsService {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: module_config::PayloadVariant::Mqtt(from_formdata::<MqttConfig>(&form_data)?),
+                    config: module_config::PayloadVariant::Mqtt(from_formdata::<MqttConfig>(form_data)?),
                 })?;
             }
             FormId::ModuleSerial => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: module_config::PayloadVariant::Serial(from_formdata::<SerialConfig>(&form_data)?),
+                    config: module_config::PayloadVariant::Serial(from_formdata::<SerialConfig>(form_data)?),
                 })?;
             }
             FormId::ModuleExternalNotification => {
@@ -559,7 +559,7 @@ impl SettingsService {
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::ExternalNotification(from_formdata::<
                         ExternalNotificationConfig,
-                    >(&form_data)?),
+                    >(form_data)?),
                 })?;
             }
             FormId::ModuleStoreAndForward => {
@@ -567,7 +567,7 @@ impl SettingsService {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::StoreForward(from_formdata::<StoreForwardConfig>(
-                        &form_data,
+                        form_data,
                     )?),
                 })?;
             }
@@ -575,14 +575,14 @@ impl SettingsService {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: module_config::PayloadVariant::RangeTest(from_formdata::<RangeTestConfig>(&form_data)?),
+                    config: module_config::PayloadVariant::RangeTest(from_formdata::<RangeTestConfig>(form_data)?),
                 })?;
             }
             FormId::ModuleTelemetry => {
                 self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
-                    config: module_config::PayloadVariant::Telemetry(from_formdata::<TelemetryConfig>(&form_data)?),
+                    config: module_config::PayloadVariant::Telemetry(from_formdata::<TelemetryConfig>(form_data)?),
                 })?;
             }
             FormId::ModuleCannedMessage => {
@@ -612,7 +612,7 @@ impl SettingsService {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::NeighborInfo(from_formdata::<NeighborInfoConfig>(
-                        &form_data,
+                        form_data,
                     )?),
                 })?;
             }
@@ -621,7 +621,7 @@ impl SettingsService {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::AmbientLighting(from_formdata::<AmbientLightingConfig>(
-                        &form_data,
+                        form_data,
                     )?),
                 })?;
             }
@@ -630,7 +630,7 @@ impl SettingsService {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::DetectionSensor(from_formdata::<DetectionSensorConfig>(
-                        &form_data,
+                        form_data,
                     )?),
                 })?;
             }
@@ -639,7 +639,7 @@ impl SettingsService {
                     form_id: id.clone(),
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::TrafficManagement(from_formdata::<TrafficManagementConfig>(
-                        &form_data,
+                        form_data,
                     )?),
                 })?;
             }

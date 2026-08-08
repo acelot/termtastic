@@ -74,6 +74,7 @@ pub struct NodeInfoContext<'a> {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct NodeInfoWidgetState {
     active_tab: NodeInfoTab,
     traceroute_list_state: ListState,
@@ -81,16 +82,6 @@ pub struct NodeInfoWidgetState {
     is_delete_node_popup_visible: bool,
 }
 
-impl Default for NodeInfoWidgetState {
-    fn default() -> Self {
-        Self {
-            active_tab: NodeInfoTab::default(),
-            traceroute_list_state: ListState::default(),
-            telemetry_list_state: ListState::default(),
-            is_delete_node_popup_visible: false,
-        }
-    }
-}
 
 impl NodeInfoWidgetState {
     pub fn handle_event(
@@ -248,8 +239,7 @@ impl<'a> NodeInfoWidget<'a> {
             third: Some(InfoWidget::new(
                 "uptime",
                 self.context
-                    .uptime
-                    .and_then(|s| Some(Span::from(humanize_uptime(s))))
+                    .uptime.map(|s| Span::from(humanize_uptime(s)))
                     .unwrap_or(Span::from("no data").dark_gray()),
             )),
         }
@@ -336,7 +326,7 @@ impl<'a> NodeInfoWidget<'a> {
 
         let list_builder = ListBuilder::new(|context| {
             let widget = TracerouteWidget {
-                item: &traceroutes[context.index],
+                item: traceroutes[context.index],
                 is_selected: context.is_selected,
             };
 
@@ -591,8 +581,7 @@ impl<'a> Widget for TelemetryItemWidget<'a> {
                 .render(v[0], buf);
 
                 formatted_value
-                    .as_ref()
-                    .and_then(|v| Some(Span::from(v)))
+                    .as_ref().map(Span::from)
                     .unwrap_or(Span::from("no data").dark_gray())
                     .add_modifier(if self.is_selected {
                         Modifier::UNDERLINED | Modifier::BOLD

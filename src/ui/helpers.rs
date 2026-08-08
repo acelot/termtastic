@@ -94,7 +94,7 @@ pub trait Base64EncoderExt {
 
 impl Base64EncoderExt for Vec<u8> {
     fn base64_encode(&self) -> String {
-        BASE64_STANDARD.encode(&self)
+        BASE64_STANDARD.encode(self)
     }
 }
 
@@ -235,8 +235,7 @@ pub fn chat_to_spans<'a>(chat: &'a Chat, state: &'a State) -> Vec<Span<'a>> {
                 .device_config
                 .lora
                 .as_ref()
-                .and_then(|lora| config::lo_ra_config::ModemPreset::try_from(lora.modem_preset).ok())
-                .and_then(|preset| Some(preset.as_channel_name()));
+                .and_then(|lora| config::lo_ra_config::ModemPreset::try_from(lora.modem_preset).ok()).map(|preset| preset.as_channel_name());
 
             let Some(channel) = state.channels.get(channel_key) else {
                 return vec![Span::from(format!("!{:x}", channel_key))];
@@ -489,7 +488,7 @@ impl ListStateExt for ListState {
     }
 
     fn fix_selection(&mut self, items_count: usize) {
-        if self.selected.and_then(|i| Some(i >= items_count)).unwrap_or(false) {
+        if self.selected.map(|i| i >= items_count).unwrap_or(false) {
             self.selected = None;
         }
 

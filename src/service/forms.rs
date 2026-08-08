@@ -33,7 +33,7 @@ use crate::types::{
 };
 use nameof::name_of;
 
-pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(|| build_forms());
+pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(build_forms);
 
 static DEFAULT_MAP_REPORT_SETTINGS: LazyLock<FormData> =
     LazyLock::new(|| to_formdata(&MapReportSettings::default()).unwrap());
@@ -270,8 +270,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    RegionCode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    RegionCode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -294,8 +293,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    ModemPreset::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    ModemPreset::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -308,7 +306,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     value: 31 -> 31.25 kHz. (*) The field only makes sense if \"Use Preset\" field is set to false.",
                 ),
                 FormItemKind::InputOfUnsignedInt32,
-                |v| format!("{} kHz", v.to_string()),
+                |v| format!("{} kHz", v),
                 |v| {
                     (31..=500)
                         .contains(&v.as_u32())
@@ -403,7 +401,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("6 hops", 6u32),
                     FormEnumVariant::new("7 hops", 7u32),
                 ]),
-                |v| format!("{} hop(s)", v.to_string()),
+                |v| format!("{} hop(s)", v),
                 |_| Ok(()),
             ),
             FormItem::new(
@@ -446,7 +444,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::InputOfFloat32,
                 |v| {
                     if v.as_f32() > 0.0 {
-                        format!("{} MHz", v.to_string())
+                        format!("{} MHz", v)
                     } else {
                         "not set".to_owned()
                     }
@@ -466,7 +464,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     out the radio hardware).",
                 ),
                 FormItemKind::InputOfInt32,
-                |v| format!("{} dBm", v.to_string()),
+                |v| format!("{} dBm", v),
                 |v| {
                     (-100..=100)
                         .contains(&v.as_i32())
@@ -529,8 +527,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(admin_key in SecurityConfig))
                             .expect("should exists")
-                            .as_vec()
-                            .get(0)
+                            .as_vec().first()
                             .cloned()
                             .unwrap_or(FormValue::Vec(vec![]))
                     },
@@ -719,8 +716,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    Role::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    Role::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -735,8 +731,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    RebroadcastMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    RebroadcastMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -845,7 +840,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("90 seconds", 90u32),
                     FormEnumVariant::new("5 minutes", 300u32),
                     FormEnumVariant::new("15 minutes", 900u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -941,8 +936,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    GpsMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    GpsMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1214,8 +1208,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    DisplayUnits::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    DisplayUnits::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1302,8 +1295,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    DisplayMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    DisplayMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1318,8 +1310,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    OledType::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    OledType::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1334,8 +1325,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    CompassOrientation::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    CompassOrientation::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1364,8 +1354,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    PairingMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    PairingMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1459,8 +1448,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    AddressMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    AddressMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1470,8 +1458,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(ip in IpV4Config)))
-                            .and_then(|v| Some(FormValue::String(Ipv4Addr::from(v.as_u32()).to_string())))
+                            .and_then(|v| v.as_nested().get(name_of!(ip in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1511,8 +1498,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(gateway in IpV4Config)))
-                            .and_then(|v| Some(FormValue::String(Ipv4Addr::from(v.as_u32()).to_string())))
+                            .and_then(|v| v.as_nested().get(name_of!(gateway in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1552,8 +1538,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(subnet in IpV4Config)))
-                            .and_then(|v| Some(FormValue::String(Ipv4Addr::from(v.as_u32()).to_string())))
+                            .and_then(|v| v.as_nested().get(name_of!(subnet in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1593,8 +1578,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(dns in IpV4Config)))
-                            .and_then(|v| Some(FormValue::String(Ipv4Addr::from(v.as_u32()).to_string())))
+                            .and_then(|v| v.as_nested().get(name_of!(dns in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1910,7 +1894,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 "Reporting Interval *",
                 Some("(*) The field only makes sense if \"Map Reporting Enabled\" field is set to true."),
                 FormItemKind::Enum(vec![
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -1991,8 +1975,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    SerialBaud::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    SerialBaud::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2020,8 +2003,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    SerialMode::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    SerialMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2345,7 +2327,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Unset", 0u32),
                     FormEnumVariant::new("30 minutes", 1800u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2385,7 +2367,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Unset", 0u32),
                     FormEnumVariant::new("30 minutes", 1800u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2441,7 +2423,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Unset", 0u32),
                     FormEnumVariant::new("30 minutes", 1800u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2481,7 +2463,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Enum(vec![
                     FormEnumVariant::new("Unset", 0u32),
                     FormEnumVariant::new("30 minutes", 1800u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2577,8 +2559,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2593,8 +2574,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2609,8 +2589,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2776,7 +2755,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("10 minutes", 10 * 60u32),
                     FormEnumVariant::new("15 minutes", 15 * 60u32),
                     FormEnumVariant::new("30 minutes", 30 * 60u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2816,7 +2795,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     FormEnumVariant::new("Unset", 0u32),
                     FormEnumVariant::new("15 minutes", 15 * 60u32),
                     FormEnumVariant::new("30 minutes", 30 * 60u32),
-                    FormEnumVariant::new("1 hour", 1 * 3600u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
                     FormEnumVariant::new("2 hours", 2 * 3600u32),
                     FormEnumVariant::new("3 hours", 3 * 3600u32),
                     FormEnumVariant::new("4 hours", 4 * 3600u32),
@@ -2888,8 +2867,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    TriggerType::try_from(v.as_i32())
-                        .and_then(|r| Ok(r.as_str_name().to_owned()))
+                    TriggerType::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),

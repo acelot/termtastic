@@ -29,7 +29,7 @@ impl Error for FormDataSerializerError {
 
 struct FormDataSerializer {}
 
-impl<'a> Serializer for &'a mut FormDataSerializer {
+impl Serializer for &mut FormDataSerializer {
     type Ok = FormData;
 
     type Error = FormDataSerializerError;
@@ -542,11 +542,7 @@ impl<'a> Serializer for FieldSerializer<'a> {
 
         value.serialize(serializer)?;
 
-        let nested_value = if let Some(serialized_value) = temp_map.get(temp_key) {
-            Some(Box::new(serialized_value.clone()))
-        } else {
-            None
-        };
+        let nested_value = temp_map.get(temp_key).map(|serialized_value| Box::new(serialized_value.clone()));
 
         self.data.insert(self.key.to_owned(), FormValue::Option(nested_value));
         Ok(())

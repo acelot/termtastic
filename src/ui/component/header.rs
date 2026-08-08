@@ -45,8 +45,7 @@ impl Component for Header {
                     Span::from(format!(
                         "reconnecting in {} sec...",
                         state
-                            .reconnection_backoff
-                            .and_then(|b| Some(b.as_secs().to_string()))
+                            .reconnection_backoff.map(|b| b.as_secs().to_string())
                             .unwrap_or("?".to_owned())
                     ))
                     .red(),

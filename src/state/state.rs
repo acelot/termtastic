@@ -141,8 +141,7 @@ impl State {
                 }
 
                 let online_token = if node
-                    .last_heard
-                    .and_then(|last_heard| Some((now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS))
+                    .last_heard.map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
                     .unwrap_or(false)
                 {
                     "$online"

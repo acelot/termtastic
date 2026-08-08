@@ -434,19 +434,16 @@ impl<'a> Component for Connection<'a> {
                 }
                 ConnectionState::Connected => vec![
                     Some(Line::from(Span::from("connected").green())),
-                    state.device_metadata.as_ref().and_then(|_| Some(Line::from(""))),
-                    state.device_metadata.as_ref().and_then(|metadata| {
-                        Some(Line::from(vec![
+                    state.device_metadata.as_ref().map(|_| Line::from("")),
+                    state.device_metadata.as_ref().map(|metadata| Line::from(vec![
                             Span::from(
                                 HardwareModel::try_from(metadata.hw_model)
-                                    .ok()
-                                    .and_then(|h| Some(h.as_str_name()))
+                                    .ok().map(|h| h.as_str_name())
                                     .unwrap_or("UNKNOWN"),
                             )
                             .magenta(),
                             Span::from(format!(" [v{}]", &metadata.firmware_version)).dark_gray(),
-                        ]))
-                    }),
+                        ])),
                 ]
                 .into_iter()
                 .flatten()

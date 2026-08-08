@@ -281,8 +281,7 @@ impl<'a> Component for Nodes<'a> {
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
         if self
             .list_state
-            .selected
-            .and_then(|i| Some(i >= state.nodes_view.len()))
+            .selected.map(|i| i >= state.nodes_view.len())
             .unwrap_or(false)
         {
             self.list_state.selected = None;

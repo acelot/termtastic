@@ -137,8 +137,7 @@ impl<'a> Component for Chat<'a> {
                     chat_name_spans: chat_to_spans(chat, state),
                     last_message,
                     last_message_node,
-                    is_last_message_node_my: last_message_node
-                        .and_then(|node| Some(state.is_my_node(node.key)))
+                    is_last_message_node_my: last_message_node.map(|node| state.is_my_node(node.key))
                         .unwrap_or(false),
                     is_selected: context.is_selected,
                 };

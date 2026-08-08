@@ -61,14 +61,12 @@ impl<'a> Component for Messenger<'a> {
 
         let input_has_valid_value = self
             .input_widgets
-            .get(active_chat)
-            .and_then(|input| Some(VALID_INPUT_LENGTH.contains(&input.trimmed_len())))
+            .get(active_chat).map(|input| VALID_INPUT_LENGTH.contains(&input.trimmed_len()))
             .unwrap_or(false);
 
         let input_has_something = self
             .input_widgets
-            .get(active_chat)
-            .and_then(|input| Some(!input.is_empty()))
+            .get(active_chat).map(|input| !input.is_empty())
             .unwrap_or(false);
 
         if self.replying_to.contains_key(active_chat) {
@@ -93,8 +91,7 @@ impl<'a> Component for Messenger<'a> {
 
         let is_message_selected = self
             .list_states
-            .get(active_chat)
-            .and_then(|s| Some(s.selected.is_some()))
+            .get(active_chat).map(|s| s.selected.is_some())
             .unwrap_or(false);
 
         Vec::from([
@@ -123,7 +120,7 @@ impl<'a> Component for Messenger<'a> {
         let list_state = self
             .list_states
             .entry(active_chat.clone())
-            .or_insert_with(|| ListState::default());
+            .or_default();
 
         let input_widget = self
             .input_widgets
@@ -134,9 +131,8 @@ impl<'a> Component for Messenger<'a> {
 
         let messages: Vec<&Message> = state
             .chats
-            .get(active_chat)
-            .and_then(|ids| Some(ids.iter().filter_map(|id| state.messages.get(id)).collect()))
-            .unwrap_or_else(Vec::new);
+            .get(active_chat).map(|ids| ids.iter().filter_map(|id| state.messages.get(id)).collect())
+            .unwrap_or_default();
 
         if self.is_reaction_viewer_visible {
             match event {
@@ -157,16 +153,13 @@ impl<'a> Component for Messenger<'a> {
 
             let reactions_count = list_state
                 .selected
-                .and_then(|i| messages.get(i))
-                .and_then(|m| {
-                    Some(m.reactions.iter().fold(0, |mut counter, message_id| {
+                .and_then(|i| messages.get(i)).map(|m| m.reactions.iter().fold(0, |mut counter, message_id| {
                         if state.messages.contains_key(message_id) {
                             counter += 1;
                         };
 
                         counter
                     }))
-                })
                 .unwrap_or(0);
 
             return self.reactions_viewer_state.handle_event(event, reactions_count);
@@ -243,7 +236,7 @@ impl<'a> Component for Messenger<'a> {
                         }
                     }
                     KeyCode::Esc => {
-                        self.replying_to.remove(&active_chat);
+                        self.replying_to.remove(active_chat);
                         return Ok(true);
                     }
                     _ => {}
@@ -291,19 +284,17 @@ impl<'a> Component for Messenger<'a> {
                     return Ok(true);
                 }
                 KeyCode::F(2) if modifiers.is_empty() => {
-                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
-                        if let Some(node) = state.nodes.get(&message.from) {
+                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i))
+                        && let Some(node) = state.nodes.get(&message.from) {
                             self.replying_to.insert(active_chat.clone(), (node.clone(), message.id));
                         }
-                    }
 
                     return Ok(true);
                 }
                 KeyCode::F(4) if modifiers.is_empty() => {
                     if let Some(node_key) = list_state
                         .selected
-                        .and_then(|i| messages.get(i))
-                        .and_then(|message| Some(message.from))
+                        .and_then(|i| messages.get(i)).map(|message| message.from)
                     {
                         emit(AppEvent::NodeInfoPopupOpenRequested(node_key))?;
                     }
@@ -394,8 +385,7 @@ impl<'a> Component for Messenger<'a> {
                 let replying_node = if message.reply_message_id > 0 {
                     state
                         .messages
-                        .get(&message.reply_message_id)
-                        .and_then(|m| Some(state.nodes.get(&m.from).unwrap_or(&UNKNOWN_NODE)))
+                        .get(&message.reply_message_id).map(|m| state.nodes.get(&m.from).unwrap_or(&UNKNOWN_NODE))
                 } else {
                     None
                 };
@@ -416,8 +406,7 @@ impl<'a> Component for Messenger<'a> {
                     replying_node,
                     is_my_node: state.is_my_node(node.key),
                     is_selected: context.is_selected,
-                    is_highlighted: replying_to
-                        .and_then(|(_, msg_key)| Some(message.id == *msg_key))
+                    is_highlighted: replying_to.map(|(_, msg_key)| message.id == *msg_key)
                         .unwrap_or(false),
                 };
 
@@ -585,9 +574,7 @@ impl MessageWidget<'_> {
     }
 
     pub fn get_text_paragraph<'a>(message: &'a Message, replied_message: Option<&'a Message>) -> Paragraph<'a> {
-        let reply_line = replied_message.and_then(|msg| {
-            Some(Line::from(vec!["“".to_span(), Span::from(msg.text_oneline()), "”".to_span()]).magenta())
-        });
+        let reply_line = replied_message.map(|msg| Line::from(vec!["“".to_span(), Span::from(msg.text_oneline()), "”".to_span()]).magenta());
 
         let text_lines: Vec<Line<'_>> = message.text.to_hyperlinked_lines();
 
@@ -606,7 +593,7 @@ impl MessageWidget<'_> {
         Line::from(
             summary
                 .into_iter()
-                .map(|(emoji, nodes_count)| {
+                .flat_map(|(emoji, nodes_count)| {
                     if nodes_count > 1 {
                         vec![
                             " ".to_span(),
@@ -617,7 +604,6 @@ impl MessageWidget<'_> {
                         vec![" ".to_span(), emoji.to_span()]
                     }
                 })
-                .flatten()
                 .collect::<Vec<Span>>(),
         )
         .right_aligned()

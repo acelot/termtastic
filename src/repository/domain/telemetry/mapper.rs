@@ -38,28 +38,28 @@ impl TryFrom<&Telemetry> for NodeTelemetry {
         let variant = match value.kind.as_str() {
             "device_metrics" => telemetry::Variant::DeviceMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::DeviceMetrics,
-            >(&slice)?),
+            >(slice)?),
             "environment_metrics" => telemetry::Variant::EnvironmentMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::EnvironmentMetrics,
-            >(&slice)?),
+            >(slice)?),
             "air_quality_metrics" => telemetry::Variant::AirQualityMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::AirQualityMetrics,
-            >(&slice)?),
+            >(slice)?),
             "power_metrics" => telemetry::Variant::PowerMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::PowerMetrics,
-            >(&slice)?),
+            >(slice)?),
             "local_stats" => telemetry::Variant::LocalStats(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::LocalStats,
-            >(&slice)?),
+            >(slice)?),
             "health_metrics" => telemetry::Variant::HealthMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::HealthMetrics,
-            >(&slice)?),
+            >(slice)?),
             "host_metrics" => telemetry::Variant::HostMetrics(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::HostMetrics,
-            >(&slice)?),
+            >(slice)?),
             "traffic_management_stats" => telemetry::Variant::TrafficManagementStats(serde_sqlite_jsonb::from_slice::<
                 meshtastic::protobufs::TrafficManagementStats,
-            >(&slice)?),
+            >(slice)?),
             _ => anyhow::bail!("unknown telemetry kind: {}", value.kind),
         };
 

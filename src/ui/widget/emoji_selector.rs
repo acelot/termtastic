@@ -66,7 +66,7 @@ pub struct EmojiSelectorWidget<'a> {
 impl<'a> EmojiSelectorWidget<'a> {
     pub fn new() -> Self {
         Self {
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }

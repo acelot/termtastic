@@ -43,23 +43,15 @@ impl<'a> Settings<'a> {
         let description_paragraph = self
             .form_list_state
             .selected
-            .and_then(|index| items[index].description)
-            .and_then(|desc| {
-                Some(
-                    Paragraph::new(vec![Line::from("DESCRIPTION").magenta(), Line::from(desc).dark_gray()])
-                        .wrap(Wrap { trim: false }),
-                )
-            });
+            .and_then(|index| items[index].description).map(|desc| Paragraph::new(vec![Line::from("DESCRIPTION").magenta(), Line::from(desc).dark_gray()])
+                        .wrap(Wrap { trim: false }));
 
         let v = Layout::vertical(
-            vec![
-                Some(Constraint::Length(1)),
+            [Some(Constraint::Length(1)),
                 Some(Constraint::Fill(1)),
                 description_paragraph.is_some().then_some(Constraint::Length(1)),
                 description_paragraph
-                    .as_ref()
-                    .and_then(|p| Some(Constraint::Length(p.line_count(area.width) as u16))),
-            ]
+                    .as_ref().map(|p| Constraint::Length(p.line_count(area.width) as u16))]
             .iter()
             .flatten(),
         )
@@ -380,7 +372,7 @@ impl<'a> Component for Settings<'a> {
         if let SettingsFormState::Loaded { id } = &state.settings_form_state
             && self
                 .form_list_state
-                .handle_navigation_events(event, Some(FORMS[&id].len()))
+                .handle_navigation_events(event, Some(FORMS[id].len()))
         {
             return Ok(true);
         }
@@ -606,19 +598,19 @@ fn handle_popup_input_submit(form_item: &FormItem, input_state: &mut PopupInputS
     match form_item.kind {
         FormItemKind::InputOfString => {
             let value = FormValue::from(input_value);
-            (form_item.validator)(&value).and_then(|_| Ok(value))
+            (form_item.validator)(&value).map(|_| value)
         }
         FormItemKind::InputOfInt32 => {
             let value = FormValue::from(input_value.parse::<i32>()?);
-            (form_item.validator)(&value).and_then(|_| Ok(value))
+            (form_item.validator)(&value).map(|_| value)
         }
         FormItemKind::InputOfUnsignedInt32 => {
             let value = FormValue::from(input_value.parse::<u32>()?);
-            (form_item.validator)(&value).and_then(|_| Ok(value))
+            (form_item.validator)(&value).map(|_| value)
         }
         FormItemKind::InputOfFloat32 => {
             let value = FormValue::from(input_value.parse::<f32>()?);
-            (form_item.validator)(&value).and_then(|_| Ok(value))
+            (form_item.validator)(&value).map(|_| value)
         }
         FormItemKind::InputOfBase64 => {
             if input_value.is_empty() {
@@ -626,7 +618,7 @@ fn handle_popup_input_submit(form_item: &FormItem, input_state: &mut PopupInputS
             }
 
             let value = FormValue::from(input_value.base64_decode()?);
-            (form_item.validator)(&value).and_then(|_| Ok(value))
+            (form_item.validator)(&value).map(|_| value)
         }
         _ => unimplemented!(),
     }
@@ -759,7 +751,7 @@ impl<'a> Widget for FormItemWidget<'a> {
                 };
 
                 Line::from(
-                    Span::from(if value == true {
+                    Span::from(if value {
                         "[■]".to_owned()
                     } else {
                         "[_]".to_owned()

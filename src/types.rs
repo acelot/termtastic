@@ -40,7 +40,7 @@ impl From<&State> for AppConfig {
             active_tab: value.active_tab,
             active_device: value.active_device.clone(),
             devices: value.devices.clone(),
-            nodes_sort_by: value.nodes_sort_by.clone(),
+            nodes_sort_by: value.nodes_sort_by,
             nodes_filter: value.nodes_filter.clone(),
             ui_config: value.ui_config.clone(),
         }
@@ -136,7 +136,7 @@ impl Device {
         match self {
             Device::Ble { address, id, .. } => Device::Ble {
                 name: Some(name.into()),
-                address: address.clone(),
+                address: *address,
                 id: id.clone(),
             },
             Device::Tcp { address, .. } => Device::Tcp {
@@ -154,7 +154,7 @@ impl Device {
         match self {
             Device::Ble { address, id, .. } => Device::Ble {
                 name: None,
-                address: address.clone(),
+                address: *address,
                 id: id.clone(),
             },
             Device::Tcp { address, .. } => Device::Tcp {
@@ -239,14 +239,14 @@ pub struct LogRecord {
     pub message: String,
 }
 
-impl Into<String> for LogRecord {
-    fn into(self) -> String {
+impl From<LogRecord> for String {
+    fn from(val: LogRecord) -> Self {
         format!(
             "{} {} {}: {}",
-            self.datetime.to_rfc3339(),
-            self.level.to_string(),
-            &self.source,
-            self.message
+            val.datetime.to_rfc3339(),
+            val.level,
+            &val.source,
+            val.message
         )
     }
 }
@@ -431,19 +431,19 @@ impl From<&meshtastic::protobufs::User> for NodeUser {
     }
 }
 
-impl Into<meshtastic::protobufs::User> for NodeUser {
-    fn into(self) -> meshtastic::protobufs::User {
+impl From<NodeUser> for meshtastic::protobufs::User {
+    fn from(val: NodeUser) -> Self {
         meshtastic::protobufs::User {
-            id: self.id,
-            long_name: self.long_name,
-            short_name: self.short_name,
+            id: val.id,
+            long_name: val.long_name,
+            short_name: val.short_name,
             #[allow(deprecated)]
             macaddr: Vec::new(),
-            hw_model: self.hw_model,
-            is_licensed: self.is_licensed,
-            role: self.role,
-            public_key: self.public_key,
-            is_unmessagable: self.is_unmessagable,
+            hw_model: val.hw_model,
+            is_licensed: val.is_licensed,
+            role: val.role,
+            public_key: val.public_key,
+            is_unmessagable: val.is_unmessagable,
         }
     }
 }
@@ -484,46 +484,40 @@ impl Node {
         let id = self.id();
 
         self.user
-            .as_ref()
-            .and_then(|u| Some(u.short_name.clone()))
+            .as_ref().map(|u| u.short_name.clone())
             .unwrap_or_else(|| id[id.len().saturating_sub(4)..].to_string())
     }
 
     pub fn long_name(&self) -> String {
         self.user
-            .as_ref()
-            .and_then(|u| Some(u.long_name.clone()))
+            .as_ref().map(|u| u.long_name.clone())
             .unwrap_or(format!("Meshtastic {}", self.short_name()))
     }
 
     pub fn hw_model(&self) -> String {
         self.user
             .as_ref()
-            .and_then(|u| meshtastic::protobufs::HardwareModel::try_from(u.hw_model).ok())
-            .and_then(|hw| Some(hw.as_str_name().to_owned()))
+            .and_then(|u| meshtastic::protobufs::HardwareModel::try_from(u.hw_model).ok()).map(|hw| hw.as_str_name().to_owned())
             .unwrap_or("UNKNOWN".to_owned())
     }
 
     pub fn role(&self) -> String {
         self.user
             .as_ref()
-            .and_then(|u| config::device_config::Role::try_from(u.role).ok())
-            .and_then(|r| Some(r.as_str_name().to_owned()))
+            .and_then(|u| config::device_config::Role::try_from(u.role).ok()).map(|r| r.as_str_name().to_owned())
             .unwrap_or("UNKNOWN".to_owned())
     }
 
     pub fn update_fulltext(&mut self) {
-        let is_direct = self.hops.and_then(|h| Some(h == 0)).unwrap_or(false);
+        let is_direct = self.hops.map(|h| h == 0).unwrap_or(false);
 
         self.fulltext = [
             self.user
-                .as_ref()
-                .and_then(|u| Some(&u.short_name))
+                .as_ref().map(|u| &u.short_name)
                 .unwrap_or(&"?".to_owned())
                 .to_lowercase(),
             self.user
-                .as_ref()
-                .and_then(|u| Some(&u.long_name))
+                .as_ref().map(|u| &u.long_name)
                 .unwrap_or(&"unknown".to_owned())
                 .to_lowercase(),
             self.role().to_lowercase(),
@@ -712,10 +706,10 @@ impl Chat {
 impl Ord for Chat {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
-            (Chat::Channel(key), Chat::Channel(other_key)) => key.cmp(&other_key),
+            (Chat::Channel(key), Chat::Channel(other_key)) => key.cmp(other_key),
             (Chat::Channel(_), Chat::Direct(_)) => std::cmp::Ordering::Less,
             (Chat::Direct(_), Chat::Channel(_)) => std::cmp::Ordering::Greater,
-            (Chat::Direct(key), Chat::Direct(other_key)) => key.cmp(&other_key),
+            (Chat::Direct(key), Chat::Direct(other_key)) => key.cmp(other_key),
         }
     }
 }
@@ -775,12 +769,10 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
                 uplink_enabled: settings.uplink_enabled,
                 downlink_enabled: settings.downlink_enabled,
                 position_precision: settings
-                    .module_settings
-                    .and_then(|ms| Some(ms.position_precision))
+                    .module_settings.map(|ms| ms.position_precision)
                     .unwrap_or(0),
                 is_muted: settings
-                    .module_settings
-                    .and_then(|ms| Some(ms.is_muted))
+                    .module_settings.map(|ms| ms.is_muted)
                     .unwrap_or(false),
                 is_enabled: value.role() != channel::Role::Disabled,
             },
@@ -789,29 +781,29 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
     }
 }
 
-impl Into<meshtastic::protobufs::Channel> for &Channel {
-    fn into(self) -> meshtastic::protobufs::Channel {
-        let settings = self
+impl From<&Channel> for meshtastic::protobufs::Channel {
+    fn from(val: &Channel) -> Self {
+        let settings = val
             .is_enabled
             .then_some(Some(meshtastic::protobufs::ChannelSettings {
-                name: self.name.clone(),
-                psk: self.psk.clone(),
+                name: val.name.clone(),
+                psk: val.psk.clone(),
                 #[allow(deprecated)]
-                channel_num: self.key,
-                id: self.key,
-                uplink_enabled: self.uplink_enabled,
-                downlink_enabled: self.downlink_enabled,
+                channel_num: val.key,
+                id: val.key,
+                uplink_enabled: val.uplink_enabled,
+                downlink_enabled: val.downlink_enabled,
                 module_settings: Some(meshtastic::protobufs::ModuleSettings {
-                    position_precision: self.position_precision,
-                    is_muted: self.is_muted,
+                    position_precision: val.position_precision,
+                    is_muted: val.is_muted,
                 }),
             }))
             .unwrap_or(None);
 
         meshtastic::protobufs::Channel {
-            index: self.key as i32,
+            index: val.key as i32,
             settings,
-            role: match (self.key, self.is_enabled) {
+            role: match (val.key, val.is_enabled) {
                 (0, true) => channel::Role::Primary as i32,
                 (1..=u32::MAX, true) => channel::Role::Secondary as i32,
                 (_, false) => channel::Role::Disabled as i32,
@@ -839,7 +831,7 @@ pub struct Message {
 
 impl Message {
     pub fn text_oneline(&self) -> String {
-        self.text.lines().into_iter().join(" ")
+        self.text.lines().join(" ")
     }
 }
 

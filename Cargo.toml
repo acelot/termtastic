@@ -24,6 +24,9 @@ strip = true
 [target.'cfg(target_os = "linux")'.dependencies]
 libdbus-sys = { version = "0.2", features = ["vendored"] }
 
+[lints.clippy]
+single_match = "allow"
+
 [dependencies]
 ansi-to-tui = { version = "8.0.1" }
 anyhow = { version = "1.0.102" }

@@ -82,8 +82,7 @@ impl TracerouteService {
                 AppEvent::TracerouteRequested(node_key) => {
                     let last_run = state
                         .traceroutes
-                        .first()
-                        .and_then(|(_, t)| Some(t.datetime))
+                        .first().map(|(_, t)| t.datetime)
                         .unwrap_or_default();
 
                     let seconds_left = TRACEROUTE_COOLDOWN_SECS - Utc::now().sub(last_run).num_seconds();

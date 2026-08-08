@@ -49,13 +49,13 @@ impl<'a> PopupDropdownBitmaskState<'a> {
                 ..
             }) if modifiers.is_empty() => match code {
                 KeyCode::Char(' ') if let Some(index) = self.list_state.selected => {
-                    let variant = self.variants.iter().nth(index).unwrap();
+                    let variant = self.variants.get(index).unwrap();
                     let is_checked = self.selected & variant.value > 0;
 
                     if is_checked {
-                        self.selected = self.selected & !variant.value;
+                        self.selected &= !variant.value;
                     } else {
-                        self.selected = self.selected | variant.value;
+                        self.selected |= variant.value;
                     }
 
                     return Ok(true);
@@ -78,7 +78,7 @@ impl<'a> PopupDropdownBitmaskWidget<'a> {
     pub fn new(width: u16) -> Self {
         Self {
             width,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -105,7 +105,7 @@ impl<'a> StatefulWidget for PopupDropdownBitmaskWidget<'a> {
         }
 
         let list_builder = ListBuilder::new(|context| {
-            let variant = state.variants.iter().nth(context.index).unwrap();
+            let variant = state.variants.get(context.index).unwrap();
             let is_checked = state.selected & variant.value > 0;
 
             let item = Line::from(vec![

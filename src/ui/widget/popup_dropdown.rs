@@ -61,7 +61,7 @@ impl<'a> PopupDropdownWidget<'a> {
     pub fn new(width: u16) -> Self {
         Self {
             width,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
@@ -94,7 +94,7 @@ impl<'a> StatefulWidget for PopupDropdownWidget<'a> {
         }
 
         let list_builder = ListBuilder::new(|context| {
-            let variant = state.variants.iter().nth(context.index).unwrap();
+            let variant = state.variants.get(context.index).unwrap();
 
             let item = Line::from(Span::from(&variant.title)).patch_style(if context.is_selected {
                 Style::new().black().on_yellow()

@@ -41,7 +41,7 @@ impl<'a> PopupInputState<'a> {
     }
 
     pub fn get_value(&self) -> String {
-        self.textarea.lines().get(0).unwrap_or(&String::new()).to_owned()
+        self.textarea.lines().first().unwrap_or(&String::new()).to_owned()
     }
 
     pub fn set_title(&mut self, title: Option<&'a str>) {
@@ -83,7 +83,7 @@ impl<'a> PopupInputWidget<'a> {
     pub fn new(width: u16) -> Self {
         Self {
             width,
-            _marker: PhantomData::default(),
+            _marker: PhantomData,
         }
     }
 }
