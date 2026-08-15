@@ -1100,15 +1100,16 @@ dependencies = [
 
 [[package]]
 name = "hostaddr"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3167bab2293d34580eaee563441b6ce0a31994ff0af6da2225cc372d83930ea"
+checksum = "06d6696eccb9fe1e1904ff7b25182686a809acabb87f435904c1da0a5a321df9"
 dependencies = [
  "bytes",
  "cheap-clone",
  "derive_more",
  "either",
  "idna",
+ "iprfc",
  "memchr",
  "percent-encoding",
  "serde",
@@ -1325,6 +1326,23 @@ checksum = "617ee6cf8e3f66f3b4ea67a4058564628cde41901316e19f559e14c7c72c5e7b"
 dependencies = [
  "core-foundation-sys",
  "mach2",
+]
+
+[[package]]
+name = "ipnet"
+version = "2.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
+
+[[package]]
+name = "iprfc"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef9ffeec22969abcddea4070ffeffa22307f56e228063c26a9296c9a5e4bb9e2"
+dependencies = [
+ "bitflags 2.13.0",
+ "ipnet",
+ "paste",
 ]
 
 [[package]]
