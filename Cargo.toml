@@ -40,7 +40,7 @@ emoji = { version = "0.2.1" }
 etcetera = { version = "0.11.0" }
 fastrand = { version = "2.4.1" }
 futures = { version = "0.3.32" }
-hostaddr = { version = "0.2.4", features = ["serde"] }
+hostaddr = { version = "0.3.0", features = ["serde"] }
 itertools = { version = "0.15.0" }
 mdns-sd = { version = "0.20.0" }
 meshtastic = { version = "0.1.9", features = ["bluetooth-le"] }
