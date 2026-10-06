@@ -269,6 +269,7 @@ impl<'a> Component for Layout<'a> {
 fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
     NodeInfoContext {
         node_key,
+        my_node_key: state.my_node_key.expect("should be Some"),
         nodes: &state.nodes,
         traceroutes: state
             .nodes_traceroutes
@@ -281,6 +282,5 @@ fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
             .get(&node_key)
             .and_then(|t| t.device_metrics.as_ref())
             .and_then(|m| m.data.uptime_seconds),
-        is_my_node: state.my_node_key == Some(node_key),
     }
 }

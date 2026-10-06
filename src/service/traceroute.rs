@@ -26,10 +26,10 @@ use crate::{
     ui::helpers::DateTimeExt,
 };
 
-pub const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
-
 const CHECK_TRACEROUTE_INTERVAL_SECS: u64 = 1;
 const TRACEROUTE_COOLDOWN_SECS: i64 = 30;
+const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
+const TRACEROUTE_SNR_MULTIPLIER: f32 = 4.0;
 
 pub struct TracerouteService {
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -80,10 +80,7 @@ impl TracerouteService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::TracerouteRequested(node_key) => {
-                    let last_run = state
-                        .traceroutes
-                        .first().map(|(_, t)| t.datetime)
-                        .unwrap_or_default();
+                    let last_run = state.traceroutes.first().map(|(_, t)| t.datetime).unwrap_or_default();
 
                     let seconds_left = TRACEROUTE_COOLDOWN_SECS - Utc::now().sub(last_run).num_seconds();
 
@@ -156,14 +153,14 @@ impl TracerouteService {
                                 let route_towards = route_discovery
                                     .snr_towards
                                     .into_iter()
-                                    .map(TracerouteItem::Snr)
+                                    .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
                                     .interleave(route_discovery.route.into_iter().map(TracerouteItem::Node))
                                     .collect();
 
                                 let route_back = route_discovery
                                     .snr_back
                                     .into_iter()
-                                    .map(TracerouteItem::Snr)
+                                    .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
                                     .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
                                     .collect();
 

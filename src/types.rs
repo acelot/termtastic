@@ -484,27 +484,31 @@ impl Node {
         let id = self.id();
 
         self.user
-            .as_ref().map(|u| u.short_name.clone())
+            .as_ref()
+            .map(|u| u.short_name.clone())
             .unwrap_or_else(|| id[id.len().saturating_sub(4)..].to_string())
     }
 
     pub fn long_name(&self) -> String {
         self.user
-            .as_ref().map(|u| u.long_name.clone())
+            .as_ref()
+            .map(|u| u.long_name.clone())
             .unwrap_or(format!("Meshtastic {}", self.short_name()))
     }
 
     pub fn hw_model(&self) -> String {
         self.user
             .as_ref()
-            .and_then(|u| meshtastic::protobufs::HardwareModel::try_from(u.hw_model).ok()).map(|hw| hw.as_str_name().to_owned())
+            .and_then(|u| meshtastic::protobufs::HardwareModel::try_from(u.hw_model).ok())
+            .map(|hw| hw.as_str_name().to_owned())
             .unwrap_or("UNKNOWN".to_owned())
     }
 
     pub fn role(&self) -> String {
         self.user
             .as_ref()
-            .and_then(|u| config::device_config::Role::try_from(u.role).ok()).map(|r| r.as_str_name().to_owned())
+            .and_then(|u| config::device_config::Role::try_from(u.role).ok())
+            .map(|r| r.as_str_name().to_owned())
             .unwrap_or("UNKNOWN".to_owned())
     }
 
@@ -513,11 +517,13 @@ impl Node {
 
         self.fulltext = [
             self.user
-                .as_ref().map(|u| &u.short_name)
+                .as_ref()
+                .map(|u| &u.short_name)
                 .unwrap_or(&"?".to_owned())
                 .to_lowercase(),
             self.user
-                .as_ref().map(|u| &u.long_name)
+                .as_ref()
+                .map(|u| &u.long_name)
                 .unwrap_or(&"unknown".to_owned())
                 .to_lowercase(),
             self.role().to_lowercase(),
@@ -768,12 +774,8 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
                 psk: settings.psk.clone(),
                 uplink_enabled: settings.uplink_enabled,
                 downlink_enabled: settings.downlink_enabled,
-                position_precision: settings
-                    .module_settings.map(|ms| ms.position_precision)
-                    .unwrap_or(0),
-                is_muted: settings
-                    .module_settings.map(|ms| ms.is_muted)
-                    .unwrap_or(false),
+                position_precision: settings.module_settings.map(|ms| ms.position_precision).unwrap_or(0),
+                is_muted: settings.module_settings.map(|ms| ms.is_muted).unwrap_or(false),
                 is_enabled: value.role() != channel::Role::Disabled,
             },
             None => Channel::disabled(value.index as u32),
@@ -908,7 +910,7 @@ impl HopsSnrRssiAware for Vec<TracerouteItem> {
 
     fn snr(&self) -> f32 {
         if let Some(TracerouteItem::Snr(snr)) = self.first() {
-            return *snr as f32;
+            return *snr;
         }
 
         0.0
@@ -928,9 +930,9 @@ pub enum TracerouteState {
     Finished,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum TracerouteItem {
-    Snr(i32),
+    Snr(f32),
     Node(u32),
 }
 

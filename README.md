@@ -116,7 +116,8 @@
 - [x] Copy public key to clipboard
 - [x] Delete node feature
 - [x] Telemetry info
-- [ ] Traceroute feature
+- [x] Traceroute feature
+- [ ] Extended traceroute info popup
 - [ ] Ignore feature
 - [ ] Add to Favorite feature
 - [ ] Position info
@@ -261,4 +262,4 @@ The same named option exists in other terminals too. Check your terminal docs.
 ### Why do some emoji appear as squares in Windows Terminal??
 
 Unfortunately, Windows Terminal cannot display some compound emoji such as 1️⃣, 2️⃣, 3️⃣, etc.
-There is an issue in Github: https://github.com/microsoft/terminal/issues/9708
+There is an issue in Github: <https://github.com/microsoft/terminal/issues/9708>
