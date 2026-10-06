@@ -362,7 +362,7 @@ impl<'a> NodeInfoWidget<'a> {
         }
     }
 
-    fn render_traceroute_popup(&self, traceroute: &Traceroute, area: Rect, buf: &mut Buffer) {
+    fn render_traceroute_popup(&self, _traceroute: &Traceroute, area: Rect, buf: &mut Buffer) {
         let popup_area = Rect {
             x: area.x - 2,
             y: area.y + 2,
