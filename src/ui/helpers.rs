@@ -235,7 +235,8 @@ pub fn chat_to_spans<'a>(chat: &'a Chat, state: &'a State) -> Vec<Span<'a>> {
                 .device_config
                 .lora
                 .as_ref()
-                .and_then(|lora| config::lo_ra_config::ModemPreset::try_from(lora.modem_preset).ok()).map(|preset| preset.as_channel_name());
+                .and_then(|lora| config::lo_ra_config::ModemPreset::try_from(lora.modem_preset).ok())
+                .map(|preset| preset.as_channel_name());
 
             let Some(channel) = state.channels.get(channel_key) else {
                 return vec![Span::from(format!("!{:x}", channel_key))];
@@ -315,7 +316,7 @@ pub fn pad_center(s: &str, width: usize) -> String {
     let left = padding / 2;
     let right = padding - left;
 
-    format!("{}{}{}", " ".repeat(left), s, " ".repeat(right))
+    format!("{}{}{}", "\u{A0}".repeat(left), s, "\u{A0}".repeat(right))
 }
 
 fn trim_lines<I, S>(lines: I) -> Vec<String>

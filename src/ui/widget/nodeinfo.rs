@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::iter;
 
-use crate::types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteState};
+use crate::types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE};
 use crate::ui::helpers::{
-    Base64EncoderExt, ListStateExt, default_scrollbar, hops_to_spans, humanize_time_delta, humanize_uptime,
-    last_heard_to_spans, routing_error_to_span, short_name_to_span,
+    Base64EncoderExt, ListStateExt, SnrColorExt, default_scrollbar, hops_to_spans, humanize_time_delta,
+    humanize_uptime, last_heard_to_spans, routing_error_to_span, short_name_to_span,
 };
 use crate::ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, ThreeColumnWidget};
 use chrono::Utc;
@@ -362,18 +363,17 @@ impl<'a> NodeInfoWidget<'a> {
         }
     }
 
-    fn render_traceroute_popup(&self, _traceroute: &Traceroute, area: Rect, buf: &mut Buffer) {
+    fn render_traceroute_popup(&self, traceroute: &Traceroute, area: Rect, buf: &mut Buffer) {
         let popup_area = Rect {
-            x: area.x - 2,
+            x: area.x - 1,
             y: area.y + 2,
-            width: area.width + 4,
+            width: area.width + 2,
             height: area.height - 1,
         };
 
         let popup_block = Block::new()
-            .borders(Borders::TOP)
-            .border_type(BorderType::Thick)
-            .border_style(Style::new().white())
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .padding(Padding::symmetric(1, 0));
 
         let popup_block_area = popup_block.inner(popup_area);
@@ -381,13 +381,52 @@ impl<'a> NodeInfoWidget<'a> {
         Clear.render(popup_area, buf);
         popup_block.render(popup_area, buf);
 
-        Paragraph::new(vec![
-            Line::from(Span::from("route towards:").dark_gray()),
-            Line::from(Span::from("")),
-            Line::from(Span::from("route back:").dark_gray()),
-        ])
-        .wrap(Wrap { trim: false })
-        .render(popup_block_area, buf);
+        let route_span_mapper = |item: &TracerouteItem| match item {
+            TracerouteItem::Node(node_key) => {
+                let node = self.context.nodes.get(&node_key).unwrap_or(&UNKNOWN_NODE);
+                short_name_to_span(node, false)
+            }
+            TracerouteItem::Snr(snr) => Span::from(format!("{:.2}dB", snr)).style(Style::new().fg(snr.snr_to_color())),
+        };
+
+        #[allow(unstable_name_collisions)]
+        let towards_spans: Vec<Span<'_>> = iter::once(&TracerouteItem::Node(self.context.my_node_key))
+            .chain(traceroute.route_towards.iter())
+            .chain(iter::once(&TracerouteItem::Node(self.context.node_key)))
+            .map(route_span_mapper)
+            .intersperse(Span::from(" \u{2192}\u{A0}").dark_gray())
+            .collect();
+
+        #[allow(unstable_name_collisions)]
+        let back_spans: Vec<Span<'_>> = iter::once(&TracerouteItem::Node(self.context.node_key))
+            .chain(traceroute.route_back.iter())
+            .chain(iter::once(&TracerouteItem::Node(self.context.my_node_key)))
+            .map(route_span_mapper)
+            .intersperse(Span::from(" \u{2192}\u{A0}").dark_gray())
+            .collect();
+
+        match traceroute.state {
+            TracerouteState::Started => {
+                PlaceholderWidget::yellow("pending...").render(popup_block_area, buf);
+            }
+            TracerouteState::RoutingError => {
+                PlaceholderWidget::red(routing_error_to_span(traceroute.routing_error)).render(popup_block_area, buf);
+            }
+            TracerouteState::TimedOut => {
+                PlaceholderWidget::dark_gray("timed out").render(popup_block_area, buf);
+            }
+            TracerouteState::Finished => {
+                Paragraph::new(vec![
+                    Line::from(Span::from("ROUTE TOWARDS").magenta()),
+                    Line::from(towards_spans),
+                    Line::from(Span::from("")),
+                    Line::from(Span::from("ROUTE BACK").magenta()),
+                    Line::from(back_spans),
+                ])
+                .wrap(Wrap { trim: false })
+                .render(popup_block_area, buf);
+            }
+        };
     }
 
     fn render_telemetry(
@@ -532,7 +571,7 @@ impl<'a> Widget for TracerouteWidget<'a> {
 
         // state
         (match &self.item.state {
-            TracerouteState::Started => Span::from("pending").yellow(),
+            TracerouteState::Started => Span::from("pending...").yellow(),
             TracerouteState::RoutingError => routing_error_to_span(self.item.routing_error),
             TracerouteState::TimedOut => Span::from("timed out").dark_gray(),
             TracerouteState::Finished => Span::from("finished").green(),
@@ -551,14 +590,14 @@ impl<'a> Widget for TracerouteWidget<'a> {
         .right_aligned()
         .render(v0_h[2], buf);
 
-        // forward
+        // towards
         Line::from(
-            vec![Span::from("fwd ").dark_gray()]
+            vec![Span::from("twrd ").dark_gray()]
                 .into_iter()
                 .chain(if !self.item.route_towards.is_empty() {
                     hops_to_spans(&self.item.route_towards, false)
                 } else {
-                    vec![Span::from("–").dark_gray().dim()]
+                    vec![Span::from("no data").dark_gray().dim()]
                 })
                 .collect_vec(),
         )
@@ -571,7 +610,7 @@ impl<'a> Widget for TracerouteWidget<'a> {
                 .chain(if !self.item.route_back.is_empty() {
                     hops_to_spans(&self.item.route_back, false)
                 } else {
-                    vec![Span::from("–").dark_gray().dim()]
+                    vec![Span::from("no data").dark_gray().dim()]
                 })
                 .collect_vec(),
         )

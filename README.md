@@ -117,7 +117,8 @@
 - [x] Delete node feature
 - [x] Telemetry info
 - [x] Traceroute feature
-- [ ] Extended traceroute info popup
+- [x] Extended traceroute info popup
+- [ ] Storing traceroutes in the local DB
 - [ ] Ignore feature
 - [ ] Add to Favorite feature
 - [ ] Position info
