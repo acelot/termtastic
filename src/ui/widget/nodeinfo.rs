@@ -8,9 +8,9 @@ use crate::ui::helpers::{
 };
 use crate::ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, ThreeColumnWidget};
 use chrono::Utc;
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use itertools::Itertools;
-use ratatui::widgets::{Borders, Clear, Wrap};
+use ratatui::widgets::{Borders, Clear, ScrollbarState, Wrap};
 use ratatui::{
     prelude::*,
     text::ToSpan,
@@ -87,6 +87,7 @@ pub struct NodeInfoWidgetState {
     traceroute_list_state: ListState,
     telemetry_list_state: ListState,
     expanded_traceroute: Option<u32>,
+    expanded_traceroute_scroll_state: ScrollbarState,
     is_delete_node_popup_visible: bool,
 }
 
@@ -121,6 +122,7 @@ impl NodeInfoWidgetState {
         }
 
         if self.active_tab == NodeInfoTab::Traceroutes
+            && self.expanded_traceroute.is_none()
             && self.traceroute_list_state.handle_navigation_events(&event, None)
         {
             return Ok(true);
@@ -165,8 +167,21 @@ impl NodeInfoWidgetState {
                         .and_then(|i| context.traceroutes.get(i))
                     {
                         self.expanded_traceroute = Some(traceroute.message_id);
+                        self.expanded_traceroute_scroll_state.first();
                     }
 
+                    return Ok(true);
+                }
+                (NodeInfoTab::Traceroutes, KeyCode::Up)
+                    if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
+                {
+                    self.expanded_traceroute_scroll_state.prev();
+                    return Ok(true);
+                }
+                (NodeInfoTab::Traceroutes, KeyCode::Down)
+                    if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
+                {
+                    self.expanded_traceroute_scroll_state.next();
                     return Ok(true);
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Esc)
@@ -200,6 +215,17 @@ impl NodeInfoWidgetState {
                 }
                 (_, KeyCode::Esc) if modifiers.is_empty() => {
                     emit(NodeInfoWidgetEvent::CloseRequested)?;
+                    return Ok(true);
+                }
+                _ => {}
+            },
+            Event::Mouse(MouseEvent { kind, .. }) => match kind {
+                MouseEventKind::ScrollUp if self.expanded_traceroute.is_some() => {
+                    self.expanded_traceroute_scroll_state.prev();
+                    return Ok(true);
+                }
+                MouseEventKind::ScrollDown if self.expanded_traceroute.is_some() => {
+                    self.expanded_traceroute_scroll_state.next();
                     return Ok(true);
                 }
                 _ => {}
@@ -359,11 +385,17 @@ impl<'a> NodeInfoWidget<'a> {
             .expanded_traceroute
             .and_then(|message_id| self.context.traceroutes.iter().find(|t| t.message_id == message_id))
         {
-            self.render_traceroute_popup(traceroute, area, buf);
+            self.render_traceroute_popup(traceroute, area, buf, state);
         }
     }
 
-    fn render_traceroute_popup(&self, traceroute: &Traceroute, area: Rect, buf: &mut Buffer) {
+    fn render_traceroute_popup(
+        &self,
+        traceroute: &Traceroute,
+        area: Rect,
+        buf: &mut Buffer,
+        state: &mut NodeInfoWidgetState,
+    ) {
         let popup_area = Rect {
             x: area.x - 1,
             y: area.y + 2,
@@ -384,7 +416,7 @@ impl<'a> NodeInfoWidget<'a> {
         let route_span_mapper = |item: &TracerouteItem| match item {
             TracerouteItem::Node(node_key) => {
                 let node = self.context.nodes.get(&node_key).unwrap_or(&UNKNOWN_NODE);
-                short_name_to_span(node, false)
+                short_name_to_span(node, node_key == &self.context.my_node_key)
             }
             TracerouteItem::Snr(snr) => Span::from(format!("{:.2}dB", snr)).style(Style::new().fg(snr.snr_to_color())),
         };
@@ -416,15 +448,32 @@ impl<'a> NodeInfoWidget<'a> {
                 PlaceholderWidget::dark_gray("timed out").render(popup_block_area, buf);
             }
             TracerouteState::Finished => {
-                Paragraph::new(vec![
+                let h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(1)])
+                    .split(popup_block_area);
+
+                let paragraph = Paragraph::new(vec![
                     Line::from(Span::from("ROUTE TOWARDS").magenta()),
                     Line::from(towards_spans),
                     Line::from(Span::from("")),
                     Line::from(Span::from("ROUTE BACK").magenta()),
                     Line::from(back_spans),
+                    Line::from(Span::from("")),
+                    Line::from(Span::from("ROUND TRIP TIME").magenta()),
+                    Line::from(Span::from(humanize_uptime(traceroute.duration.num_seconds() as u32))),
                 ])
-                .wrap(Wrap { trim: false })
-                .render(popup_block_area, buf);
+                .wrap(Wrap { trim: false });
+
+                let paragraph_lines = paragraph.line_count(popup_block_area.width - 2);
+
+                state.expanded_traceroute_scroll_state = state
+                    .expanded_traceroute_scroll_state
+                    .content_length(paragraph_lines.saturating_sub(popup_block_area.height as usize) + 1);
+
+                paragraph
+                    .scroll((state.expanded_traceroute_scroll_state.get_position() as u16, 0))
+                    .render(h[0], buf);
+
+                default_scrollbar().render(h[2], buf, &mut state.expanded_traceroute_scroll_state);
             }
         };
     }
