@@ -20,7 +20,6 @@ pub struct State {
     pub chats: OrderMap<Chat, Vec<u32>>,
     pub connection_attempt: u32,
     pub connection_state: ConnectionState,
-    pub config_loaded: bool,
     pub device_config: DeviceConfig,
     pub device_discovering_state: DeviceDiscoveringState,
     pub device_metadata: Option<meshtastic::protobufs::DeviceMetadata>,
@@ -31,7 +30,6 @@ pub struct State {
     pub logs: Vec<LogRecord>,
     pub messages: HashMap<u32, Message>,
     pub my_node_key: Option<u32>,
-    pub my_node_user_hash: u64,
     pub nodeinfo: Option<u32>,
     pub nodeinfo_telemetry: Vec<TelemetryItem>,
     pub nodes: HashMap<u32, Node>,
@@ -55,7 +53,7 @@ pub struct State {
     pub toast: Option<Toast>,
     pub toast_queue: VecDeque<Toast>,
     pub toast_t: Instant,
-    pub traceroutes: OrderMap<u32, Traceroute>,
+    pub traceroutes: HashMap<u32, Traceroute>,
     pub traceroute_t: Instant,
     pub ui_config: UiConfig,
 }
@@ -71,7 +69,6 @@ impl Default for State {
             chats: Default::default(),
             connection_attempt: Default::default(),
             connection_state: Default::default(),
-            config_loaded: Default::default(),
             device_discovering_state: Default::default(),
             device_config: Default::default(),
             device_metadata: Default::default(),
@@ -82,7 +79,6 @@ impl Default for State {
             logs: Vec::with_capacity(1000),
             messages: Default::default(),
             my_node_key: Default::default(),
-            my_node_user_hash: Default::default(),
             nodeinfo: Default::default(),
             nodeinfo_telemetry: Default::default(),
             nodes_traceroutes: Default::default(),
@@ -141,7 +137,8 @@ impl State {
                 }
 
                 let online_token = if node
-                    .last_heard.map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
+                    .last_heard
+                    .map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
                     .unwrap_or(false)
                 {
                     "$online"

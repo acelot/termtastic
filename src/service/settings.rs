@@ -12,16 +12,13 @@ use meshtastic::protobufs::{
     AdminMessage, Channel as MeshtasticChannel, Config, ModuleConfig, PortNum, admin_message, from_radio, mesh_packet,
     module_config,
 };
-use nameof::name_of;
 use ordermap::OrderMap;
 use std::sync::LazyLock;
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
-use crate::types::{
-    AppEvent, Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig,
-};
+use crate::types::{AppEvent, Channel, FormData, FormId, FormValue, NodeUser, SettingsItem, Toast, UiConfig};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
@@ -33,7 +30,7 @@ pub struct SettingsService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
-    state_changed_rx: broadcast::Receiver<Vec<&'static str>>,
+    stored_action_rx: broadcast::Receiver<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
 }
@@ -43,7 +40,7 @@ impl SettingsService {
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
-        state_changed_rx: broadcast::Receiver<Vec<&'static str>>,
+        stored_action_rx: broadcast::Receiver<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
@@ -51,7 +48,7 @@ impl SettingsService {
             app_event_rx,
             state_rx,
             state_action_tx,
-            state_changed_rx,
+            stored_action_rx,
             meshtastic_command_tx,
             meshtastic_event_rx,
         }
@@ -60,7 +57,7 @@ impl SettingsService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.state_changed_rx.recv() => self.handle_state_change(event)?,
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
                 event = self.app_event_rx.recv() => self.handle_app_event(event)?,
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
                 _ = subsys.on_shutdown_requested() => {
@@ -73,42 +70,19 @@ impl SettingsService {
         Ok(())
     }
 
-    fn handle_state_change(&self, event: Result<Vec<&'static str>, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
         match event {
-            Ok(changed) => {
-                let state = self.state_rx.borrow();
+            Ok(StateAction::UiConfigSet { .. }) => {
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::success("setting saved")))?;
 
-                if changed.contains(&name_of!(ui_config in State))
-                    && matches!(
-                        state.settings_form_state,
-                        SettingsFormState::Saving { id: FormId::AppUi }
-                    )
-                {
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::success("setting saved")))?;
-
-                    self.start_config_loading(&FormId::AppUi)?;
-                }
-
-                if changed.contains(&name_of!(my_node_user_hash in State))
-                    && matches!(
-                        state.settings_form_state,
-                        SettingsFormState::Loaded { id: FormId::DeviceUser }
-                    )
-                {
-                    self.start_config_loading(&FormId::DeviceUser)?;
-                }
-
-                if changed.contains(&name_of!(device_canned_messages in State))
-                    && matches!(
-                        state.settings_form_state,
-                        SettingsFormState::Loaded {
-                            id: FormId::ModuleCannedMessage
-                        }
-                    )
-                {
-                    self.start_config_loading(&FormId::ModuleCannedMessage)?;
-                }
+                self.start_config_loading(&FormId::AppUi)?;
+            }
+            Ok(StateAction::NodeOwnerSet(_)) => {
+                self.start_config_loading(&FormId::DeviceUser)?;
+            }
+            Ok(StateAction::DeviceCannedMessagesSet(_)) => {
+                self.start_config_loading(&FormId::ModuleCannedMessage)?;
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 tracing::warn!("broadcast receiver lagged by {} events", n);

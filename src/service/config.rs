@@ -1,4 +1,3 @@
-use nameof::name_of;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::PathBuf;
 use tokio::sync::{broadcast, mpsc, watch};
@@ -11,30 +10,27 @@ use crate::{
 };
 
 pub struct ConfigService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
-    state_changed_rx: broadcast::Receiver<Vec<&'static str>>,
+    stored_action_rx: broadcast::Receiver<StateAction>,
     config_path: PathBuf,
     app_config_last_hash: u64,
 }
 
 impl ConfigService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
-        state_changed_rx: broadcast::Receiver<Vec<&'static str>>,
+        stored_action_rx: broadcast::Receiver<StateAction>,
         config_dir: PathBuf,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,
-            state_changed_rx,
+            stored_action_rx,
             config_path: config_dir.join("app.ron"),
             app_config_last_hash: 0,
         }
@@ -44,7 +40,7 @@ impl ConfigService {
         loop {
             tokio::select! {
                 event = self.app_event_rx.recv() => self.handle_app_event(event)?,
-                event = self.state_changed_rx.recv() => self.handle_state_change(event)?,
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -77,29 +73,21 @@ impl ConfigService {
         Ok(())
     }
 
-    fn handle_state_change(
-        &mut self,
-        event: Result<Vec<&'static str>, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    fn handle_stored_action(&mut self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
         match event {
-            Ok(changed) => {
-                if changed.contains(&name_of!(config_loaded in State)) {
-                    self.app_event_tx.send(AppEvent::ConfigLoaded)?;
-
+            Ok(action) => {
+                if matches!(action, StateAction::AppConfigApply(_)) {
                     self.state_action_tx
                         .send(StateAction::Toast(Toast::normal("config loaded")))?;
                 }
 
                 let state = self.state_rx.borrow();
+                let app_config: AppConfig = (&*state).into();
+                let app_config_hash = calculate_hash(&app_config);
 
-                if state.config_loaded {
-                    let app_config: AppConfig = (&*state).into();
-                    let app_config_hash = calculate_hash(&app_config);
-
-                    if app_config_hash != self.app_config_last_hash {
-                        confy::store_path(self.config_path.as_path(), &app_config)?;
-                        self.app_config_last_hash = app_config_hash;
-                    }
+                if app_config_hash != self.app_config_last_hash {
+                    confy::store_path(self.config_path.as_path(), &app_config)?;
+                    self.app_config_last_hash = app_config_hash;
                 }
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {

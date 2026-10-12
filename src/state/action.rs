@@ -5,10 +5,10 @@ use meshtastic::protobufs::{config, module_config, routing};
 
 use crate::types::{
     AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node,
-    NodeTelemetry, NodeUser, NodesSortBy, Toast, TracerouteItem, UiConfig,
+    NodeTelemetry, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StateAction {
     AppConfigApply(AppConfig),
     ActiveChatSet(Chat),
@@ -22,6 +22,7 @@ pub enum StateAction {
     ConnectionSuccess,
     ReconnectionBackoffSet(Duration),
     DbNodesLoad(Vec<Node>),
+    DbTracerouteLoad(Vec<Traceroute>),
     DeviceActiveSet(Device),
     DevicesAdd(Device),
     DevicesRemove(Device),
@@ -78,6 +79,9 @@ pub enum StateAction {
         datetime: DateTime<Utc>,
         route_towards: Vec<TracerouteItem>,
         route_back: Vec<TracerouteItem>,
+    },
+    TracerouteRemove {
+        message_id: u32,
     },
     TracerouteTrigger,
     SettingsFormLoadingStart {

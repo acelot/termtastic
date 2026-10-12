@@ -1,7 +1,7 @@
 use super::Node;
 use crate::repository::{Repository, RepositoryError};
 use rusqlite::params;
-use serde_rusqlite::{from_row, from_rows, to_params_named};
+use serde_rusqlite::{from_rows, to_params_named};
 
 pub const TABLE_NAME: &str = "nodes";
 
@@ -14,24 +14,6 @@ impl Repository {
                 let result: Result<_, _> = from_rows::<Node>(statement.query([])?).collect();
 
                 result.map_err(Into::into)
-            })
-            .await?;
-
-        Ok(result)
-    }
-
-    pub async fn node_get_by_key(&self, key: u32) -> Result<Option<Node>, RepositoryError> {
-        let result: Option<Node> = self
-            .conn
-            .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!("SELECT * FROM {} WHERE key = :key", TABLE_NAME))?;
-
-                match statement.query_one(params![key], |row| Ok(from_row::<Node>(row))) {
-                    Ok(Ok(node)) => Ok(Some(node)),
-                    Ok(Err(e)) => Err(e.into()),
-                    Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-                    Err(e) => Err(e.into()),
-                }
             })
             .await?;
 

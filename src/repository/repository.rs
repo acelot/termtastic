@@ -5,6 +5,7 @@ use tokio_rusqlite_new::Connection;
 const MIGRATIONS_LIST: &[M<'_>] = &[
     M::up(include_str!("migrations/0001.sql")),
     M::up(include_str!("migrations/0002.sql")),
+    M::up(include_str!("migrations/0003.sql")),
 ];
 
 const MIGRATIONS: Migrations<'_> = Migrations::from_slice(MIGRATIONS_LIST);

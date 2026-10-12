@@ -1,11 +1,11 @@
-use std::{ops::Sub, time::Duration};
+use std::time::Duration;
 
 use chrono::Utc;
 use itertools::Itertools;
 use meshtastic::{
     Message as _,
     protobufs::{
-        PortNum, RouteDiscovery, from_radio,
+        PortNum, RouteDiscovery, from_radio, log_record,
         mesh_packet::{self, TransportMechanism},
     },
 };
@@ -27,7 +27,6 @@ use crate::{
 };
 
 const CHECK_TRACEROUTE_INTERVAL_SECS: u64 = 1;
-const TRACEROUTE_COOLDOWN_SECS: i64 = 30;
 const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
 const TRACEROUTE_SNR_MULTIPLIER: f32 = 4.0;
 
@@ -80,23 +79,12 @@ impl TracerouteService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::TracerouteRequested(node_key) => {
-                    let last_run = state.traceroutes.first().map(|(_, t)| t.datetime).unwrap_or_default();
+                    let my_node_num = state.my_node_key.expect("should be Some");
 
-                    let seconds_left = TRACEROUTE_COOLDOWN_SECS - Utc::now().sub(last_run).num_seconds();
-
-                    if seconds_left > 0 {
-                        self.state_action_tx.send(StateAction::Toast(Toast::warning(format!(
-                            "traceroute cooldown: wait {} secs...",
-                            seconds_left
-                        ))))?;
-                    } else {
-                        let my_node_num = state.my_node_key.expect("should be Some");
-
-                        self.meshtastic_command_tx.send(CommandToMeshtastic::RunTraceroute {
-                            node_num: node_key,
-                            my_node_num,
-                        })?;
-                    }
+                    self.meshtastic_command_tx.send(CommandToMeshtastic::RunTraceroute {
+                        node_num: node_key,
+                        my_node_num,
+                    })?;
                 }
                 _ => {}
             },
@@ -183,6 +171,14 @@ impl TracerouteService {
                 },
                 _ => {}
             },
+            from_radio::PayloadVariant::ClientNotification(notification) => {
+                if let Some(message_id) = notification.reply_id
+                    && notification.level() == log_record::Level::Warning
+                {
+                    self.state_action_tx
+                        .send(StateAction::TracerouteRemove { message_id })?;
+                }
+            }
             _ => {}
         }
 

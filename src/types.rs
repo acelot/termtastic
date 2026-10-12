@@ -72,7 +72,6 @@ pub enum AppEvent {
         emoji: &'static Emoji,
         reply_message_id: Option<u32>,
     },
-    ConfigLoaded,
     CopyToClipboardRequested(String),
     DbLoadRequested(u32),
     DbLoadFinished,
@@ -887,7 +886,6 @@ pub struct Traceroute {
     pub message_id: u32,
     pub node_key: u32,
     pub datetime: DateTime<Utc>,
-    pub acked: bool,
     pub routing_error: Option<routing::Error>,
     pub duration: TimeDelta,
     pub route_towards: Vec<TracerouteItem>,
@@ -921,18 +919,21 @@ impl HopsSnrRssiAware for Vec<TracerouteItem> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Default, FromRepr)]
+#[repr(u32)]
 pub enum TracerouteState {
     #[default]
-    Started,
-    RoutingError,
-    TimedOut,
-    Finished,
+    Started = 0,
+    RoutingError = 1,
+    TimedOut = 2,
+    Finished = 3,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum TracerouteItem {
+    #[serde(rename = "s")]
     Snr(f32),
+    #[serde(rename = "n")]
     Node(u32),
 }
 

@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
-    let (store, state_action_tx, state_rx, state_changed_rx) = Store::new(State::default());
+    let (store, state_action_tx, state_rx, stored_action_rx) = Store::new(State::default());
 
     let (file_writer, _file_writer_guard) = tracing_appender::non_blocking(tracing_appender::rolling::daily(
         data_dir.join("logs"),
@@ -42,31 +42,32 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
 
     let (app_event_tx, app_event_rx) = broadcast::channel::<AppEvent>(1024);
 
-    let (persistence_service, persisted_state_action_tx) = PersistenceService::new(
+    let persistence_service = PersistenceService::new(
         app_event_tx.clone(),
         app_event_rx.resubscribe(),
+        state_rx.clone(),
         state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
         data_dir,
     );
 
     let (meshtastic_service, meshtastic_command_tx, meshtastic_event_rx) = MeshtasticService::new();
 
     let config_service = ConfigService::new(
-        app_event_tx.clone(),
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
-        state_changed_rx.resubscribe(),
+        state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
         config_dir,
     );
 
-    let ui_service = UiService::new(app_event_rx.resubscribe(), persisted_state_action_tx.clone());
+    let ui_service = UiService::new(app_event_rx.resubscribe(), state_action_tx.clone());
 
     let nodes_service = NodesService::new(
         app_event_tx.clone(),
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
+        state_action_tx.clone(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );
@@ -74,7 +75,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let traceroute_service = TracerouteService::new(
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
+        state_action_tx.clone(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );
@@ -83,7 +84,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         app_event_tx.clone(),
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
+        state_action_tx.clone(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );
@@ -91,7 +92,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let chat_service = ChatService::new(
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
+        state_action_tx.clone(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );
@@ -99,8 +100,8 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let settings_service = SettingsService::new(
         app_event_rx.resubscribe(),
         state_rx.clone(),
-        persisted_state_action_tx.clone(),
-        state_changed_rx.resubscribe(),
+        state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );

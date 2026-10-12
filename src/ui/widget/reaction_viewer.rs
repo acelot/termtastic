@@ -50,7 +50,7 @@ impl<'a> StatefulWidget for ReactionViewerWidget<'a> {
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         let block = Block::bordered()
             .border_type(BorderType::Thick)
-            .padding(Padding::new(0, 1, 1, 0))
+            .padding(Padding::new(1, 1, 1, 0))
             .title(format!(" reactions: {} ", self.reactions.len()));
 
         let block_area = block.inner(area);
@@ -74,7 +74,7 @@ impl<'a> StatefulWidget for ReactionViewerWidget<'a> {
         }
 
         const ITEM_HEIGHT: usize = 3;
-        let is_scrollable = self.reactions.len() * ITEM_HEIGHT - 1 > block_area.height as usize;
+        let is_scrollable = self.reactions.len() * ITEM_HEIGHT > block_area.height as usize;
 
         let list_builder = ListBuilder::new(|context| {
             let reaction = &self.reactions[context.index];
@@ -85,14 +85,7 @@ impl<'a> StatefulWidget for ReactionViewerWidget<'a> {
                 is_scrollable,
             };
 
-            (
-                item,
-                if context.index < self.reactions.len() - 1 {
-                    ITEM_HEIGHT as u16
-                } else {
-                    ITEM_HEIGHT as u16 - 1
-                },
-            )
+            (item, ITEM_HEIGHT as u16)
         });
 
         let list = ListView::new(list_builder, self.reactions.len())
@@ -119,8 +112,16 @@ impl<'a> Widget for ReactionWidget<'a> {
         let block = Block::new()
             .padding(Padding::new(1, if self.is_scrollable { 3 } else { 0 }, 0, 0))
             .borders(Borders::LEFT)
-            .border_type(BorderType::QuadrantInside)
-            .border_style(Style::new().fg(if self.is_selected { Color::Yellow } else { Color::Black }));
+            .border_type(if self.is_selected {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
+            .border_style(Style::new().fg(if self.is_selected {
+                Color::Yellow
+            } else {
+                Color::DarkGray
+            }));
 
         let block_area = block.inner(area);
         block.render(area, buf);

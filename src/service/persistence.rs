@@ -1,11 +1,12 @@
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::repository::{Repository, create_sqlite_repository};
-use crate::types::Node;
+use crate::state::State;
+use crate::types::{Node, Traceroute};
 use crate::{
     APP_NAME,
     state::StateAction,
@@ -15,8 +16,9 @@ use crate::{
 pub struct PersistenceService {
     app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
-    forward_state_action_tx: mpsc::UnboundedSender<StateAction>,
-    state_action_rx: mpsc::UnboundedReceiver<StateAction>,
+    state_rx: watch::Receiver<State>,
+    state_action_tx: mpsc::UnboundedSender<StateAction>,
+    stored_action_rx: broadcast::Receiver<StateAction>,
     data_dir: PathBuf,
     repository: Option<Arc<Repository>>,
 }
@@ -25,28 +27,26 @@ impl PersistenceService {
     pub fn new(
         app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
-        forward_state_action_tx: mpsc::UnboundedSender<StateAction>,
+        state_rx: watch::Receiver<State>,
+        state_action_tx: mpsc::UnboundedSender<StateAction>,
+        stored_action_rx: broadcast::Receiver<StateAction>,
         data_dir: PathBuf,
-    ) -> (Self, mpsc::UnboundedSender<StateAction>) {
-        let (state_action_tx, state_action_rx) = mpsc::unbounded_channel::<StateAction>();
-
-        (
-            Self {
-                app_event_tx,
-                app_event_rx,
-                forward_state_action_tx,
-                state_action_rx,
-                data_dir,
-                repository: None,
-            },
+    ) -> Self {
+        Self {
+            app_event_tx,
+            app_event_rx,
+            state_rx,
             state_action_tx,
-        )
+            stored_action_rx,
+            data_dir,
+            repository: None,
+        }
     }
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                Some(action) = self.state_action_rx.recv() => self.handle_action(action).await?,
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event).await?,
                 event = self.app_event_rx.recv() => self.handle_app_event(event).await?,
                 _ = subsys.on_shutdown_requested() => {
                     self.repository.take();
@@ -59,69 +59,77 @@ impl PersistenceService {
         Ok(())
     }
 
-    async fn handle_action(&mut self, action: StateAction) -> anyhow::Result<()> {
+    async fn handle_stored_action(
+        &mut self,
+        event: Result<StateAction, broadcast::error::RecvError>,
+    ) -> anyhow::Result<()> {
+        let action = match event {
+            Ok(action) => action,
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("broadcast receiver lagged by {} events", n);
+                return Ok(());
+            }
+            Err(broadcast::error::RecvError::Closed) => return Ok(()),
+        };
+
         let Some(repository) = &self.repository else {
-            self.forward_state_action_tx.send(action)?;
             return Ok(());
         };
 
-        match &action {
-            StateAction::NodeInit(node) if node.user.is_some() => {
-                if let Err(e) = repository.node_upsert(node.into()).await {
-                    tracing::error!("node init failed: {}", e);
+        match action {
+            StateAction::NodeInit(Node { key, .. })
+            | StateAction::NodeUpdate(Node { key, .. })
+            | StateAction::NodeUpdateLastHeard { node_key: key, .. } => {
+                let Some(node) = self
+                    .state_rx
+                    .borrow()
+                    .nodes
+                    .get(&key)
+                    .filter(|node| node.user.is_some())
+                    .cloned()
+                else {
+                    return Ok(());
+                };
 
-                    self.forward_state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
-                }
-            }
-            StateAction::NodeUpdate(node) => {
                 if let Err(e) = repository.node_upsert(node.into()).await {
-                    tracing::error!("node update failed: {}", e);
+                    tracing::error!("node upsert failed: {}", e);
 
-                    self.forward_state_action_tx
+                    self.state_action_tx
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
             }
             StateAction::NodeDelete(node_key) => {
-                if let Err(e) = repository.node_remove(*node_key).await {
+                if let Err(e) = repository.node_remove(node_key).await {
                     tracing::error!("node delete failed: {}", e);
 
-                    self.forward_state_action_tx
+                    self.state_action_tx
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
             }
-            StateAction::NodeUpdateLastHeard {
-                node_key,
-                hops,
-                snr,
-                rssi,
-            } => match repository.node_get_by_key(*node_key).await {
-                Ok(Some(mut node)) => {
-                    node.hops = Some(*hops);
-                    node.snr = *snr;
-                    node.rssi = Some(*rssi);
+            StateAction::TracerouteFinish { message_id, .. }
+            | StateAction::TracerouteTimeout { message_id }
+            | StateAction::MessageErrorSet { message_id, .. } => {
+                let Some(traceroute) = self.state_rx.borrow().traceroutes.get(&message_id).cloned() else {
+                    return Ok(());
+                };
 
-                    if let Err(e) = repository.node_upsert(node).await {
-                        tracing::error!("node update failed: {}", e);
-
-                        self.forward_state_action_tx
-                            .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                let traceroute_entity = match traceroute.try_into() {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("can't convert Traceroute into DB entity: {}", e);
+                        return Ok(());
                     }
-                }
-                Ok(None) => {
-                    tracing::debug!("node {} not found for updating last heard – skip", node_key);
-                }
-                Err(e) => {
-                    tracing::error!("node find by key failed: {}", e);
+                };
 
-                    self.forward_state_action_tx
+                if let Err(e) = repository.traceroute_upsert(traceroute_entity).await {
+                    tracing::error!("traceroute save failed: {}", e);
+
+                    self.state_action_tx
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
-            },
+            }
             _ => {}
         };
-
-        self.forward_state_action_tx.send(action)?;
 
         Ok(())
     }
@@ -139,13 +147,13 @@ impl PersistenceService {
                         Err(e) => {
                             tracing::error!("DB initialization failed: {}", e);
 
-                            self.forward_state_action_tx
+                            self.state_action_tx
                                 .send(StateAction::Toast(Toast::error("DB initialization failed")))?;
                         }
                     }
 
                     if self.load_data().await.is_ok() {
-                        self.forward_state_action_tx
+                        self.state_action_tx
                             .send(StateAction::Toast(Toast::normal("DB data loaded")))?;
                     }
 
@@ -178,7 +186,7 @@ impl PersistenceService {
         let Some(repository) = &self.repository else {
             tracing::warn!("DB data not loaded");
 
-            self.forward_state_action_tx
+            self.state_action_tx
                 .send(StateAction::Toast(Toast::warning("DB data not loaded")))?;
 
             return Ok(());
@@ -194,14 +202,42 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("nodes load failed: {}", e);
 
-                self.forward_state_action_tx
+                self.state_action_tx
                     .send(StateAction::Toast(Toast::error("nodes not loaded from DB")))?;
 
                 return Ok(());
             }
         };
 
-        self.forward_state_action_tx.send(StateAction::DbNodesLoad(nodes))?;
+        self.state_action_tx.send(StateAction::DbNodesLoad(nodes))?;
+
+        // traceroutes
+        let traceroutes: Vec<Traceroute> = match repository.traceroute_find_all().await {
+            Ok(entities) => {
+                tracing::info!("traceroutes loaded from DB: {}", entities.len());
+
+                entities
+                    .into_iter()
+                    .filter_map(|e| match Traceroute::try_from(e) {
+                        Ok(t) => Some(t),
+                        Err(e) => {
+                            tracing::error!("can't convert DB entity to Traceroute: {}", e);
+                            None
+                        }
+                    })
+                    .collect()
+            }
+            Err(e) => {
+                tracing::error!("traceroutes load failed: {}", e);
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::error("traceroutes not loaded from DB")))?;
+
+                return Ok(());
+            }
+        };
+
+        self.state_action_tx.send(StateAction::DbTracerouteLoad(traceroutes))?;
 
         // telemetry
         match repository.telemetry_find_last_for_each_node().await {
@@ -210,7 +246,7 @@ impl PersistenceService {
                     for item in telemetry {
                         match item.try_into() {
                             Ok(node_telemetry) => self
-                                .forward_state_action_tx
+                                .state_action_tx
                                 .send(StateAction::NodeLastTelemetrySet(node_telemetry))?,
                             Err(e) => {
                                 tracing::error!(
@@ -234,7 +270,7 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("telemetry load failed: {}", e);
 
-                self.forward_state_action_tx
+                self.state_action_tx
                     .send(StateAction::Toast(Toast::error("telemetry not loaded from DB")))?;
 
                 return Ok(());

@@ -274,7 +274,12 @@ fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
         traceroutes: state
             .nodes_traceroutes
             .get(&node_key)
-            .map(|ids| ids.iter().filter_map(|id| state.traceroutes.get(id)).sorted().collect())
+            .map(|ids| {
+                ids.iter()
+                    .filter_map(|id| state.traceroutes.get(id))
+                    .sorted_by(|t1, t2| t1.cmp(t2))
+                    .collect()
+            })
             .unwrap_or_default(),
         telemetry: &state.nodeinfo_telemetry,
         uptime: state

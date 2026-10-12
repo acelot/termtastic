@@ -118,7 +118,7 @@
 - [x] Telemetry info
 - [x] Traceroute feature
 - [x] Extended traceroute info popup
-- [ ] Storing traceroutes in the local DB
+- [x] Storing traceroutes in the local DB
 - [ ] Ignore feature
 - [ ] Add to Favorite feature
 - [ ] Position info
