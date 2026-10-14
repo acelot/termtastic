@@ -38,7 +38,7 @@ impl<'a> Nodes<'a> {
 
         let popup_block_area = popup_block.inner(popup_area);
 
-        Clear.render(popup_area, buf);
+        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         popup_block.render(popup_area, buf);
 
         let h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(1)])
@@ -401,7 +401,7 @@ impl<'a> Component for Nodes<'a> {
         if self.is_emoji_selector_visible {
             let popup_area = v[0].centered(Constraint::Length(40), Constraint::Length(14));
 
-            Clear.render(popup_area, frame.buffer_mut());
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
             EmojiSelectorWidget::new().render(popup_area, frame.buffer_mut(), &mut self.emoji_selector_state);
         }

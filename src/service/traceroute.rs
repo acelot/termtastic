@@ -18,7 +18,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
-    types::AppEvent,
+    types::{AppEvent, UNKNOWN_NODE},
 };
 use crate::{state::State, types::TracerouteState};
 use crate::{
@@ -145,19 +145,30 @@ impl TracerouteService {
                                     datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                 })?;
                             } else {
-                                let route_towards = route_discovery
+                                let route_towards: Vec<TracerouteItem> = route_discovery
                                     .snr_towards
                                     .into_iter()
                                     .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
                                     .interleave(route_discovery.route.into_iter().map(TracerouteItem::Node))
                                     .collect();
 
-                                let route_back = route_discovery
+                                let route_back: Vec<TracerouteItem> = route_discovery
                                     .snr_back
                                     .into_iter()
                                     .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
                                     .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
                                     .collect();
+
+                                let node_short_name = match route_towards.last() {
+                                    Some(TracerouteItem::Node(node_key)) => self
+                                        .state_rx
+                                        .borrow()
+                                        .nodes
+                                        .get(node_key)
+                                        .unwrap_or(&UNKNOWN_NODE)
+                                        .short_name(),
+                                    _ => UNKNOWN_NODE.short_name(),
+                                };
 
                                 self.state_action_tx.send(StateAction::TracerouteFinish {
                                     message_id: data.request_id,
@@ -166,8 +177,10 @@ impl TracerouteService {
                                     route_back,
                                 })?;
 
-                                self.state_action_tx
-                                    .send(StateAction::Toast(Toast::success("traceroute finished")))?;
+                                self.state_action_tx.send(StateAction::Toast(Toast::success(format!(
+                                    "[ {} ] traceroute finished",
+                                    node_short_name
+                                ))))?;
                             }
                         }
                         Err(e) => {
@@ -208,14 +221,22 @@ impl TracerouteService {
                 if Utc::now().signed_duration_since(traceroute.datetime).num_seconds() < TRACEROUTE_TIMEOUT_SECS {
                     continue;
                 }
+
+                let node_short_name = state
+                    .nodes
+                    .get(&traceroute.node_key)
+                    .unwrap_or(&UNKNOWN_NODE)
+                    .short_name();
+
+                self.state_action_tx.send(StateAction::Toast(Toast::error(format!(
+                    "[ {} ] traceroute timed out",
+                    node_short_name
+                ))))?;
             };
 
             self.state_action_tx.send(StateAction::TracerouteTimeout {
                 message_id: *message_id,
             })?;
-
-            self.state_action_tx
-                .send(StateAction::Toast(Toast::error("traceroute timed out")))?;
         }
 
         Ok(())

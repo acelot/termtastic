@@ -1,23 +1,23 @@
 use std::collections::HashMap;
 use std::iter;
 
+use chrono::Utc;
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
+use itertools::Itertools;
+use ratatui::{
+    prelude::*,
+    text::ToSpan,
+    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, ScrollbarState, Wrap},
+};
+use strum::{Display, EnumCount, EnumIter, FromRepr, IntoEnumIterator};
+use tui_widget_list::{ListBuilder, ListState, ListView};
+
 use crate::types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE};
 use crate::ui::helpers::{
     Base64EncoderExt, ListStateExt, SnrColorExt, default_scrollbar, hops_to_spans, humanize_time_delta,
     humanize_uptime, last_heard_to_spans, routing_error_to_span, short_name_to_span,
 };
 use crate::ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, ThreeColumnWidget};
-use chrono::Utc;
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
-use itertools::Itertools;
-use ratatui::widgets::{Borders, Clear, ScrollbarState, Wrap};
-use ratatui::{
-    prelude::*,
-    text::ToSpan,
-    widgets::{Block, BorderType, Padding, Paragraph},
-};
-use strum::{Display, EnumCount, EnumIter, FromRepr, IntoEnumIterator};
-use tui_widget_list::{ListBuilder, ListState, ListView};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, FromRepr, Display, EnumIter, EnumCount)]
 enum NodeInfoTab {
@@ -410,7 +410,7 @@ impl<'a> NodeInfoWidget<'a> {
 
         let popup_block_area = popup_block.inner(popup_area);
 
-        Clear.render(popup_area, buf);
+        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         popup_block.render(popup_area, buf);
 
         let route_span_mapper = |item: &TracerouteItem| match item {

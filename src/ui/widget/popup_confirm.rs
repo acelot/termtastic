@@ -59,7 +59,7 @@ impl Widget for PopupConfirmWidget {
         ])
         .split(popup_block_area);
 
-        Clear.render(popup_area, buf);
+        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         popup_block.render(popup_area, buf);
 
         paragraph.render(v[0], buf);

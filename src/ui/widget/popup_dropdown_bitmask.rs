@@ -97,7 +97,7 @@ impl<'a> StatefulWidget for PopupDropdownBitmaskWidget<'a> {
 
         let popup_block_area = popup_block.inner(popup_area);
 
-        Clear.render(popup_area, buf);
+        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         popup_block.render(popup_area, buf);
 
         if state.list_state.selected.is_none() && !state.variants.is_empty() {

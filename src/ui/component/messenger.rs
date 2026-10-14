@@ -511,7 +511,7 @@ impl<'a> Component for Messenger<'a> {
         {
             let popup_area = v[0].centered(Constraint::Length(40), Constraint::Length(15));
 
-            Clear.render(popup_area, frame.buffer_mut());
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
             self.is_reaction_viewer_visible = true;
 
@@ -544,7 +544,7 @@ impl<'a> Component for Messenger<'a> {
         if self.is_emoji_selector_visible {
             let popup_area = v[0].centered(Constraint::Length(40), Constraint::Length(14));
 
-            Clear.render(popup_area, frame.buffer_mut());
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
             EmojiSelectorWidget::new().render(popup_area, frame.buffer_mut(), &mut self.emoji_selector_state);
         }

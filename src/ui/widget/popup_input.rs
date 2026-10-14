@@ -113,7 +113,7 @@ impl<'a> StatefulWidget for PopupInputWidget<'a> {
 
         let textarea_block_area = textarea_block.inner(v[0]);
 
-        Clear.render(popup_area, buf);
+        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         textarea_block.render(v[0], buf);
 
         state.textarea.set_style(Style::new().fg(color));

@@ -210,7 +210,7 @@ impl<'a> Component for Layout<'a> {
         if let Some(node_key) = state.nodeinfo {
             let popup_area = area.centered(Constraint::Length(60), Constraint::Length(17));
 
-            Clear.render(popup_area, frame.buffer_mut());
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
             NodeInfoWidget::new(build_nodeinfo_context(node_key, state)).render(
                 popup_area,
@@ -255,7 +255,7 @@ impl<'a> Component for Layout<'a> {
 
             let toast_block_area = toast_block.inner(toast_area);
 
-            Clear.render(toast_area, frame.buffer_mut());
+            Clear.render(toast_area.outer(Margin::new(1, 0)), frame.buffer_mut());
             toast_block.render(toast_area, frame.buffer_mut());
 
             Paragraph::new(Span::from(text))

@@ -43,7 +43,7 @@ impl<'a> Connection<'a> {
 
         let block_area = block.inner(area);
 
-        Clear.render(area, buf);
+        Clear.render(area.outer(Margin::new(1, 0)), buf);
         block.render(area, buf);
 
         self.discovery_list_state.fix_selection(state.devices_discovered.len());
@@ -435,15 +435,18 @@ impl<'a> Component for Connection<'a> {
                 ConnectionState::Connected => vec![
                     Some(Line::from(Span::from("connected").green())),
                     state.device_metadata.as_ref().map(|_| Line::from("")),
-                    state.device_metadata.as_ref().map(|metadata| Line::from(vec![
+                    state.device_metadata.as_ref().map(|metadata| {
+                        Line::from(vec![
                             Span::from(
                                 HardwareModel::try_from(metadata.hw_model)
-                                    .ok().map(|h| h.as_str_name())
+                                    .ok()
+                                    .map(|h| h.as_str_name())
                                     .unwrap_or("UNKNOWN"),
                             )
                             .magenta(),
                             Span::from(format!(" [v{}]", &metadata.firmware_version)).dark_gray(),
-                        ])),
+                        ])
+                    }),
                 ]
                 .into_iter()
                 .flatten()

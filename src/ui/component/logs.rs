@@ -174,7 +174,7 @@ impl Component for Logs {
 
             let popup_block_area = popup_block.inner(popup_area);
 
-            Clear.render(popup_area, frame.buffer_mut());
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
             popup_block.render(popup_area, frame.buffer_mut());
 
             let paragraph = get_record_paragraph(record, false, true);
