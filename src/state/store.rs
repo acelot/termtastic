@@ -9,7 +9,7 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::update_nodeinfo_telemetry;
-use crate::types::{Chat, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteState};
+use crate::types::{Chat, NodeLastTelemetry, NodeLastTelemetryItem, ToastKind, Traceroute, TracerouteState};
 use crate::{
     state::{State, StateAction},
     types::{ConnectionState, DeviceDiscoveringState, FormItemKey, SettingsFormState, Tab},
@@ -789,6 +789,12 @@ impl Store {
                 false
             }),
             StateAction::Toast(toast) => {
+                match toast.kind {
+                    ToastKind::Normal | ToastKind::Success => tracing::info!("TOAST {}", toast.text),
+                    ToastKind::Warning => tracing::warn!("TOAST {}", toast.text),
+                    ToastKind::Error => tracing::error!("TOAST {}", toast.text),
+                }
+
                 self.state_tx.send_modify(|state| {
                     state.toast_queue.push_back(toast);
                 });
@@ -910,64 +916,57 @@ impl Store {
 
                 true
             }
-            StateAction::TracerouteTimeout { message_id } => self.state_tx.send_if_modified(|state| {
-                let mut is_modified = false;
+            StateAction::TracerouteTimeout { message_id } => {
+                self.state_tx.send_modify(|state| {
+                    state.traceroutes.entry(message_id).and_modify(|t| {
+                        t.state = TracerouteState::TimedOut;
+                        t.duration = Utc::now().signed_duration_since(t.datetime);
+                    });
 
-                state.traceroutes.entry(message_id).and_modify(|t| {
-                    t.state = TracerouteState::TimedOut;
-                    t.duration = Utc::now().signed_duration_since(t.datetime);
-
-                    is_modified = true;
+                    state.active_traceroutes.remove(&message_id);
+                    state.traceroute_indicator = false;
                 });
 
-                if state.active_traceroutes.remove(&message_id) {
-                    is_modified = true;
-                }
-
-                is_modified
-            }),
+                true
+            }
             StateAction::TracerouteFinish {
                 message_id,
                 datetime,
                 route_towards,
                 route_back,
-            } => self.state_tx.send_if_modified(|state| {
-                let mut is_modified = false;
+            } => {
+                self.state_tx.send_modify(|state| {
+                    state.traceroutes.entry(message_id).and_modify(|t| {
+                        t.duration = datetime - t.datetime;
+                        t.route_towards = route_towards;
+                        t.route_back = route_back;
+                        t.state = TracerouteState::Finished;
+                    });
 
-                state.traceroutes.entry(message_id).and_modify(|t| {
-                    t.duration = datetime - t.datetime;
-                    t.route_towards = route_towards;
-                    t.route_back = route_back;
-                    t.state = TracerouteState::Finished;
-
-                    is_modified = true;
+                    state.active_traceroutes.remove(&message_id);
+                    state.traceroute_indicator = false;
                 });
 
-                if state.active_traceroutes.remove(&message_id) {
-                    is_modified = true;
-                }
-
-                is_modified
-            }),
-            StateAction::TracerouteRemove { message_id } => self.state_tx.send_if_modified(|state| {
-                let mut is_modified = false;
-
-                if let Some(traceroute) = state.traceroutes.remove(&message_id) {
-                    state
-                        .nodes_traceroutes
-                        .entry(traceroute.node_key)
-                        .and_modify(|nt| nt.retain(|id| *id != message_id));
-
-                    is_modified = true;
-                }
-
-                state.active_traceroutes.remove(&message_id);
-
-                is_modified
-            }),
-            StateAction::TracerouteTrigger => {
+                true
+            }
+            StateAction::TracerouteRemove { message_id } => {
                 self.state_tx.send_modify(|state| {
-                    state.traceroute_t = Instant::now();
+                    if let Some(traceroute) = state.traceroutes.remove(&message_id) {
+                        state
+                            .nodes_traceroutes
+                            .entry(traceroute.node_key)
+                            .and_modify(|nt| nt.retain(|id| *id != message_id));
+                    }
+
+                    state.active_traceroutes.remove(&message_id);
+                    state.traceroute_indicator = false;
+                });
+
+                true
+            }
+            StateAction::TracerouteSwitchIndicator => {
+                self.state_tx.send_modify(|state| {
+                    state.traceroute_indicator = !state.traceroute_indicator;
                 });
 
                 true

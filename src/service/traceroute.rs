@@ -159,15 +159,14 @@ impl TracerouteService {
                                     .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
                                     .collect();
 
-                                let node_short_name = match route_towards.last() {
-                                    Some(TracerouteItem::Node(node_key)) => self
-                                        .state_rx
-                                        .borrow()
-                                        .nodes
-                                        .get(node_key)
-                                        .unwrap_or(&UNKNOWN_NODE)
-                                        .short_name(),
-                                    _ => UNKNOWN_NODE.short_name(),
+                                let node_short_name = {
+                                    let state = self.state_rx.borrow();
+
+                                    state
+                                        .traceroutes
+                                        .get(&data.request_id)
+                                        .map(|t| state.nodes.get(&t.node_key).unwrap_or(&UNKNOWN_NODE).short_name())
+                                        .unwrap_or(UNKNOWN_NODE.short_name())
                                 };
 
                                 self.state_action_tx.send(StateAction::TracerouteFinish {
@@ -178,7 +177,7 @@ impl TracerouteService {
                                 })?;
 
                                 self.state_action_tx.send(StateAction::Toast(Toast::success(format!(
-                                    "[ {} ] traceroute finished",
+                                    "[{}] traceroute finished",
                                     node_short_name
                                 ))))?;
                             }
@@ -194,6 +193,7 @@ impl TracerouteService {
             from_radio::PayloadVariant::ClientNotification(notification) => {
                 if let Some(message_id) = notification.reply_id
                     && notification.level() == log_record::Level::Warning
+                    && notification.message.to_lowercase().contains("traceroute")
                 {
                     self.state_action_tx
                         .send(StateAction::TracerouteRemove { message_id })?;
@@ -206,10 +206,10 @@ impl TracerouteService {
     }
 
     fn check_traceroutes(&self) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
+        let state = self.state_rx.borrow();
 
         if !state.active_traceroutes.is_empty() {
-            self.state_action_tx.send(StateAction::TracerouteTrigger)?;
+            self.state_action_tx.send(StateAction::TracerouteSwitchIndicator)?;
         }
 
         for message_id in state.active_traceroutes.iter() {
@@ -229,8 +229,8 @@ impl TracerouteService {
                     .short_name();
 
                 self.state_action_tx.send(StateAction::Toast(Toast::error(format!(
-                    "[ {} ] traceroute timed out",
-                    node_short_name
+                    "[{}] traceroute timed out",
+                    &node_short_name
                 ))))?;
             };
 

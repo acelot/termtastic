@@ -45,7 +45,8 @@ impl Component for Header {
                     Span::from(format!(
                         "reconnecting in {} sec...",
                         state
-                            .reconnection_backoff.map(|b| b.as_secs().to_string())
+                            .reconnection_backoff
+                            .map(|b| b.as_secs().to_string())
                             .unwrap_or("?".to_owned())
                     ))
                     .red(),
@@ -65,7 +66,11 @@ impl Component for Header {
                     Span::from("/").yellow().dim(),
                     Span::from(state.nodes_stash_cap.to_string()).yellow(),
                     Span::from(" "),
-                    Span::from("■").fg(if state.rx { Color::Red } else { Color::DarkGray }),
+                    Span::from("RX").fg(Color::Red).add_modifier(if state.rx {
+                        Modifier::empty()
+                    } else {
+                        Modifier::DIM
+                    }),
                 ])
                 .right_aligned()
                 .render(h[1], frame.buffer_mut());
@@ -76,8 +81,16 @@ impl Component for Header {
                     Span::from(state.online_nodes.to_string()).green(),
                     Span::from("/").green().dim(),
                     Span::from(state.nodes.len().to_string()).green(),
+                    Span::from("  "),
+                    Span::from("RX")
+                        .red()
+                        .add_modifier(if state.rx { Modifier::empty() } else { Modifier::DIM }),
                     Span::from(" "),
-                    Span::from("■").fg(if state.rx { Color::Red } else { Color::DarkGray }),
+                    Span::from("TR").yellow().add_modifier(if state.traceroute_indicator {
+                        Modifier::empty()
+                    } else {
+                        Modifier::DIM
+                    }),
                 ]);
 
                 let h1_h = Layout::horizontal([

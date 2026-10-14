@@ -54,7 +54,7 @@ pub struct State {
     pub toast_queue: VecDeque<Toast>,
     pub toast_t: Instant,
     pub traceroutes: HashMap<u32, Traceroute>,
-    pub traceroute_t: Instant,
+    pub traceroute_indicator: bool,
     pub ui_config: UiConfig,
 }
 
@@ -103,7 +103,7 @@ impl Default for State {
             toast_t: Instant::now(),
             toast: Default::default(),
             traceroutes: Default::default(),
-            traceroute_t: Instant::now(),
+            traceroute_indicator: Default::default(),
             ui_config: Default::default(),
         }
     }
