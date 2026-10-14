@@ -185,12 +185,19 @@ impl Store {
             StateAction::DbNodesLoad(nodes) => {
                 self.state_tx.send_modify(|state| {
                     for node in nodes {
-                        if let Some(existing_node) = state.nodes.get(&node.key) {
-                            if node.last_heard > existing_node.last_heard {
-                                state.nodes.insert(node.key, node);
+                        if state.is_my_node(node.key) {
+                            continue;
+                        }
+
+                        match state.nodes.entry(node.key) {
+                            Entry::Vacant(entry) => {
+                                entry.insert(node);
                             }
-                        } else {
-                            state.nodes.insert(node.key, node);
+                            Entry::Occupied(mut entry) => {
+                                if node.last_heard > entry.get().last_heard {
+                                    entry.insert(node);
+                                }
+                            }
                         }
                     }
 

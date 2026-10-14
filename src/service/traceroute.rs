@@ -81,6 +81,13 @@ impl TracerouteService {
                 AppEvent::TracerouteRequested(node_key) => {
                     let my_node_num = state.my_node_key.expect("should be Some");
 
+                    if node_key == my_node_num {
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::warning("can't traceroute yourself")))?;
+
+                        return Ok(());
+                    }
+
                     self.meshtastic_command_tx.send(CommandToMeshtastic::RunTraceroute {
                         node_num: node_key,
                         my_node_num,

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use chrono::Utc;
+use meshtastic::protobufs::mesh_packet::TransportMechanism;
 use meshtastic::{
     Message as _,
     protobufs::{
@@ -200,8 +201,10 @@ impl NodesService {
                 };
             }
             from_radio::PayloadVariant::Packet(mesh_packet) => {
-                self.state_action_tx
-                    .send(StateAction::NodeInit((&mesh_packet).into()))?;
+                if mesh_packet.transport_mechanism() != TransportMechanism::TransportInternal {
+                    self.state_action_tx
+                        .send(StateAction::NodeInit((&mesh_packet).into()))?;
+                }
 
                 match &mesh_packet.payload_variant {
                     Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {

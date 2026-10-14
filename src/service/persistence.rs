@@ -80,6 +80,10 @@ impl PersistenceService {
             StateAction::NodeInit(Node { key, .. })
             | StateAction::NodeUpdate(Node { key, .. })
             | StateAction::NodeUpdateLastHeard { node_key: key, .. } => {
+                if self.state_rx.borrow().is_my_node(key) {
+                    return Ok(());
+                }
+
                 let Some(node) = self
                     .state_rx
                     .borrow()
@@ -139,6 +143,7 @@ impl PersistenceService {
             Ok(event) => match event {
                 AppEvent::DbLoadRequested(node_key) => {
                     let db_file = self.data_dir.join(format!("{}_{}.sqlite3", APP_NAME, node_key));
+                    tracing::debug!("DB file: {}", db_file.display());
 
                     match create_sqlite_repository(db_file).await {
                         Ok(repository) => {
