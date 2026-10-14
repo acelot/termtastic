@@ -3,7 +3,7 @@ use crate::ui::helpers::DateTimeExt;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
 use chrono::{DateTime, TimeDelta, TimeZone, Utc};
-use emoji::Emoji;
+use emojis::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
 use meshtastic::protobufs::{channel, config, module_config, routing};

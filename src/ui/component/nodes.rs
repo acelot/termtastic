@@ -156,7 +156,7 @@ impl<'a> Component for Nodes<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
                         if let Some(emoji) = self.emoji_selector_state.get_value() {
-                            self.filter_input.insert_str(emoji.glyph);
+                            self.filter_input.insert_str(emoji.as_str());
                             self.is_emoji_selector_visible = false;
                             emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()))?;
 
@@ -281,7 +281,8 @@ impl<'a> Component for Nodes<'a> {
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
         if self
             .list_state
-            .selected.map(|i| i >= state.nodes_view.len())
+            .selected
+            .map(|i| i >= state.nodes_view.len())
             .unwrap_or(false)
         {
             self.list_state.selected = None;

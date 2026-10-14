@@ -36,7 +36,7 @@ btleplug = { version = "0.13.4", features = ["serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 confy = { version = "2.0", default-features = false, features = ["ron_conf"] }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
-emoji = { version = "0.2" }
+emojis = { version = "0.9.0" }
 etcetera = { version = "0.11.0" }
 fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }

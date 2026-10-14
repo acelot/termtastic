@@ -1,6 +1,6 @@
 use crate::types::FormId;
 use btleplug::api::BDAddr;
-use emoji::Emoji;
+use emojis::Emoji;
 use hostaddr::HostAddr;
 use meshtastic::protobufs::{config, from_radio, module_config};
 

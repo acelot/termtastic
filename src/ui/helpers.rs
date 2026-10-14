@@ -4,7 +4,7 @@ use base64::prelude::BASE64_STANDARD;
 use base64::{DecodeError, Engine};
 use chrono::{DateTime, SubsecRound, TimeDelta, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
-use emoji::Emoji;
+use emojis::Emoji;
 use itertools::Itertools;
 use meshtastic::protobufs::config;
 use meshtastic::protobufs::routing;
@@ -224,7 +224,7 @@ impl TextAreaExt for TextArea<'_> {
             return None;
         }
 
-        emoji::lookup_by_glyph::lookup(&self.lines()[0])
+        emojis::get(&self.lines()[0])
     }
 }
 

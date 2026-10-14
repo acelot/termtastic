@@ -179,7 +179,7 @@ impl<'a> Component for Messenger<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
                         if let Some(emoji) = self.emoji_selector_state.get_value() {
-                            input_widget.insert_str(emoji.glyph);
+                            input_widget.insert_str(emoji.as_str());
                             self.is_emoji_selector_visible = false;
                             return Ok(true);
                         }

@@ -222,7 +222,7 @@ impl MeshtasticService {
                         &mut packet_router,
                         EncodedMeshPacketData::new(match &text {
                             TextMessage::Text(v) => v.clone().into_bytes(),
-                            TextMessage::Emoji(e) => e.glyph.as_bytes().to_vec(),
+                            TextMessage::Emoji(e) => e.as_bytes().to_vec(),
                         }),
                         PortNum::TextMessageApp,
                         PacketDestination::Broadcast,
@@ -258,7 +258,7 @@ impl MeshtasticService {
                         &mut packet_router,
                         EncodedMeshPacketData::new(match &text {
                             TextMessage::Text(v) => v.clone().into_bytes(),
-                            TextMessage::Emoji(e) => e.glyph.as_bytes().to_vec(),
+                            TextMessage::Emoji(e) => e.as_bytes().to_vec(),
                         }),
                         PortNum::TextMessageApp,
                         PacketDestination::Node(NodeId::from(node_num)),

@@ -18,7 +18,9 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
-use crate::types::{AppEvent, Channel, FormData, FormId, FormValue, NodeUser, SettingsItem, Toast, UiConfig};
+use crate::types::{
+    AppEvent, Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig,
+};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
@@ -71,17 +73,36 @@ impl SettingsService {
     }
 
     fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
+        let state = self.state_rx.borrow();
+
         match event {
-            Ok(StateAction::UiConfigSet { .. }) => {
+            Ok(StateAction::UiConfigSet { .. })
+                if matches!(
+                    state.settings_form_state,
+                    SettingsFormState::Saving { id: FormId::AppUi }
+                ) =>
+            {
                 self.state_action_tx
                     .send(StateAction::Toast(Toast::success("setting saved")))?;
 
                 self.start_config_loading(&FormId::AppUi)?;
             }
-            Ok(StateAction::NodeOwnerSet(_)) => {
+            Ok(StateAction::NodeOwnerSet(_))
+                if matches!(
+                    state.settings_form_state,
+                    SettingsFormState::Saving { id: FormId::DeviceUser }
+                ) =>
+            {
                 self.start_config_loading(&FormId::DeviceUser)?;
             }
-            Ok(StateAction::DeviceCannedMessagesSet(_)) => {
+            Ok(StateAction::DeviceCannedMessagesSet(_))
+                if matches!(
+                    state.settings_form_state,
+                    SettingsFormState::Saving {
+                        id: FormId::ModuleCannedMessage
+                    }
+                ) =>
+            {
                 self.start_config_loading(&FormId::ModuleCannedMessage)?;
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {

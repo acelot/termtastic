@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crossterm::event::Event;
-use emoji::Emoji;
+use emojis::Emoji;
 use ratatui::{
     prelude::*,
     widgets::{Block, BorderType, Padding, StatefulWidget, Widget},
@@ -10,6 +10,8 @@ use ratatui_textarea::TextArea;
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 use crate::ui::helpers::{ListStateExt, default_scrollbar};
+
+const MAX_EMOJIS_LIMIT: usize = 100;
 
 pub struct EmojiSelectorState<'a> {
     input_widget: TextArea<'a>,
@@ -26,7 +28,7 @@ impl<'a> EmojiSelectorState<'a> {
         Self {
             input_widget,
             list_state: ListState::default(),
-            emojis: emoji::search::search_name(""),
+            emojis: emojis::iter().take(MAX_EMOJIS_LIMIT).collect(),
         }
     }
 
@@ -36,7 +38,7 @@ impl<'a> EmojiSelectorState<'a> {
 
     pub fn reset(&mut self) {
         self.input_widget.clear();
-        self.emojis = emoji::search::search_name("");
+        self.emojis = emojis::iter().take(MAX_EMOJIS_LIMIT).collect();
         self.list_state.select(Some(0));
     }
 
@@ -49,7 +51,10 @@ impl<'a> EmojiSelectorState<'a> {
         }
 
         self.input_widget.input(event);
-        self.emojis = emoji::search::search_name(&self.input_widget.lines()[0]);
+        self.emojis = emojis::iter()
+            .filter(|e| e.name().contains(&self.input_widget.lines()[0]))
+            .take(MAX_EMOJIS_LIMIT)
+            .collect();
 
         if !self.emojis.is_empty() {
             self.list_state.select(Some(0));
@@ -65,9 +70,7 @@ pub struct EmojiSelectorWidget<'a> {
 
 impl<'a> EmojiSelectorWidget<'a> {
     pub fn new() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
+        Self { _marker: PhantomData }
     }
 }
 
@@ -132,9 +135,9 @@ impl Widget for EmojiWidget {
         block.render(area, buf);
 
         let item = Line::from(vec![
-            Span::from(self.emoji.glyph),
+            Span::from(self.emoji.as_str()),
             Span::from("  "),
-            Span::from(self.emoji.name),
+            Span::from(self.emoji.name()),
         ])
         .add_modifier(if self.is_selected {
             Modifier::REVERSED
