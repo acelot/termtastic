@@ -137,7 +137,7 @@ impl Component for Logs {
         if !state.logs.is_empty() {
             let list_builder = ListBuilder::new(|context| {
                 let item = LogRecordWidget {
-                    paragraph: get_record_paragraph(&state.logs[context.index], context.is_selected, false),
+                    paragraph: get_record_paragraph(&state.logs[context.index], context.is_selected, false, false),
                 };
 
                 (item, 1)
@@ -177,7 +177,7 @@ impl Component for Logs {
             Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
             popup_block.render(popup_area, frame.buffer_mut());
 
-            let paragraph = get_record_paragraph(record, false, true);
+            let paragraph = get_record_paragraph(record, false, true, true);
             let paragraph_lines = paragraph.line_count(popup_block_area.width - 2);
             self.popup_scroll_state = self
                 .popup_scroll_state
@@ -221,19 +221,26 @@ impl<'a> StatefulWidget for LogRecordWidget<'a> {
     }
 }
 
-fn get_record_paragraph(record: &'_ LogRecord, is_selected: bool, wrap: bool) -> Paragraph<'_> {
-    Paragraph::new(Line::from(vec![
-        Span::from(record.datetime.with_timezone(&Local).format("%H:%M:%S").to_string()).dark_gray(),
-        Span::from(format!("{:^7}", record.level.to_string())).style(match record.level {
-            Level::TRACE | Level::DEBUG => Style::default().green(),
-            Level::INFO => Style::default().blue(),
-            Level::WARN => Style::default().yellow(),
-            Level::ERROR => Style::default().red(),
-        }),
-        Span::from(format!("[{}]", &record.source)),
-        Span::from(" "),
-        Span::from(&record.message),
-    ]))
+fn get_record_paragraph(record: &'_ LogRecord, is_selected: bool, with_source: bool, wrap: bool) -> Paragraph<'_> {
+    Paragraph::new(Line::from(
+        vec![
+            Some(Span::from(record.datetime.with_timezone(&Local).format("%H:%M:%S").to_string()).dark_gray()),
+            Some(
+                Span::from(format!("{:^7}", record.level.to_string())).style(match record.level {
+                    Level::TRACE | Level::DEBUG => Style::default().green(),
+                    Level::INFO => Style::default().blue(),
+                    Level::WARN => Style::default().yellow(),
+                    Level::ERROR => Style::default().red(),
+                }),
+            ),
+            with_source.then_some(Span::from(format!("[{}]", &record.source).magenta())),
+            with_source.then_some(Span::from(" ")),
+            Some(Span::from(&record.message)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<Span<'_>>>(),
+    ))
     .add_modifier(if is_selected {
         Modifier::REVERSED
     } else {
