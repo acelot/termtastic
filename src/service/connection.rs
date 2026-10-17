@@ -82,7 +82,8 @@ impl ConnectionService {
                     let res = {
                         let state = &self.state_rx.borrow();
                         state.device_discovering_state.is_scanning()
-                    }; if res {
+                    };
+                    if res {
                         return Ok(());
                     }
 
@@ -201,7 +202,7 @@ impl ConnectionService {
                         _ => {}
                     }
 
-                    self.state_action_tx.send(StateAction::RxTrigger)?;
+                    self.state_action_tx.send(StateAction::RxIndicatorTrigger)?;
 
                     if !matches!(packet, from_radio::PayloadVariant::Packet(_)) {
                         tracing::debug!("PACKET {:?}", packet);
@@ -339,9 +340,7 @@ async fn discover_tcp_devices(state_action_tx: mpsc::UnboundedSender<StateAction
             match event {
                 mdns_sd::ServiceEvent::ServiceResolved(info) => {
                     for addr in info.addresses.iter() {
-                        let short_name = info
-                            .txt_properties
-                            .get("shortname").map(|txt| txt.val_str().to_owned());
+                        let short_name = info.txt_properties.get("shortname").map(|txt| txt.val_str().to_owned());
 
                         match addr {
                             mdns_sd::ScopedIp::V4(ipv4) => {

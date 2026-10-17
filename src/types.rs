@@ -310,10 +310,10 @@ pub enum ToastKind {
 impl ToastKind {
     pub fn timeout(&self) -> u128 {
         match self {
-            Self::Success => 1500,
-            Self::Normal => 1500,
-            Self::Warning => 2000,
-            Self::Error => 3000,
+            Self::Success => 2500,
+            Self::Normal => 2500,
+            Self::Warning => 3000,
+            Self::Error => 4000,
         }
     }
 }
@@ -489,6 +489,10 @@ impl Node {
     }
 
     pub fn long_name(&self) -> String {
+        if self.key == 0 {
+            return "UNKNOWN".to_owned();
+        }
+
         self.user
             .as_ref()
             .map(|u| u.long_name.clone())
@@ -578,6 +582,23 @@ impl HopsSnrRssiAware for Node {
 
     fn rssi(&self) -> Option<i32> {
         self.rssi
+    }
+}
+
+impl From<&Message> for Node {
+    fn from(message: &Message) -> Self {
+        Self {
+            key: message.from,
+            user: None,
+            hops: None,
+            last_heard: None,
+            snr: 0.0,
+            rssi: None,
+            is_favorite: false,
+            is_ignored: false,
+            is_muted: false,
+            fulltext: Default::default(),
+        }
     }
 }
 

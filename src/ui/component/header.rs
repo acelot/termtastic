@@ -66,11 +66,19 @@ impl Component for Header {
                     Span::from("/").yellow().dim(),
                     Span::from(state.nodes_stash_cap.to_string()).yellow(),
                     Span::from("  "),
-                    Span::from("TR").dark_gray().dim(),
+                    Span::from("DB TR").dark_gray().dim(),
                     Span::from(" "),
                     Span::from("RX")
-                        .fg(if state.rx { Color::Red } else { Color::DarkGray })
-                        .add_modifier(if state.rx { Modifier::empty() } else { Modifier::DIM }),
+                        .fg(if state.rx_indicator {
+                            Color::Green
+                        } else {
+                            Color::DarkGray
+                        })
+                        .add_modifier(if state.rx_indicator {
+                            Modifier::empty()
+                        } else {
+                            Modifier::DIM
+                        }),
                 ])
                 .right_aligned()
                 .render(h[1], frame.buffer_mut());
@@ -82,6 +90,18 @@ impl Component for Header {
                     Span::from("/").green().dim(),
                     Span::from(state.nodes.len().to_string()).green(),
                     Span::from("  "),
+                    Span::from("DB")
+                        .fg(if state.db_indicator {
+                            Color::Red
+                        } else {
+                            Color::DarkGray
+                        })
+                        .add_modifier(if state.db_indicator {
+                            Modifier::empty()
+                        } else {
+                            Modifier::DIM
+                        }),
+                    Span::from(" "),
                     Span::from("TR")
                         .fg(if state.traceroute_indicator {
                             Color::Yellow
@@ -95,8 +115,16 @@ impl Component for Header {
                         }),
                     Span::from(" "),
                     Span::from("RX")
-                        .fg(if state.rx { Color::Red } else { Color::DarkGray })
-                        .add_modifier(if state.rx { Modifier::empty() } else { Modifier::DIM }),
+                        .fg(if state.rx_indicator {
+                            Color::Green
+                        } else {
+                            Color::DarkGray
+                        })
+                        .add_modifier(if state.rx_indicator {
+                            Modifier::empty()
+                        } else {
+                            Modifier::DIM
+                        }),
                 ]);
 
                 let h1_h = Layout::horizontal([

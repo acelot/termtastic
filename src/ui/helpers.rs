@@ -2,7 +2,7 @@ use crate::state::State;
 use crate::types::{ChannelRole, Chat, HopsSnrRssiAware, Node};
 use base64::prelude::BASE64_STANDARD;
 use base64::{DecodeError, Engine};
-use chrono::{DateTime, SubsecRound, TimeDelta, Utc};
+use chrono::{DateTime, Datelike, Local, SubsecRound, TimeDelta, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use emojis::Emoji;
 use itertools::Itertools;
@@ -333,6 +333,20 @@ where
     trimmed
 }
 
+pub fn humanize_datetime<'a>(datetime: DateTime<Local>) -> String {
+    let now = Local::now();
+
+    let format = if datetime.date_naive() == now.date_naive() {
+        "%H:%M:%S"
+    } else if datetime.year() == now.year() {
+        "%e %b %H:%M"
+    } else {
+        "%d.%m.%Y %H:%M"
+    };
+
+    datetime.format(format).to_string()
+}
+
 pub fn humanize_time_delta<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
     if delta.num_seconds() < 60 {
         return vec![Span::from("now").green()];
@@ -352,9 +366,26 @@ pub fn humanize_time_delta<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
         ];
     }
 
+    if delta.num_days() < 7 {
+        return vec![
+            Span::from(format!("{}d", delta.num_days())).dark_gray(),
+            Span::from(" ago").dark_gray(),
+        ];
+    }
+
+    let datetime = Utc::now() - delta;
+
     vec![
-        Span::from(format!("{}d", delta.num_days())).dark_gray(),
-        Span::from(" ago").dark_gray(),
+        Span::from(
+            datetime
+                .format(if Utc::now().year() != datetime.year() {
+                    "%d.%m.%Y"
+                } else {
+                    "%e %b"
+                })
+                .to_string(),
+        )
+        .dark_gray(),
     ]
 }
 

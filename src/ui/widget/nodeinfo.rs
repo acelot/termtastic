@@ -523,7 +523,7 @@ impl<'a> StatefulWidget for NodeInfoWidget<'a> {
                 Span::from(node.long_name()).bold(),
                 Span::from(" "),
             ]),
-            None => Line::from(Span::from("Node not found").dark_gray()),
+            None => Line::from(Span::from(" Node not found ").dark_gray()),
         };
 
         let block = Block::bordered()

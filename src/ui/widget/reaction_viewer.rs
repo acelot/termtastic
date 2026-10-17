@@ -5,7 +5,9 @@ use ratatui::widgets::{Block, BorderType, Borders, Padding, StatefulWidget, Widg
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
 use crate::types::{Message, Node};
-use crate::ui::helpers::{ListStateExt, default_scrollbar, hops_to_spans, routing_error_to_span, short_name_to_span};
+use crate::ui::helpers::{
+    ListStateExt, default_scrollbar, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span,
+};
 use crate::ui::widget::PlaceholderWidget;
 
 pub struct ReactionViewerState {
@@ -128,7 +130,7 @@ impl<'a> Widget for ReactionWidget<'a> {
 
         let v = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(block_area);
         let v0_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(2)]).split(v[0]);
-        let v1_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(5)]).split(v[1]);
+        let v1_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Fill(1)]).split(v[1]);
 
         // first line
         Line::from(vec![
@@ -148,14 +150,10 @@ impl<'a> Widget for ReactionWidget<'a> {
         })
         .render(v1_h[0], buf);
 
-        Span::from(
-            self.item
-                .reaction
-                .datetime
-                .with_timezone(&chrono::Local)
-                .format("%H:%M")
-                .to_string(),
-        )
+        Line::from(humanize_datetime(
+            self.item.reaction.datetime.with_timezone(&chrono::Local),
+        ))
+        .right_aligned()
         .dark_gray()
         .render(v1_h[2], buf);
     }

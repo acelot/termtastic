@@ -43,15 +43,21 @@ impl<'a> Settings<'a> {
         let description_paragraph = self
             .form_list_state
             .selected
-            .and_then(|index| items[index].description).map(|desc| Paragraph::new(vec![Line::from("DESCRIPTION").magenta(), Line::from(desc).dark_gray()])
-                        .wrap(Wrap { trim: false }));
+            .and_then(|index| items[index].description)
+            .map(|desc| {
+                Paragraph::new(vec![Line::from("DESCRIPTION").magenta(), Line::from(desc).dark_gray()])
+                    .wrap(Wrap { trim: false })
+            });
 
         let v = Layout::vertical(
-            [Some(Constraint::Length(1)),
+            [
+                Some(Constraint::Length(1)),
                 Some(Constraint::Fill(1)),
                 description_paragraph.is_some().then_some(Constraint::Length(1)),
                 description_paragraph
-                    .as_ref().map(|p| Constraint::Length(p.line_count(area.width) as u16))]
+                    .as_ref()
+                    .map(|p| Constraint::Length(p.line_count(area.width) as u16)),
+            ]
             .iter()
             .flatten(),
         )
@@ -751,17 +757,14 @@ impl<'a> Widget for FormItemWidget<'a> {
                 };
 
                 Line::from(
-                    Span::from(if value {
-                        "[■]".to_owned()
-                    } else {
-                        "[_]".to_owned()
-                    })
-                    .patch_style(match (self.is_selected, self.is_changed) {
-                        (true, true) => Style::new().white().on_cyan(),
-                        (true, false) => Style::new().black().on_yellow(),
-                        (false, true) => Style::new().cyan(),
-                        _ => Style::new(),
-                    }),
+                    Span::from(if value { "[■]".to_owned() } else { "[_]".to_owned() }).patch_style(
+                        match (self.is_selected, self.is_changed) {
+                            (true, true) => Style::new().white().on_cyan(),
+                            (true, false) => Style::new().black().on_yellow(),
+                            (false, true) => Style::new().cyan(),
+                            _ => Style::new(),
+                        },
+                    ),
                 )
             }
             FormItemKind::Button(_) => {

@@ -509,7 +509,7 @@ impl<'a> Component for Messenger<'a> {
                 .and_then(|i| message_ids.get(i))
                 .and_then(|id| state.messages.get(id))
         {
-            let popup_area = v[0].centered(Constraint::Length(40), Constraint::Length(15));
+            let popup_area = v[0].centered(Constraint::Length(50), Constraint::Length(15));
 
             Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
@@ -686,18 +686,9 @@ impl<'a> Widget for MessageWidget<'a> {
             routing_error_to_span(self.message.routing_error).render(v0_h[1], buf);
         }
 
-        Line::from(
-            Span::from(
-                self.message
-                    .datetime
-                    .with_timezone(&chrono::Local)
-                    .format("%H:%M")
-                    .to_string(),
-            )
-            .dark_gray(),
-        )
-        .right_aligned()
-        .render(v0_h[2], buf);
+        Line::from(Span::from(humanize_datetime(self.message.datetime.with_timezone(&chrono::Local))).dark_gray())
+            .right_aligned()
+            .render(v0_h[2], buf);
 
         // second line
         self.message_paragraph.render(v1_h[0], buf);

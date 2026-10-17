@@ -1,6 +1,5 @@
 use crate::ui::component::Messenger;
 use crate::ui::prelude::*;
-use chrono::Local;
 
 pub struct Chat<'a> {
     messenger_component: Messenger<'a>,
@@ -137,7 +136,8 @@ impl<'a> Component for Chat<'a> {
                     chat_name_spans: chat_to_spans(chat, state),
                     last_message,
                     last_message_node,
-                    is_last_message_node_my: last_message_node.map(|node| state.is_my_node(node.key))
+                    is_last_message_node_my: last_message_node
+                        .map(|node| state.is_my_node(node.key))
                         .unwrap_or(false),
                     is_selected: context.is_selected,
                 };
@@ -213,7 +213,7 @@ impl<'a> Widget for ChannelWidget<'a> {
         Line::from(self.chat_type).magenta().render(v0_h[1], buf);
 
         Line::from(if let Some(message) = self.last_message {
-            Span::from(message.datetime.with_timezone(&Local).format("%H:%M").to_string())
+            Span::from(humanize_datetime(message.datetime.with_timezone(&chrono::Local)))
         } else {
             Span::from("no messages").dark_gray()
         })

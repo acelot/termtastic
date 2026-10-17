@@ -9,14 +9,15 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::update_nodeinfo_telemetry;
-use crate::types::{Chat, NodeLastTelemetry, NodeLastTelemetryItem, ToastKind, Traceroute, TracerouteState};
+use crate::types::{Chat, Message, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteState};
 use crate::{
     state::{State, StateAction},
     types::{ConnectionState, DeviceDiscoveringState, FormItemKey, SettingsFormState, Tab},
 };
 
 const TICK_INTERVAL_MILLIS: u64 = 33;
-const RX_TIMEOUT_MILLIS: u128 = 250;
+const RX_INDICATOR_TIMEOUT_MILLIS: u128 = 250;
+const DB_INDICATOR_TIMEOUT_MILLIS: u128 = 250;
 const TOAST_QUICK_TIMEOUT_MILLIS: u128 = 500;
 const SPLASH_LOGO_TIMEOUT_MILLIS: u128 = 1500;
 
@@ -182,6 +183,14 @@ impl Store {
 
                 true
             }
+            StateAction::DbIndicatorTrigger => {
+                self.state_tx.send_modify(|state| {
+                    state.db_indicator = true;
+                    state.db_indicator_t = Instant::now();
+                });
+
+                true
+            }
             StateAction::DbNodesLoad(nodes) => {
                 self.state_tx.send_modify(|state| {
                     for node in nodes {
@@ -202,6 +211,15 @@ impl Store {
                     }
 
                     state.update_nodes_view();
+                });
+
+                true
+            }
+            StateAction::DbMessagesLoad(messages) => {
+                self.state_tx.send_modify(|state| {
+                    for message in messages {
+                        add_message(message, state);
+                    }
                 });
 
                 true
@@ -617,7 +635,7 @@ impl Store {
                         }
                     }
 
-                    state.channels.insert_sorted(key, channel);
+                    state.channels.insert(key, channel);
                 });
 
                 true
@@ -684,10 +702,10 @@ impl Store {
 
                 true
             }),
-            StateAction::RxTrigger => {
+            StateAction::RxIndicatorTrigger => {
                 self.state_tx.send_modify(|state| {
-                    state.rx_t = Instant::now();
-                    state.rx = true;
+                    state.rx_indicator_t = Instant::now();
+                    state.rx_indicator = true;
                 });
 
                 true
@@ -740,27 +758,7 @@ impl Store {
                 true
             }
             StateAction::MessageAdd(message) => {
-                self.state_tx.send_modify(|state| {
-                    if message.is_emoji {
-                        if let Some(reply_message) = state.messages.get_mut(&message.reply_message_id) {
-                            reply_message.reactions.push(message.id);
-                        }
-
-                        state.messages.insert(message.id, message);
-
-                        return;
-                    }
-
-                    let chat = Chat::from((&message, state.my_node_key.expect("should be Some")));
-
-                    if let Some(chat_messages) = state.chats.get_mut(&chat) {
-                        chat_messages.push(message.id);
-                    } else {
-                        state.chats.insert_sorted(chat, vec![message.id]);
-                    }
-
-                    state.messages.insert(message.id, message);
-                });
+                self.state_tx.send_modify(|state| add_message(message, state));
 
                 true
             }
@@ -789,11 +787,7 @@ impl Store {
                 false
             }),
             StateAction::Toast(toast) => {
-                match toast.kind {
-                    ToastKind::Normal | ToastKind::Success => tracing::info!("TOAST {}", toast.text),
-                    ToastKind::Warning => tracing::warn!("TOAST {}", toast.text),
-                    ToastKind::Error => tracing::error!("TOAST {}", toast.text),
-                }
+                tracing::info!("TOAST kind=\"{:?}\" text=\"{}\"", toast.kind, toast.text);
 
                 self.state_tx.send_modify(|state| {
                     state.toast_queue.push_back(toast);
@@ -984,8 +978,14 @@ impl Store {
         self.state_tx.send_if_modified(|state| {
             let mut is_changed = false;
 
-            if state.rx && state.rx_t.elapsed().as_millis() > RX_TIMEOUT_MILLIS {
-                state.rx = false;
+            if state.rx_indicator && state.rx_indicator_t.elapsed().as_millis() > RX_INDICATOR_TIMEOUT_MILLIS {
+                state.rx_indicator = false;
+
+                is_changed = true;
+            }
+
+            if state.db_indicator && state.db_indicator_t.elapsed().as_millis() > DB_INDICATOR_TIMEOUT_MILLIS {
+                state.db_indicator = false;
 
                 is_changed = true;
             }
@@ -1023,4 +1023,26 @@ impl Store {
 
         Ok(())
     }
+}
+
+fn add_message(message: Message, state: &mut State) {
+    if message.is_emoji {
+        if let Some(reply_message) = state.messages.get_mut(&message.reply_message_id) {
+            reply_message.reactions.push(message.id);
+        }
+
+        state.messages.insert(message.id, message);
+
+        return;
+    }
+
+    let chat = Chat::from((&message, state.my_node_key.expect("should be Some")));
+
+    if let Some(chat_messages) = state.chats.get_mut(&chat) {
+        chat_messages.push(message.id);
+    } else {
+        state.chats.insert_sorted(chat, vec![message.id]);
+    }
+
+    state.messages.insert(message.id, message);
 }

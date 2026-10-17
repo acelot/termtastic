@@ -6,7 +6,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
-use crate::types::{Node, Traceroute};
+use crate::types::{Message, Node, Traceroute};
 use crate::{
     APP_NAME,
     state::StateAction,
@@ -21,6 +21,8 @@ pub struct PersistenceService {
     stored_action_rx: broadcast::Receiver<StateAction>,
     data_dir: PathBuf,
     repository: Option<Arc<Repository>>,
+    db_tx: mpsc::Sender<()>,
+    db_rx: mpsc::Receiver<()>,
 }
 
 impl PersistenceService {
@@ -32,6 +34,8 @@ impl PersistenceService {
         stored_action_rx: broadcast::Receiver<StateAction>,
         data_dir: PathBuf,
     ) -> Self {
+        let (db_tx, db_rx) = mpsc::channel::<()>(1);
+
         Self {
             app_event_tx,
             app_event_rx,
@@ -40,6 +44,8 @@ impl PersistenceService {
             stored_action_rx,
             data_dir,
             repository: None,
+            db_tx,
+            db_rx,
         }
     }
 
@@ -48,6 +54,7 @@ impl PersistenceService {
             tokio::select! {
                 event = self.stored_action_rx.recv() => self.handle_stored_action(event).await?,
                 event = self.app_event_rx.recv() => self.handle_app_event(event).await?,
+                event = self.db_rx.recv() => self.handle_db_event(event)?,
                 _ = subsys.on_shutdown_requested() => {
                     self.repository.take();
                     tracing::info!("shutdown");
@@ -132,6 +139,14 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
             }
+            StateAction::MessageAdd(message) => {
+                if let Err(e) = repository.message_upsert(message.into()).await {
+                    tracing::error!("message save failed: {}", e);
+
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                }
+            }
             _ => {}
         };
 
@@ -145,7 +160,7 @@ impl PersistenceService {
                     let db_file = self.data_dir.join(format!("{}_{}.sqlite3", APP_NAME, node_key));
                     tracing::debug!("DB file: {}", db_file.display());
 
-                    match create_sqlite_repository(db_file).await {
+                    match create_sqlite_repository(db_file, self.db_tx.clone()).await {
                         Ok(repository) => {
                             self.repository = Some(Arc::new(repository));
                         }
@@ -187,6 +202,14 @@ impl PersistenceService {
         Ok(())
     }
 
+    fn handle_db_event(&mut self, maybe_event: Option<()>) -> anyhow::Result<()> {
+        if maybe_event.is_some() {
+            self.state_action_tx.send(StateAction::DbIndicatorTrigger)?;
+        }
+
+        Ok(())
+    }
+
     async fn load_data(&self) -> anyhow::Result<()> {
         let Some(repository) = &self.repository else {
             tracing::warn!("DB data not loaded");
@@ -215,6 +238,25 @@ impl PersistenceService {
         };
 
         self.state_action_tx.send(StateAction::DbNodesLoad(nodes))?;
+
+        // messages
+        let messages: Vec<Message> = match repository.message_find_all().await {
+            Ok(messages) => {
+                tracing::info!("messages loaded from DB: {}", messages.len());
+
+                messages.into_iter().map_into().collect()
+            }
+            Err(e) => {
+                tracing::error!("messages load failed: {}", e);
+
+                self.state_action_tx
+                    .send(StateAction::Toast(Toast::error("messages not loaded from DB")))?;
+
+                return Ok(());
+            }
+        };
+
+        self.state_action_tx.send(StateAction::DbMessagesLoad(messages))?;
 
         // traceroutes
         let traceroutes: Vec<Traceroute> = match repository.traceroute_find_all().await {
