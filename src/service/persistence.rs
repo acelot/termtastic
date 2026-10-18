@@ -91,18 +91,11 @@ impl PersistenceService {
                     return Ok(());
                 }
 
-                let Some(node) = self
-                    .state_rx
-                    .borrow()
-                    .nodes
-                    .get(&key)
-                    .filter(|node| node.user.is_some())
-                    .cloned()
-                else {
+                let Some(node_entity) = self.state_rx.borrow().nodes.get(&key).map(|n| n.into()) else {
                     return Ok(());
                 };
 
-                if let Err(e) = repository.node_upsert(node.into()).await {
+                if let Err(e) = repository.node_upsert(node_entity).await {
                     tracing::error!("node upsert failed: {}", e);
 
                     self.state_action_tx
@@ -117,9 +110,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
             }
-            StateAction::TracerouteFinish { message_id, .. }
-            | StateAction::TracerouteTimeout { message_id }
-            | StateAction::MessageErrorSet { message_id, .. } => {
+            StateAction::TracerouteFinish { message_id, .. } | StateAction::TracerouteTimeout { message_id } => {
                 let Some(traceroute) = self.state_rx.borrow().traceroutes.get(&message_id).cloned() else {
                     return Ok(());
                 };
@@ -142,6 +133,27 @@ impl PersistenceService {
             StateAction::MessageAdd(message) => {
                 if let Err(e) = repository.message_upsert(message.into()).await {
                     tracing::error!("message save failed: {}", e);
+
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                }
+            }
+            StateAction::MessageErrorSet { message_id, error, .. } => {
+                if let Err(e) = repository
+                    .message_update_routing_error(message_id, error.map(|e| e as i32))
+                    .await
+                {
+                    tracing::error!("message save failed: {}", e);
+
+                    self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                }
+            }
+            StateAction::ChatPurge(chat) => {
+                let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
+
+                if let Err(e) = repository.message_remove_by_chat(chat, my_node_key).await {
+                    tracing::error!("chat purge failed: {}", e);
 
                     self.state_action_tx
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;

@@ -8,7 +8,7 @@ impl From<Node> for super::Node {
 
 impl From<&Node> for super::Node {
     fn from(value: &Node) -> Self {
-        let user = value.user.as_ref().expect("should be Some");
+        let user = value.user.as_ref();
 
         Self {
             key: value.key,
@@ -19,14 +19,15 @@ impl From<&Node> for super::Node {
             is_favorite: value.is_favorite,
             is_ignored: value.is_ignored,
             is_muted: value.is_muted,
-            user_id: user.id.clone(),
-            user_short_name: user.short_name.clone(),
-            user_long_name: user.long_name.clone(),
-            user_role: user.role,
-            user_hw_model: user.hw_model,
-            user_public_key: user.public_key.clone(),
-            user_is_licensed: user.is_licensed,
-            user_is_unmessagable: user.is_unmessagable,
+            has_user: user.is_some(),
+            user_id: user.map(|u| u.id.clone()).unwrap_or_default(),
+            user_short_name: user.map(|u| u.short_name.clone()).unwrap_or_default(),
+            user_long_name: user.map(|u| u.long_name.clone()).unwrap_or_default(),
+            user_role: user.map(|u| u.role).unwrap_or_default(),
+            user_hw_model: user.map(|u| u.hw_model).unwrap_or_default(),
+            user_public_key: user.map(|u| u.public_key.clone()).unwrap_or_default(),
+            user_is_licensed: user.map(|u| u.is_licensed).unwrap_or_default(),
+            user_is_unmessagable: user.map(|u| u.is_unmessagable).unwrap_or_default(),
         }
     }
 }
@@ -35,7 +36,7 @@ impl From<super::Node> for Node {
     fn from(value: super::Node) -> Self {
         let mut node = Self {
             key: value.key,
-            user: Some(NodeUser {
+            user: value.has_user.then_some(NodeUser {
                 id: value.user_id,
                 short_name: value.user_short_name,
                 long_name: value.user_long_name,

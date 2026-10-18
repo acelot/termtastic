@@ -316,7 +316,7 @@ impl<'a> NodeInfoWidget<'a> {
                 if node.user.is_none() {
                     Span::from("UNKNOWN").yellow()
                 } else {
-                    Span::from("STORED").green()
+                    Span::from("KNOWN").green()
                 },
             )),
         }

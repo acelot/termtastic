@@ -90,12 +90,16 @@ impl<'a> Nodes<'a> {
                 Span::from("show only muted nodes"),
             ]),
             Line::from(vec![
-                Span::from("$stored     ").magenta(),
-                Span::from("show only stored nodes"),
+                Span::from("$known      ").magenta(),
+                Span::from("show only nodes with NodeInfo"),
             ]),
             Line::from(vec![
                 Span::from("$unknown    ").magenta(),
                 Span::from("show only unknown nodes"),
+            ]),
+            Line::from(vec![
+                Span::from("$traceroute ").magenta(),
+                Span::from("show only nodes with traceroute"),
             ]),
             Line::from(vec![
                 Span::from("$telemetry  ").magenta(),

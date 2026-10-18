@@ -77,7 +77,7 @@
 
 #### Messenger
 
-- [ ] Storing messages in local DB
+- [x] Storing messages in local DB
 - [x] Scrollable chat screen
 - [x] Display the short and long names of node
 - [x] Display the SNR/RSSI for direct nodes
@@ -189,6 +189,8 @@
 
 ### General features
 
+- [x] DB write indicator
+- [x] Traceroute indicator
 - [x] RX indicator
 - [x] Online/Total nodes counter
 

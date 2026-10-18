@@ -150,6 +150,17 @@ impl State {
                     "$offline"
                 };
 
+                let traceroute_token = if self
+                    .nodes_traceroutes
+                    .get(&node.key)
+                    .and_then(|nt| Some(!nt.is_empty()))
+                    .unwrap_or(false)
+                {
+                    "$traceroute"
+                } else {
+                    ""
+                };
+
                 let telemetry_token = if self.nodes_last_telemetry.contains_key(&node.key) {
                     "$telemetry"
                 } else {
@@ -157,7 +168,10 @@ impl State {
                 };
 
                 filter.iter().all(|token| {
-                    node.fulltext.contains(token) || online_token.contains(token) || telemetry_token.contains(token)
+                    node.fulltext.contains(token)
+                        || online_token.contains(token)
+                        || traceroute_token.contains(token)
+                        || telemetry_token.contains(token)
                 })
             })
             .sorted_by(|n1, n2| {

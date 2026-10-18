@@ -11,6 +11,7 @@ pub struct Node {
     pub is_favorite: bool,
     pub is_ignored: bool,
     pub is_muted: bool,
+    pub has_user: bool,
     pub user_id: String,
     pub user_short_name: String,
     pub user_long_name: String,

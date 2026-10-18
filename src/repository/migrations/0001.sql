@@ -8,6 +8,7 @@ CREATE TABLE nodes
     is_favorite          INTEGER             NOT NULL,
     is_ignored           INTEGER             NOT NULL,
     is_muted             INTEGER             NOT NULL,
+    has_user             INTEGER             NOT NULL,
     user_id              TEXT                NOT NULL,
     user_short_name      TEXT                NOT NULL,
     user_long_name       TEXT                NOT NULL,

@@ -559,7 +559,7 @@ impl Node {
                 "".to_owned()
             },
             if self.user.is_some() {
-                "$stored".to_owned()
+                "$known".to_owned()
             } else {
                 "$unknown".to_owned()
             },
