@@ -103,15 +103,16 @@ impl Component for Header {
                         }),
                     Span::from(" "),
                     Span::from("TR")
-                        .fg(if state.traceroute_indicator {
-                            Color::Yellow
-                        } else {
-                            Color::DarkGray
+                        .fg(match state.traceroute_indicator {
+                            TracerouteIndicatorState::Off => Color::DarkGray,
+                            TracerouteIndicatorState::Running => Color::Yellow,
+                            TracerouteIndicatorState::Success => Color::Green,
+                            TracerouteIndicatorState::Error => Color::Red,
                         })
-                        .add_modifier(if state.traceroute_indicator {
-                            Modifier::empty()
-                        } else {
+                        .add_modifier(if state.traceroute_indicator == TracerouteIndicatorState::Off {
                             Modifier::DIM
+                        } else {
+                            Modifier::empty()
                         }),
                     Span::from(" "),
                     Span::from("RX")

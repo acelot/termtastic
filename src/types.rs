@@ -950,6 +950,15 @@ pub enum TracerouteState {
     Finished = 3,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TracerouteIndicatorState {
+    #[default]
+    Off = 0,
+    Running = 1000,
+    Success = 250,
+    Error = 500,
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum TracerouteItem {
     #[serde(rename = "s")]

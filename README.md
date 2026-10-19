@@ -113,14 +113,15 @@
 #### Single node expanded view
 
 - [x] Display node detailed info
-- [x] Copy public key to clipboard
-- [x] Delete node feature
+- [x] Ability to copy public key to clipboard
+- [x] Ability to delete node feature
 - [x] Telemetry info
 - [x] Traceroute feature
 - [x] Extended traceroute info popup
+- [x] Ability to copy traceroute result
 - [x] Storing traceroutes in the local DB
-- [ ] Ignore feature
-- [ ] Add to Favorite feature
+- [ ] Ignore node feature
+- [ ] Add node to favorite feature
 - [ ] Position info
 - [ ] TBD
 
@@ -189,6 +190,7 @@
 
 ### General features
 
+- [x] Battery indicator
 - [x] DB write indicator
 - [x] Traceroute indicator
 - [x] RX indicator

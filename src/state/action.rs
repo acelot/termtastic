@@ -85,7 +85,6 @@ pub enum StateAction {
     TracerouteRemove {
         message_id: u32,
     },
-    TracerouteSwitchIndicator,
     SettingsFormLoadingStart {
         id: FormId,
     },

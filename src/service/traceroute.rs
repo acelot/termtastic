@@ -26,7 +26,7 @@ use crate::{
     ui::helpers::DateTimeExt,
 };
 
-const CHECK_TRACEROUTE_INTERVAL_SECS: u64 = 1;
+const CHECK_TRACEROUTE_INTERVAL_MILLIS: u64 = 500;
 const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
 const TRACEROUTE_SNR_MULTIPLIER: f32 = 4.0;
 
@@ -56,7 +56,7 @@ impl TracerouteService {
     }
 
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
-        let mut check_traceroutes_interval = time::interval(Duration::from_secs(CHECK_TRACEROUTE_INTERVAL_SECS));
+        let mut check_traceroutes_interval = time::interval(Duration::from_millis(CHECK_TRACEROUTE_INTERVAL_MILLIS));
 
         loop {
             tokio::select! {
@@ -207,10 +207,6 @@ impl TracerouteService {
 
     fn check_traceroutes(&self) -> anyhow::Result<()> {
         let state = self.state_rx.borrow();
-
-        if !state.active_traceroutes.is_empty() {
-            self.state_action_tx.send(StateAction::TracerouteSwitchIndicator)?;
-        }
 
         for message_id in state.active_traceroutes.iter() {
             if let Some(traceroute) = state.traceroutes.get(message_id) {

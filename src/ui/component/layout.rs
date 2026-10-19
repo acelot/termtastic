@@ -89,6 +89,10 @@ impl<'a> Component for Layout<'a> {
                         emit(AppEvent::CopyToClipboardRequested(s))?;
                         Ok(())
                     }
+                    NodeInfoWidgetEvent::DirectChatRequested(node_key) => {
+                        emit(AppEvent::DirectChatRequested(node_key))?;
+                        Ok(())
+                    }
                     NodeInfoWidgetEvent::NodeDeleteRequested => {
                         emit(AppEvent::NodeDeleteRequested(node_key))?;
                         Ok(())

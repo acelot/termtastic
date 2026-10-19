@@ -9,7 +9,9 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::update_nodeinfo_telemetry;
-use crate::types::{Chat, Message, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteState};
+use crate::types::{
+    Chat, Message, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteIndicatorState, TracerouteState,
+};
 use crate::{
     state::{State, StateAction},
     types::{ConnectionState, DeviceDiscoveringState, FormItemKey, SettingsFormState, Tab},
@@ -751,6 +753,7 @@ impl Store {
                         state.chats.insert_sorted(chat.clone(), Vec::new());
                     }
 
+                    state.nodeinfo = None;
                     state.active_chat = Some(chat);
                     state.active_tab = Tab::Chat;
                 });
@@ -779,6 +782,10 @@ impl Store {
 
                     if !matches!(error, Some(routing::Error::None)) {
                         traceroute.state = TracerouteState::RoutingError;
+
+                        state.active_traceroutes.remove(&message_id);
+                        state.traceroute_indicator = TracerouteIndicatorState::Error;
+                        state.traceroute_indicator_t = Instant::now();
                     }
 
                     return true;
@@ -918,7 +925,8 @@ impl Store {
                     });
 
                     state.active_traceroutes.remove(&message_id);
-                    state.traceroute_indicator = false;
+                    state.traceroute_indicator = TracerouteIndicatorState::Error;
+                    state.traceroute_indicator_t = Instant::now();
                 });
 
                 true
@@ -938,7 +946,8 @@ impl Store {
                     });
 
                     state.active_traceroutes.remove(&message_id);
-                    state.traceroute_indicator = false;
+                    state.traceroute_indicator = TracerouteIndicatorState::Success;
+                    state.traceroute_indicator_t = Instant::now();
                 });
 
                 true
@@ -953,14 +962,7 @@ impl Store {
                     }
 
                     state.active_traceroutes.remove(&message_id);
-                    state.traceroute_indicator = false;
-                });
-
-                true
-            }
-            StateAction::TracerouteSwitchIndicator => {
-                self.state_tx.send_modify(|state| {
-                    state.traceroute_indicator = !state.traceroute_indicator;
+                    state.traceroute_indicator = TracerouteIndicatorState::Off;
                 });
 
                 true
@@ -986,6 +988,25 @@ impl Store {
 
             if state.db_indicator && state.db_indicator_t.elapsed().as_millis() > DB_INDICATOR_TIMEOUT_MILLIS {
                 state.db_indicator = false;
+
+                is_changed = true;
+            }
+
+            if !state.active_traceroutes.is_empty()
+                && state.traceroute_indicator == TracerouteIndicatorState::Off
+                && state.traceroute_indicator_t.elapsed().as_millis() > TracerouteIndicatorState::Running as u128
+            {
+                state.traceroute_indicator = TracerouteIndicatorState::Running;
+                state.traceroute_indicator_t = Instant::now();
+
+                is_changed = true;
+            }
+
+            if state.traceroute_indicator != TracerouteIndicatorState::Off
+                && state.traceroute_indicator_t.elapsed().as_millis() > state.traceroute_indicator as u128
+            {
+                state.traceroute_indicator = TracerouteIndicatorState::Off;
+                state.traceroute_indicator_t = Instant::now();
 
                 is_changed = true;
             }

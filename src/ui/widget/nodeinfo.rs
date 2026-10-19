@@ -61,6 +61,7 @@ impl NodeInfoTab {
 pub enum NodeInfoWidgetEvent {
     CloseRequested,
     CopyToClipboardRequested(String),
+    DirectChatRequested(u32),
     NodeDeleteRequested,
     TracerouteRequested,
 }
@@ -148,6 +149,10 @@ impl NodeInfoWidgetState {
                     self.active_tab = self.active_tab.prev();
                     return Ok(true);
                 }
+                (NodeInfoTab::Info, KeyCode::F(2)) if modifiers.is_empty() => {
+                    emit(NodeInfoWidgetEvent::DirectChatRequested(context.node_key))?;
+                    return Ok(true);
+                }
                 (NodeInfoTab::Info, KeyCode::Char('с')) if modifiers.is_empty() => {
                     if let Some(user) = context.nodes.get(&context.node_key).and_then(|n| n.user.as_ref()) {
                         emit(NodeInfoWidgetEvent::CopyToClipboardRequested(
@@ -182,6 +187,22 @@ impl NodeInfoWidgetState {
                     if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
                 {
                     self.expanded_traceroute_scroll_state.next();
+                    return Ok(true);
+                }
+                (NodeInfoTab::Traceroutes, KeyCode::Char('c'))
+                    if modifiers.is_empty()
+                        && let Some(message_id) = self.expanded_traceroute =>
+                {
+                    if let Some(traceroute) = context
+                        .traceroutes
+                        .iter()
+                        .find(|t| t.message_id == message_id && t.state == TracerouteState::Finished)
+                    {
+                        emit(NodeInfoWidgetEvent::CopyToClipboardRequested(traceroute_to_text(
+                            traceroute, &context,
+                        )))?;
+                    }
+
                     return Ok(true);
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Esc)
@@ -239,6 +260,7 @@ impl NodeInfoWidgetState {
     pub fn get_hotkeys(&self, is_my_node: bool) -> Vec<Hotkey> {
         match &self.active_tab {
             NodeInfoTab::Info => vec![
+                (!is_my_node).then_some(Hotkey::new("F2", "direct")),
                 Some(Hotkey::new("c", "copy public key")),
                 (!is_my_node).then_some(Hotkey::new("delete", "remove")),
                 Some(Hotkey::new("esc", "close")),
@@ -246,11 +268,14 @@ impl NodeInfoWidgetState {
             .into_iter()
             .flatten()
             .collect(),
-            NodeInfoTab::Traceroutes => vec![
+            NodeInfoTab::Traceroutes if self.expanded_traceroute.is_none() => vec![
                 Hotkey::new("enter", "expand"),
                 Hotkey::new("r", "run traceroute"),
                 Hotkey::new("esc", "close"),
             ],
+            NodeInfoTab::Traceroutes if self.expanded_traceroute.is_some() => {
+                vec![Hotkey::new("c", "copy result"), Hotkey::new("esc", "close")]
+            }
             NodeInfoTab::Telemetry => vec![Hotkey::new("c", "copy value"), Hotkey::new("esc", "close")],
             _ => vec![],
         }
@@ -731,4 +756,30 @@ impl<'a> Widget for TelemetryItemWidget<'a> {
             }
         }
     }
+}
+
+fn traceroute_to_text(traceroute: &Traceroute, context: &NodeInfoContext) -> String {
+    let item_mapper = |item: &TracerouteItem| match item {
+        TracerouteItem::Node(node_key) => context.nodes.get(node_key).unwrap_or(&UNKNOWN_NODE).short_name(),
+        TracerouteItem::Snr(snr) => format!("{:.2}dB", snr),
+    };
+
+    let towards = iter::once(&TracerouteItem::Node(context.my_node_key))
+        .chain(traceroute.route_towards.iter())
+        .chain(iter::once(&TracerouteItem::Node(context.node_key)))
+        .map(item_mapper)
+        .join(" \u{2192}\u{A0}");
+
+    let back = iter::once(&TracerouteItem::Node(context.node_key))
+        .chain(traceroute.route_back.iter())
+        .chain(iter::once(&TracerouteItem::Node(context.my_node_key)))
+        .map(item_mapper)
+        .join(" \u{2192}\u{A0}");
+
+    format!(
+        "TOWARDS: {}\nBACK: {}\nRTT: {}",
+        towards,
+        back,
+        humanize_uptime(traceroute.duration.num_seconds() as u32)
+    )
 }
