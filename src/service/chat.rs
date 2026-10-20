@@ -163,11 +163,20 @@ impl ChatService {
                             let state = &self.state_rx.borrow();
 
                             if Some(packet.to) == state.my_node_key {
-                                self.state_action_tx.send(StateAction::MessageErrorSet {
-                                    message_id: data.request_id,
-                                    error: Some(routing::Error::try_from(e).expect("invalid routing error")),
-                                    datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
-                                })?;
+                                match routing::Error::try_from(e) {
+                                    Ok(error) => self.state_action_tx.send(StateAction::MessageErrorSet {
+                                        message_id: data.request_id,
+                                        error: Some(error),
+                                        datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    })?,
+                                    Err(_) => {
+                                        tracing::warn!(
+                                            message_id = data.request_id,
+                                            "unknown routing error code: {}",
+                                            e
+                                        );
+                                    }
+                                }
                             }
                         }
                         Err(e) => {

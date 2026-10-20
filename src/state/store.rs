@@ -138,6 +138,8 @@ impl Store {
 
                     state.device_config = Default::default();
                     state.device_module_config = Default::default();
+                    state.nodes_loader_current = 0;
+                    state.nodes_loader_total = 0;
                     state.settings_form_data = None;
                     state.settings_form_is_changed = false;
                     state.settings_form_original_data = None;
@@ -151,12 +153,16 @@ impl Store {
                     state.active_chat = None;
                     state.active_device = None;
                     state.active_traceroutes.clear();
-                    state.chats.clear();
                     state.channels = State::default_channels();
+                    state.chats.clear();
                     state.connection_attempt = 0;
                     state.connection_state = Default::default();
                     state.device_config = Default::default();
                     state.device_module_config = Default::default();
+                    state.messages.clear();
+                    state.my_node_key = None;
+                    state.nodeinfo = None;
+                    state.nodeinfo_telemetry.clear();
                     state.nodes_loader_current = 0;
                     state.nodes_loader_total = 0;
                     state.nodes_view.clear();
@@ -234,11 +240,7 @@ impl Store {
             StateAction::DbTracerouteLoad(traceroutes) => {
                 self.state_tx.send_modify(|state| {
                     for t in traceroutes {
-                        state
-                            .nodes_traceroutes
-                            .entry(t.node_key)
-                            .and_modify(|nt| nt.push(t.message_id))
-                            .or_insert(vec![t.message_id]);
+                        add_node_traceroute(t.node_key, t.message_id, state);
 
                         state.traceroutes.insert(t.message_id, t);
                     }
@@ -492,10 +494,13 @@ impl Store {
                     return false;
                 }
 
+                state.nodes_last_telemetry.remove(&node_key);
+
                 if let Some(nodeinfo_key) = state.nodeinfo
                     && nodeinfo_key == node_key
                 {
                     state.nodeinfo = None;
+                    state.nodeinfo_telemetry.clear();
                 }
 
                 state.update_nodes_view();
@@ -503,7 +508,12 @@ impl Store {
                 true
             }),
             StateAction::NodeOwnerSet(user) => self.state_tx.send_if_modified(|state| {
-                if let Some(node) = state.nodes.get_mut(&state.my_node_key.expect("should be Some")) {
+                let Some(my_node_key) = state.my_node_key else {
+                    tracing::warn!("node owner not set: my node key is unknown");
+                    return false;
+                };
+
+                if let Some(node) = state.nodes.get_mut(&my_node_key) {
                     node.user = Some(user);
 
                     state.update_nodes_view();
@@ -626,12 +636,16 @@ impl Store {
             }
             StateAction::ChannelSet(key, channel) => {
                 self.state_tx.send_modify(|state| {
-                    if !channel.role.is_disabled() {
-                        let chat = Chat::Channel(key);
+                    let chat = Chat::Channel(key);
 
-                        if !state.chats.contains_key(&chat) {
-                            state.chats.insert_sorted(chat, Vec::new());
+                    if channel.role.is_disabled() {
+                        state.chats.remove(&chat);
+
+                        if state.active_chat.as_ref() == Some(&chat) {
+                            state.active_chat = None;
                         }
+                    } else if !state.chats.contains_key(&chat) {
+                        state.chats.insert_sorted(chat, Vec::new());
                     }
 
                     state.channels.insert(key, channel);
@@ -661,7 +675,10 @@ impl Store {
                         .filter_map(|(id, message)| (message.channel == channel_key).then_some(*id))
                         .collect(),
                     Chat::Direct(node_key) => {
-                        let my_node_key = state.my_node_key.expect("should be Some");
+                        let Some(my_node_key) = state.my_node_key else {
+                            tracing::warn!("chat not purged: my node key is unknown");
+                            return false;
+                        };
 
                         state
                             .messages
@@ -903,11 +920,7 @@ impl Store {
                         },
                     );
 
-                    state
-                        .nodes_traceroutes
-                        .entry(node_key)
-                        .and_modify(|nt| nt.push(message_id))
-                        .or_insert(vec![message_id]);
+                    add_node_traceroute(node_key, message_id, state);
 
                     state.active_traceroutes.insert(message_id);
                 });
@@ -1029,7 +1042,7 @@ impl Store {
                 }
             }
 
-            if !state.toast_queue.is_empty() {
+            if state.toast.is_none() && !state.toast_queue.is_empty() {
                 state.toast = state.toast_queue.pop_front();
                 state.toast_t = Instant::now();
 
@@ -1044,6 +1057,10 @@ impl Store {
 }
 
 fn add_message(message: Message, state: &mut State) {
+    if state.messages.contains_key(&message.id) {
+        return;
+    }
+
     if message.is_emoji {
         if let Some(reply_message) = state.messages.get_mut(&message.reply_message_id) {
             reply_message.reactions.push(message.id);
@@ -1054,7 +1071,12 @@ fn add_message(message: Message, state: &mut State) {
         return;
     }
 
-    let chat = Chat::from((&message, state.my_node_key.expect("should be Some")));
+    let Some(my_node_key) = state.my_node_key else {
+        tracing::warn!(message_id = message.id, "message skipped: my node key is unknown");
+        return;
+    };
+
+    let chat = Chat::from((&message, my_node_key));
 
     if let Some(chat_messages) = state.chats.get_mut(&chat) {
         chat_messages.push(message.id);
@@ -1063,4 +1085,12 @@ fn add_message(message: Message, state: &mut State) {
     }
 
     state.messages.insert(message.id, message);
+}
+
+fn add_node_traceroute(node_key: u32, message_id: u32, state: &mut State) {
+    let node_traceroutes = state.nodes_traceroutes.entry(node_key).or_default();
+
+    if !node_traceroutes.contains(&message_id) {
+        node_traceroutes.push(message_id);
+    }
 }

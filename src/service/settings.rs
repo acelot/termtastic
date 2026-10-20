@@ -133,7 +133,15 @@ impl SettingsService {
                     self.state_action_tx
                         .send(StateAction::Toast(Toast::normal("saving...")))?;
 
-                    self.save_config(&form_id)?;
+                    if let Err(e) = self.save_config(&form_id) {
+                        tracing::error!("settings save failed: {}", e);
+
+                        self.state_action_tx
+                            .send(StateAction::Toast(Toast::error("save failed (see logs)")))?;
+
+                        self.state_action_tx
+                            .send(StateAction::SettingsFormSavingFailed { id: form_id })?;
+                    }
                 }
                 AppEvent::SettingsFormItemSubmitted(form_item, value) => {
                     self.state_action_tx.send(StateAction::SettingsFormValueSet {

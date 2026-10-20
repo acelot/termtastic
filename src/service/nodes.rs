@@ -96,11 +96,20 @@ impl NodesService {
                 AppEvent::NodeInfoBroadcastRequested => {
                     let my_node = state.get_my_node().expect("should be Some");
 
+                    let user = match my_node.try_into() {
+                        Ok(user) => user,
+                        Err(e) => {
+                            tracing::error!("NodeInfo broadcast failed: {}", e);
+
+                            self.state_action_tx
+                                .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")))?;
+
+                            return Ok(());
+                        }
+                    };
+
                     self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::BroadcastNodeInfo {
-                            channel_id: 0,
-                            user: my_node.try_into()?,
-                        })?;
+                        .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user })?;
                 }
                 AppEvent::NodeInfoPopupOpenRequested(node_key) => {
                     self.state_action_tx.send(StateAction::NodeInfoSet(node_key))?;

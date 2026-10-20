@@ -228,7 +228,8 @@ impl ConnectionService {
         match (&state.active_device, &state.connection_state) {
             (Some(device), ConnectionState::ProblemDetected { since, .. }) => {
                 let backoff_duration = Duration::from_millis(
-                    (RECONNECTION_BACKOFF_BASE_MILLIS * 2_u64.saturating_pow(state.connection_attempt))
+                    RECONNECTION_BACKOFF_BASE_MILLIS
+                        .saturating_mul(2_u64.saturating_pow(state.connection_attempt))
                         .min(RECONNECTION_BACKOFF_MAX_MILLIS),
                 );
 
@@ -336,50 +337,46 @@ async fn discover_ble_devices(state_action_tx: mpsc::UnboundedSender<StateAction
 async fn discover_tcp_devices(state_action_tx: mpsc::UnboundedSender<StateAction>) -> anyhow::Result<()> {
     let mdns_daemon = mdns_sd::ServiceDaemon::new()?;
     let receiver = mdns_daemon.browse(MDNS_MESHTASTIC_DOMAIN)?;
-    let browsing_start_t = Instant::now();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(MDNS_DISCOVERY_TIMEOUT_SECS);
 
-    tokio::spawn(async move {
-        while let Ok(event) = receiver.recv() {
-            match event {
-                mdns_sd::ServiceEvent::ServiceResolved(info) => {
-                    for addr in info.addresses.iter() {
-                        let short_name = info.txt_properties.get("shortname").map(|txt| txt.val_str().to_owned());
+    let result: anyhow::Result<()> = 'browse: loop {
+        let event = match tokio::time::timeout_at(deadline, receiver.recv_async()).await {
+            Ok(Ok(event)) => event,
+            Ok(Err(_)) => break Ok(()),
+            Err(_) => {
+                tracing::debug!("mDNS timeout, stopping discovery");
+                break Ok(());
+            }
+        };
 
-                        match addr {
-                            mdns_sd::ScopedIp::V4(ipv4) => {
-                                if let Err(e) = state_action_tx.send(StateAction::DevicesDiscoveredAdd(Device::Tcp {
-                                    address: HostAddr::from_ip_addr(IpAddr::from(*ipv4.addr())).with_port(info.port),
-                                    name: short_name,
-                                })) {
-                                    let _ = mdns_daemon.shutdown();
-                                    return Err(e.into());
-                                }
-                            }
-                            mdns_sd::ScopedIp::V6(ipv6) => {
-                                if let Err(e) = state_action_tx.send(StateAction::DevicesDiscoveredAdd(Device::Tcp {
-                                    address: HostAddr::from_ip_addr(IpAddr::from(*ipv6.addr())).with_port(info.port),
-                                    name: short_name,
-                                })) {
-                                    let _ = mdns_daemon.shutdown();
-                                    return Err(e.into());
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {
-                    if browsing_start_t.elapsed().as_secs() > MDNS_DISCOVERY_TIMEOUT_SECS {
-                        tracing::debug!("mDNS timeout, stopping discovery");
-                        break;
-                    }
-                }
+        let mdns_sd::ServiceEvent::ServiceResolved(info) = event else {
+            continue;
+        };
+
+        let short_name = info.txt_properties.get("shortname").map(|txt| txt.val_str().to_owned());
+
+        for addr in info.addresses.iter() {
+            let ip = match addr {
+                mdns_sd::ScopedIp::V4(ipv4) => IpAddr::from(*ipv4.addr()),
+                mdns_sd::ScopedIp::V6(ipv6) => IpAddr::from(*ipv6.addr()),
+                _ => continue,
+            };
+
+            if let Err(e) = state_action_tx.send(StateAction::DevicesDiscoveredAdd(Device::Tcp {
+                address: HostAddr::from_ip_addr(ip).with_port(info.port),
+                name: short_name.clone(),
+            })) {
+                break 'browse Err(e.into());
             }
         }
+    };
 
-        mdns_daemon.shutdown()?;
+    if result.is_err() {
+        let _ = mdns_daemon.shutdown();
+        return result;
+    }
 
-        Ok(())
-    })
-    .await?
+    mdns_daemon.shutdown()?;
+
+    Ok(())
 }

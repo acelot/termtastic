@@ -200,7 +200,15 @@ impl PersistenceService {
                         return Ok(());
                     };
 
-                    match repository.telemetry_insert(packet.try_into()?).await {
+                    let telemetry_entity = match packet.try_into() {
+                        Ok(e) => e,
+                        Err(e) => {
+                            tracing::error!("can't convert NodeTelemetry into DB entity: {}", e);
+                            return Ok(());
+                        }
+                    };
+
+                    match repository.telemetry_insert(telemetry_entity).await {
                         Ok(_) => {}
                         Err(e) => {
                             tracing::error!("telemetry store to DB failed: {}", e);
