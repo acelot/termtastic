@@ -148,13 +148,17 @@ impl Store {
             }
             StateAction::ConnectionStop => {
                 self.state_tx.send_modify(|state| {
+                    state.active_chat = None;
                     state.active_device = None;
+                    state.active_traceroutes.clear();
                     state.chats.clear();
-                    state.channels.clear();
+                    state.channels = State::default_channels();
                     state.connection_attempt = 0;
                     state.connection_state = Default::default();
                     state.device_config = Default::default();
                     state.device_module_config = Default::default();
+                    state.nodes_loader_current = 0;
+                    state.nodes_loader_total = 0;
                     state.nodes_view.clear();
                     state.nodes.clear();
                     state.online_nodes = 0;
@@ -163,6 +167,7 @@ impl Store {
                     state.settings_form_is_changed = false;
                     state.settings_form_original_data = None;
                     state.settings_form_state = Default::default();
+                    state.traceroutes.clear();
 
                     state.update_nodes_view();
                 });
@@ -389,24 +394,16 @@ impl Store {
 
                 true
             }
-            StateAction::NodesStashPush(node) => {
+            StateAction::NodesLoaderIncrement => {
                 self.state_tx.send_modify(|state| {
-                    state.nodes_stash.push(node);
+                    state.nodes_loader_current += 1;
                 });
 
                 true
             }
-            StateAction::NodesStashCapSet(cap) => {
+            StateAction::NodesLoaderTotalSet(cap) => {
                 self.state_tx.send_modify(|state| {
-                    state.nodes_stash_cap = cap;
-                });
-
-                true
-            }
-            StateAction::NodesStashFlush => {
-                self.state_tx.send_modify(|state| {
-                    state.nodes_stash.clear();
-                    state.nodes_stash_cap = 0;
+                    state.nodes_loader_total = cap;
                 });
 
                 true

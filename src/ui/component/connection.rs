@@ -426,8 +426,7 @@ impl<'a> Component for Connection<'a> {
                     vec![Line::from(
                         Span::from(format!(
                             "loading nodes {}/{}...",
-                            state.nodes_stash.len(),
-                            state.nodes_stash_cap
+                            state.nodes_loader_current, state.nodes_loader_total
                         ))
                         .yellow(),
                     )]

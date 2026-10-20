@@ -159,6 +159,10 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
                 }
             }
+            StateAction::ConnectionStop => {
+                self.repository.take();
+                tracing::debug!("DB closed");
+            }
             _ => {}
         };
 

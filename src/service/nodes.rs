@@ -79,13 +79,6 @@ impl NodesService {
 
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::DbLoadFinished => {
-                    for node in &state.nodes_stash {
-                        self.state_action_tx.send(StateAction::NodeInit(node.clone()))?;
-                    }
-
-                    self.state_action_tx.send(StateAction::NodesStashFlush)?;
-                }
                 AppEvent::DirectChatRequested(node_key) => {
                     self.state_action_tx.send(StateAction::DirectChatStart(node_key))?;
                 }
@@ -179,12 +172,14 @@ impl NodesService {
                     .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
             }
             from_radio::PayloadVariant::NodeInfo(node_info) => {
+                self.state_action_tx.send(StateAction::NodesLoaderIncrement)?;
+
                 match Node::try_from(&node_info) {
                     Ok(node) => {
                         let node_key = node.key;
                         let last_heard = node.last_heard.unwrap_or(Utc::now());
 
-                        self.state_action_tx.send(StateAction::NodesStashPush(node))?;
+                        self.state_action_tx.send(StateAction::NodeInit(node))?;
 
                         if let Some(device_metrics) = node_info.device_metrics {
                             self.state_action_tx

@@ -39,6 +39,7 @@ pub enum CommandToMeshtastic {
     ConnectViaBle(BDAddr, Option<String>),
     ConnectViaSerial(String),
     Disconnect,
+    ResumeRadio,
     Reboot {
         secs: i32,
         my_node_num: u32,

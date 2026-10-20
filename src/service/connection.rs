@@ -110,6 +110,9 @@ impl ConnectionService {
                         secs: 3,
                     })?;
                 }
+                AppEvent::DbLoadFinished => {
+                    self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio)?;
+                }
                 AppEvent::DeviceSubmitted(device) => {
                     self.state_action_tx.send(StateAction::DevicesAdd(device))?;
                 }
@@ -163,7 +166,9 @@ impl ConnectionService {
                                 .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
 
                             self.state_action_tx
-                                .send(StateAction::NodesStashCapSet(my_info.nodedb_count))?;
+                                .send(StateAction::NodesLoaderTotalSet(my_info.nodedb_count))?;
+
+                            self.app_event_tx.send(AppEvent::DbLoadRequested(my_info.my_node_num))?;
                         }
                         from_radio::PayloadVariant::Metadata(metadata) => {
                             self.state_action_tx
@@ -177,8 +182,6 @@ impl ConnectionService {
                             self.state_action_tx.send(StateAction::ConnectionSuccess)?;
 
                             if let Some(my_node_key) = self.my_node_key.take() {
-                                self.app_event_tx.send(AppEvent::DbLoadRequested(my_node_key))?;
-
                                 self.meshtastic_command_tx
                                     .send(CommandToMeshtastic::LoadCannedMessages {
                                         my_node_num: my_node_key,

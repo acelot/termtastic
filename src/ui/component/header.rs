@@ -62,9 +62,9 @@ impl Component for Header {
             ConnectionState::LoadingConfig => {
                 Line::from(vec![
                     Span::from("loading nodes ").yellow(),
-                    Span::from(state.nodes_stash.len().to_string()).yellow(),
+                    Span::from(state.nodes_loader_current.to_string()).yellow(),
                     Span::from("/").yellow().dim(),
-                    Span::from(state.nodes_stash_cap.to_string()).yellow(),
+                    Span::from(state.nodes_loader_total.to_string()).yellow(),
                     Span::from("  "),
                     Span::from("DB TR").dark_gray().dim(),
                     Span::from(" "),

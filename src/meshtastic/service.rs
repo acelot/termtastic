@@ -33,6 +33,7 @@ pub struct MeshtasticService {
     event_rx: broadcast::Receiver<MeshtasticEvent>,
     stream_api: Option<ConnectedStreamApi>,
     radio_subsys: Option<NestedSubsystem>,
+    radio_resume_tx: Option<mpsc::UnboundedSender<()>>,
     connection_join_handle: Option<JoinHandle<anyhow::Result<()>>>,
     connection_tx: mpsc::Sender<(mpsc::UnboundedReceiver<FromRadio>, ConnectedStreamApi)>,
     connection_rx: mpsc::Receiver<(mpsc::UnboundedReceiver<FromRadio>, ConnectedStreamApi)>,
@@ -55,6 +56,7 @@ impl MeshtasticService {
                 event_rx: event_rx.resubscribe(),
                 stream_api: None,
                 radio_subsys: None,
+                radio_resume_tx: None,
                 connection_join_handle: None,
                 connection_tx,
                 connection_rx,
@@ -188,6 +190,11 @@ impl MeshtasticService {
             CommandToMeshtastic::Shutdown { secs, my_node_num } => {
                 self.send_admin_message(my_node_num, admin_message::PayloadVariant::ShutdownSeconds(secs))
                     .await?;
+            }
+            CommandToMeshtastic::ResumeRadio => {
+                if let Some(radio_resume_tx) = &self.radio_resume_tx {
+                    let _ = radio_resume_tx.send(());
+                }
             }
             CommandToMeshtastic::LoadCannedMessages { my_node_num } => {
                 self.send_admin_message(
@@ -527,11 +534,15 @@ impl MeshtasticService {
         self.stream_api = Some(stream_api);
 
         let event_tx_clone = self.event_tx.clone();
+        let (radio_resume_tx, radio_resume_rx) = mpsc::unbounded_channel::<()>();
 
+        self.radio_resume_tx = Some(radio_resume_tx);
         self.radio_subsys = Some(
             subsys.start(
                 SubsystemBuilder::new("RadioService", async |nested_subsys: &mut SubsystemHandle| {
-                    RadioService::new(event_tx_clone).run(radio_rx, nested_subsys).await
+                    RadioService::new(event_tx_clone, radio_resume_rx)
+                        .run(radio_rx, nested_subsys)
+                        .await
                 })
                 .on_failure(ErrorAction::CatchAndLocalShutdown),
             ),
@@ -546,6 +557,8 @@ impl MeshtasticService {
         if let Some(handle) = self.connection_join_handle.take() {
             handle.abort();
         }
+
+        self.radio_resume_tx.take();
 
         if let Some(subsys) = self.radio_subsys.take()
             && !subsys.is_finished()
