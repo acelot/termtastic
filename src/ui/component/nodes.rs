@@ -29,7 +29,7 @@ impl<'a> Nodes<'a> {
     }
 
     fn render_filter_help(&mut self, area: Rect, buf: &mut Buffer) {
-        let popup_area = area.centered(Constraint::Length(50), Constraint::Length(16));
+        let popup_area = area.centered(Constraint::Length(54), Constraint::Length(16));
 
         let popup_block = Block::bordered()
             .border_type(BorderType::Thick)

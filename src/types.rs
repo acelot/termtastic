@@ -1,8 +1,7 @@
 use crate::state::State;
-use crate::ui::helpers::DateTimeExt;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use emojis::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
@@ -610,7 +609,7 @@ impl TryFrom<&meshtastic::protobufs::NodeInfo> for Node {
             key: value.num,
             user: value.user.as_ref().map(|u| u.into()),
             hops: value.hops_away,
-            last_heard: value.last_heard.timestamp_to_datetime(),
+            last_heard: timestamp_to_datetime(value.last_heard),
             snr: value.snr,
             rssi: None,
             is_favorite: value.is_favorite,
@@ -631,7 +630,7 @@ impl From<&meshtastic::protobufs::MeshPacket> for Node {
             key: packet.from,
             user: None,
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
-            last_heard: packet.rx_time.timestamp_to_datetime(),
+            last_heard: timestamp_to_datetime(packet.rx_time),
             snr: packet.rx_snr,
             rssi: Some(packet.rx_rssi),
             is_favorite: false,
@@ -656,7 +655,7 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::User)>
             key: packet.from,
             user: Some(user.into()),
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
-            last_heard: packet.rx_time.timestamp_to_datetime(),
+            last_heard: timestamp_to_datetime(packet.rx_time),
             snr: packet.rx_snr,
             rssi: Some(packet.rx_rssi),
             is_favorite: false,
@@ -887,10 +886,7 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
             from: packet.from,
             to: packet.to,
             channel: packet.channel,
-            datetime: Utc
-                .timestamp_opt(packet.rx_time as i64, 0)
-                .single()
-                .unwrap_or(Utc::now()),
+            datetime: timestamp_to_datetime(packet.rx_time).unwrap_or(Utc::now()),
             text: String::from_utf8(data.payload.clone())?,
             is_emoji: data.emoji > 0,
             reactions: Vec::default(),
@@ -1389,4 +1385,12 @@ pub struct DeviceModuleConfig {
     pub telemetry: Option<module_config::TelemetryConfig>,
     pub traffic_management: Option<module_config::TrafficManagementConfig>,
     pub tak: Option<module_config::TakConfig>,
+}
+
+fn timestamp_to_datetime(timestamp: u32) -> Option<DateTime<Utc>> {
+    if timestamp == 0 {
+        return None;
+    }
+
+    DateTime::from_timestamp_secs(timestamp as i64)
 }
