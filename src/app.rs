@@ -76,6 +76,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         app_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );

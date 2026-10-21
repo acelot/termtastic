@@ -283,7 +283,7 @@ impl SettingsService {
     }
 
     fn load_config(&self, id: &FormId) -> anyhow::Result<FormData> {
-        let state = &self.state_rx.borrow();
+        let state = self.state_rx.borrow();
 
         let data = match id {
             FormId::AppUi => to_formdata(&state.ui_config)?,
@@ -451,7 +451,7 @@ impl SettingsService {
     }
 
     fn save_config(&self, id: &FormId) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
+        let state = self.state_rx.borrow();
         let form_data = state.settings_form_data.as_ref().expect("should be Some");
 
         self.state_action_tx

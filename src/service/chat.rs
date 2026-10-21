@@ -56,7 +56,7 @@ impl ChatService {
     }
 
     fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
+        let state = self.state_rx.borrow();
 
         match event {
             Ok(app_event) => match app_event {
@@ -160,9 +160,9 @@ impl ChatService {
                         Ok(Routing {
                             variant: Some(routing::Variant::ErrorReason(e)),
                         }) => {
-                            let state = &self.state_rx.borrow();
+                            let my_node_key = self.state_rx.borrow().my_node_key;
 
-                            if Some(packet.to) == state.my_node_key {
+                            if Some(packet.to) == my_node_key {
                                 match routing::Error::try_from(e) {
                                     Ok(error) => self.state_action_tx.send(StateAction::MessageErrorSet {
                                         message_id: data.request_id,
@@ -198,7 +198,7 @@ impl ChatService {
                         };
                     }
                     PortNum::RangeTestApp => {
-                        let state = &self.state_rx.borrow();
+                        let state = self.state_rx.borrow();
                         let text = String::from_utf8(data.payload.clone()).unwrap_or("can't decode payload".to_owned());
                         let node = state.nodes.get(&packet.from).unwrap_or(&UNKNOWN_NODE);
 

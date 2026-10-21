@@ -302,10 +302,9 @@ impl NodesService {
     }
 
     fn update_online_nodes(&self) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
         let now = Utc::now();
 
-        let count = state.nodes.iter().fold(0, |mut counter, (_, node)| {
+        let count = self.state_rx.borrow().nodes.iter().fold(0, |mut counter, (_, node)| {
             if let Some(last_heard) = node.last_heard
                 && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
             {

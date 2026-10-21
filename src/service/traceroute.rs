@@ -15,13 +15,13 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
+use crate::types::{Toast, TracerouteItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
     types::{AppEvent, UNKNOWN_NODE},
 };
 use crate::{state::State, types::TracerouteState};
-use crate::types::{Toast, TracerouteItem};
 
 const CHECK_TRACEROUTE_INTERVAL_MILLIS: u64 = 500;
 const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
@@ -31,6 +31,7 @@ pub struct TracerouteService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
+    stored_action_rx: broadcast::Receiver<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
 }
@@ -40,6 +41,7 @@ impl TracerouteService {
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
+        stored_action_rx: broadcast::Receiver<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
@@ -47,6 +49,7 @@ impl TracerouteService {
             app_event_rx,
             state_rx,
             state_action_tx,
+            stored_action_rx,
             meshtastic_command_tx,
             meshtastic_event_rx,
         }
@@ -57,6 +60,7 @@ impl TracerouteService {
 
         loop {
             tokio::select! {
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
                 event = self.app_event_rx.recv() => self.handle_app_event(event)?,
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
                 _ = check_traceroutes_interval.tick() => self.check_traceroutes()?,
@@ -70,15 +74,42 @@ impl TracerouteService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
+    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
+        match event {
+            Ok(StateAction::TracerouteFinish { message_id, .. }) => {
+                let state = self.state_rx.borrow();
 
+                let Some(traceroute) = state.traceroutes.get(&message_id) else {
+                    return Ok(());
+                };
+
+                let node_short_name = state
+                    .nodes
+                    .get(&traceroute.node_key)
+                    .unwrap_or(&UNKNOWN_NODE)
+                    .short_name();
+
+                self.state_action_tx.send(StateAction::Toast(Toast::success(format!(
+                    "[{}] traceroute finished",
+                    node_short_name
+                ))))?;
+            }
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("broadcast receiver lagged by {} events", n);
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::TracerouteRequested(node_key) => {
-                    let my_node_num = state.my_node_key.expect("should be Some");
+                    let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
 
-                    if node_key == my_node_num {
+                    if node_key == my_node_key {
                         self.state_action_tx
                             .send(StateAction::Toast(Toast::warning("can't traceroute yourself")))?;
 
@@ -87,7 +118,7 @@ impl TracerouteService {
 
                     self.meshtastic_command_tx.send(CommandToMeshtastic::RunTraceroute {
                         node_num: node_key,
-                        my_node_num,
+                        my_node_num: my_node_key,
                     })?;
                 }
                 _ => {}
@@ -141,43 +172,30 @@ impl TracerouteService {
                                     message_id: mesh_packet.id,
                                     datetime: Utc::now(),
                                 })?;
-                            } else {
-                                let route_towards: Vec<TracerouteItem> = route_discovery
-                                    .snr_towards
-                                    .into_iter()
-                                    .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
-                                    .interleave(route_discovery.route.into_iter().map(TracerouteItem::Node))
-                                    .collect();
 
-                                let route_back: Vec<TracerouteItem> = route_discovery
-                                    .snr_back
-                                    .into_iter()
-                                    .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
-                                    .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
-                                    .collect();
+                                return Ok(());
+                            };
 
-                                let node_short_name = {
-                                    let state = self.state_rx.borrow();
+                            let route_towards: Vec<TracerouteItem> = route_discovery
+                                .snr_towards
+                                .into_iter()
+                                .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
+                                .interleave(route_discovery.route.into_iter().map(TracerouteItem::Node))
+                                .collect();
 
-                                    state
-                                        .traceroutes
-                                        .get(&data.request_id)
-                                        .map(|t| state.nodes.get(&t.node_key).unwrap_or(&UNKNOWN_NODE).short_name())
-                                        .unwrap_or(UNKNOWN_NODE.short_name())
-                                };
+                            let route_back: Vec<TracerouteItem> = route_discovery
+                                .snr_back
+                                .into_iter()
+                                .map(|snr| TracerouteItem::Snr(snr as f32 / TRACEROUTE_SNR_MULTIPLIER))
+                                .interleave(route_discovery.route_back.into_iter().map(TracerouteItem::Node))
+                                .collect();
 
-                                self.state_action_tx.send(StateAction::TracerouteFinish {
-                                    message_id: data.request_id,
-                                    datetime: Utc::now(),
-                                    route_towards,
-                                    route_back,
-                                })?;
-
-                                self.state_action_tx.send(StateAction::Toast(Toast::success(format!(
-                                    "[{}] traceroute finished",
-                                    node_short_name
-                                ))))?;
-                            }
+                            self.state_action_tx.send(StateAction::TracerouteFinish {
+                                message_id: data.request_id,
+                                datetime: Utc::now(),
+                                route_towards,
+                                route_back,
+                            })?;
                         }
                         Err(e) => {
                             tracing::debug!("can't decode TracerouteApp payload: {:?}", e);

@@ -947,20 +947,29 @@ impl Store {
                 route_towards,
                 route_back,
             } => {
+                let mut is_changed = false;
+
                 self.state_tx.send_modify(|state| {
                     state.traceroutes.entry(message_id).and_modify(|t| {
                         t.duration = datetime - t.datetime;
                         t.route_towards = route_towards;
                         t.route_back = route_back;
                         t.state = TracerouteState::Finished;
+
+                        is_changed = true;
                     });
 
-                    state.active_traceroutes.remove(&message_id);
-                    state.traceroute_indicator = TracerouteIndicatorState::Success;
-                    state.traceroute_indicator_t = Instant::now();
+                    if state.active_traceroutes.remove(&message_id) {
+                        is_changed = true;
+                    }
+
+                    if is_changed {
+                        state.traceroute_indicator = TracerouteIndicatorState::Success;
+                        state.traceroute_indicator_t = Instant::now();
+                    }
                 });
 
-                true
+                is_changed
             }
             StateAction::TracerouteRemove { message_id } => {
                 self.state_tx.send_modify(|state| {

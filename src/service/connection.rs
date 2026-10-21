@@ -79,11 +79,7 @@ impl ConnectionService {
                     self.meshtastic_command_tx.send(CommandToMeshtastic::Disconnect)?;
                 }
                 AppEvent::DeviceRediscoverRequested => {
-                    let res = {
-                        let state = &self.state_rx.borrow();
-                        state.device_discovering_state.is_scanning()
-                    };
-                    if res {
+                    if self.state_rx.borrow().device_discovering_state.is_scanning() {
                         return Ok(());
                     }
 
@@ -95,20 +91,16 @@ impl ConnectionService {
                     self.discover_devices();
                 }
                 AppEvent::DeviceRebootRequested => {
-                    let state = &self.state_rx.borrow();
+                    let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx.send(CommandToMeshtastic::Reboot {
-                        my_node_num: state.my_node_key.expect("should be Some"),
-                        secs: 3,
-                    })?;
+                    self.meshtastic_command_tx
+                        .send(CommandToMeshtastic::Reboot { my_node_num, secs: 3 })?;
                 }
                 AppEvent::DeviceShutdownRequested => {
-                    let state = &self.state_rx.borrow();
+                    let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx.send(CommandToMeshtastic::Shutdown {
-                        my_node_num: state.my_node_key.expect("should be Some"),
-                        secs: 3,
-                    })?;
+                    self.meshtastic_command_tx
+                        .send(CommandToMeshtastic::Shutdown { my_node_num, secs: 3 })?;
                 }
                 AppEvent::DbLoadFinished => {
                     self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio)?;
@@ -196,7 +188,7 @@ impl ConnectionService {
                                 .send(StateAction::Toast(Toast::success("device has been rebooted")))?;
                         }
                         from_radio::PayloadVariant::Packet(mesh_packet) => {
-                            let state = &self.state_rx.borrow();
+                            let state = self.state_rx.borrow();
                             let from = state.nodes.get(&mesh_packet.from).map(|n| n.short_name());
                             let to = state.nodes.get(&mesh_packet.to).map(|n| n.short_name());
 
@@ -223,7 +215,7 @@ impl ConnectionService {
     }
 
     fn check_connection(&self) -> anyhow::Result<()> {
-        let state = &self.state_rx.borrow();
+        let state = self.state_rx.borrow();
 
         match (&state.active_device, &state.connection_state) {
             (Some(device), ConnectionState::ProblemDetected { since, .. }) => {
