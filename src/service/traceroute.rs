@@ -21,10 +21,7 @@ use crate::{
     types::{AppEvent, UNKNOWN_NODE},
 };
 use crate::{state::State, types::TracerouteState};
-use crate::{
-    types::{Toast, TracerouteItem},
-    ui::helpers::DateTimeExt,
-};
+use crate::types::{Toast, TracerouteItem};
 
 const CHECK_TRACEROUTE_INTERVAL_MILLIS: u64 = 500;
 const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
@@ -142,7 +139,7 @@ impl TracerouteService {
                                 self.state_action_tx.send(StateAction::TracerouteStart {
                                     node_key: mesh_packet.to,
                                     message_id: mesh_packet.id,
-                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    datetime: Utc::now(),
                                 })?;
                             } else {
                                 let route_towards: Vec<TracerouteItem> = route_discovery
@@ -171,7 +168,7 @@ impl TracerouteService {
 
                                 self.state_action_tx.send(StateAction::TracerouteFinish {
                                     message_id: data.request_id,
-                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    datetime: Utc::now(),
                                     route_towards,
                                     route_back,
                                 })?;

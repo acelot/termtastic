@@ -694,7 +694,10 @@ impl<'a> Widget for TracerouteWidget<'a> {
         Line::from(vec![
             Span::from("rtt ").dark_gray(),
             Span::from(humanize_uptime(if self.item.state == TracerouteState::Started {
-                Utc::now().signed_duration_since(self.item.datetime).num_seconds() as u32
+                Utc::now()
+                    .signed_duration_since(self.item.datetime)
+                    .num_seconds()
+                    .max(0) as u32
             } else {
                 self.item.duration.num_seconds() as u32
             })),
