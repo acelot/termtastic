@@ -64,7 +64,6 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let ui_service = UiService::new(app_event_rx.resubscribe(), state_action_tx.clone());
 
     let nodes_service = NodesService::new(
-        app_event_tx.clone(),
         app_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),

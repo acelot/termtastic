@@ -77,7 +77,7 @@ impl MeshtasticService {
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     self.disconnect().await?;
-                    self.event_tx.send(MeshtasticEvent::Disconnected)?;
+                    let _ = self.event_tx.send(MeshtasticEvent::Disconnected);
 
                     break;
                 }
@@ -125,10 +125,10 @@ impl MeshtasticService {
                             connection_tx_clone.send(conn).await?;
                         }
                         Ok(Err(e)) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                         Err(e) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                     }
 
@@ -147,10 +147,10 @@ impl MeshtasticService {
                             connection_tx_clone.send(conn).await?;
                         }
                         Ok(Err(e)) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                         Err(e) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                     }
 
@@ -169,10 +169,10 @@ impl MeshtasticService {
                             connection_tx_clone.send(conn).await?;
                         }
                         Ok(Err(e)) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                         Err(e) => {
-                            event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()))?;
+                            let _ = event_tx_clone.send(MeshtasticEvent::ConnectionError(e.to_string()));
                         }
                     }
 
@@ -181,7 +181,7 @@ impl MeshtasticService {
             }
             CommandToMeshtastic::Disconnect => {
                 self.disconnect().await?;
-                self.event_tx.send(MeshtasticEvent::Disconnected)?;
+                let _ = self.event_tx.send(MeshtasticEvent::Disconnected);
             }
             CommandToMeshtastic::Reboot { secs, my_node_num } => {
                 self.send_admin_message(my_node_num, admin_message::PayloadVariant::RebootSeconds(secs))
@@ -318,12 +318,12 @@ impl MeshtasticService {
                 .await
                 {
                     Ok(_) => {
-                        self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id));
                     }
                     Err(e) => {
                         tracing::error!("save config error: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id));
                     }
                 }
             }
@@ -363,17 +363,17 @@ impl MeshtasticService {
                 .await
                 {
                     Ok(Ok(_)) => {
-                        self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ConfigSaved(form_id));
                     }
                     Ok(Err(e)) => {
                         tracing::error!("save config error: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id));
                     }
                     Err(e) => {
                         tracing::error!("save config timeout: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ConfigSaveFailed(form_id));
                     }
                 }
             }
@@ -399,17 +399,17 @@ impl MeshtasticService {
                 .await
                 {
                     Ok(Ok(_)) => {
-                        self.event_tx.send(MeshtasticEvent::UserSaved(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::UserSaved(form_id));
                     }
                     Ok(Err(e)) => {
                         tracing::error!("save user error: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::UserSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::UserSaveFailed(form_id));
                     }
                     Err(e) => {
                         tracing::error!("save user timeout: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::UserSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::UserSaveFailed(form_id));
                     }
                 }
             }
@@ -469,17 +469,17 @@ impl MeshtasticService {
                 .await
                 {
                     Ok(Ok(_)) => {
-                        self.event_tx.send(MeshtasticEvent::ChannelsSaved(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ChannelsSaved(form_id));
                     }
                     Ok(Err(e)) => {
                         tracing::error!("save channels error: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::ChannelsSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ChannelsSaveFailed(form_id));
                     }
                     Err(e) => {
                         tracing::error!("save channels timeout: {:?}", e);
 
-                        self.event_tx.send(MeshtasticEvent::ChannelsSaveFailed(form_id))?;
+                        let _ = self.event_tx.send(MeshtasticEvent::ChannelsSaveFailed(form_id));
                     }
                 }
             }
@@ -548,7 +548,7 @@ impl MeshtasticService {
             ),
         );
 
-        self.event_tx.send(MeshtasticEvent::Connected)?;
+        let _ = self.event_tx.send(MeshtasticEvent::Connected);
 
         Ok(())
     }
@@ -643,7 +643,7 @@ enum RetransmitPacketRouterErr {
 impl<'a> PacketRouter<(), RetransmitPacketRouterErr> for RetransmitPacketRouter<'a> {
     fn handle_packet_from_radio(&mut self, packet: FromRadio) -> Result<(), RetransmitPacketRouterErr> {
         if let Some(payload) = packet.payload_variant {
-            self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(payload)))?;
+            let _ = self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(payload)));
         }
 
         Ok(())

@@ -72,7 +72,7 @@ impl<'a> Ui<'a> {
         match maybe_event {
             Some(Ok(event)) => {
                 self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
-                    self.app_event_tx.send(ev)?;
+                    let _ = self.app_event_tx.send(ev);
                     Ok(())
                 })?;
 

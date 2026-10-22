@@ -44,26 +44,28 @@ impl UiService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::InitializationRequested | AppEvent::SplashLogoRequested => {
-                    self.state_action_tx.send(StateAction::SplashLogo)?;
+                    let _ = self.state_action_tx.send(StateAction::SplashLogo);
                 }
                 AppEvent::TabNextRequested => {
-                    self.state_action_tx.send(StateAction::TabSwitchToNext)?;
+                    let _ = self.state_action_tx.send(StateAction::TabSwitchToNext);
                 }
                 AppEvent::TabPreviousRequested => {
-                    self.state_action_tx.send(StateAction::TabSwitchToPrevious)?;
+                    let _ = self.state_action_tx.send(StateAction::TabSwitchToPrevious);
                 }
                 AppEvent::CopyToClipboardRequested(text) => match copy_to_clipboard(text) {
                     Ok(_) => self.state_action_tx.send(StateAction::Toast(Toast::normal("copied")))?,
                     Err(e) => {
-                        self.state_action_tx
-                            .send(StateAction::Toast(Toast::error("copy failed")))?;
+                        let _ = self
+                            .state_action_tx
+                            .send(StateAction::Toast(Toast::error("copy failed")));
 
                         tracing::error!("copy failed: {:?}", e);
                     }
                 },
                 AppEvent::TryingToQuit => {
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("press <Esc> twice quickly to quit")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("press <Esc> twice quickly to quit")));
                 }
                 AppEvent::QuitRequested => {
                     subsys.request_shutdown();

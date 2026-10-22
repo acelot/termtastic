@@ -98,17 +98,51 @@ impl PersistenceService {
                 if let Err(e) = repository.node_upsert(node_entity).await {
                     tracing::error!("node upsert failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
             StateAction::NodeDelete(node_key) => {
                 if let Err(e) = repository.node_remove(node_key).await {
                     tracing::error!("node delete failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
+            }
+            StateAction::NodeLastTelemetrySet(node_telemetry) => {
+                let telemetry_entity = match node_telemetry.try_into() {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("can't convert NodeTelemetry into DB entity: {}", e);
+                        return Ok(());
+                    }
+                };
+
+                match repository.telemetry_insert(telemetry_entity).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("telemetry insert failed: {}", e);
+                    }
+                };
+            }
+            StateAction::NodeLastPositionSet(node_position) => {
+                let position_entity = match node_position.try_into() {
+                    Ok(e) => e,
+                    Err(e) => {
+                        tracing::error!("can't convert NodePosition into DB entity: {}", e);
+                        return Ok(());
+                    }
+                };
+
+                match repository.position_insert(position_entity).await {
+                    Ok(_) => {}
+                    Err(e) => {
+                        tracing::error!("position insert failed: {}", e);
+                    }
+                };
             }
             StateAction::TracerouteFinish { message_id, .. } | StateAction::TracerouteTimeout { message_id } => {
                 let Some(traceroute) = self.state_rx.borrow().traceroutes.get(&message_id).cloned() else {
@@ -124,18 +158,20 @@ impl PersistenceService {
                 };
 
                 if let Err(e) = repository.traceroute_upsert(traceroute_entity).await {
-                    tracing::error!("traceroute save failed: {}", e);
+                    tracing::error!("traceroute upsert failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
             StateAction::MessageAdd(message) => {
                 if let Err(e) = repository.message_upsert(message.into()).await {
-                    tracing::error!("message save failed: {}", e);
+                    tracing::error!("message upsert failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
             StateAction::MessageErrorSet { message_id, error, .. } => {
@@ -143,10 +179,11 @@ impl PersistenceService {
                     .message_update_routing_error(message_id, error.map(|e| e as i32))
                     .await
                 {
-                    tracing::error!("message save failed: {}", e);
+                    tracing::error!("message update failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
             StateAction::ChatPurge(chat) => {
@@ -155,8 +192,9 @@ impl PersistenceService {
                 if let Err(e) = repository.message_remove_by_chat(chat, my_node_key).await {
                     tracing::error!("chat purge failed: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("DB error: see logs")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
             StateAction::ConnectionStop => {
@@ -176,44 +214,22 @@ impl PersistenceService {
                     let db_file = self.data_dir.join(format!("{}_{}.sqlite3", APP_NAME, node_key));
                     tracing::debug!("DB file: {}", db_file.display());
 
-                    match create_sqlite_repository(db_file, self.db_tx.clone()).await {
-                        Ok(repository) => {
-                            self.repository = Some(Arc::new(repository));
-                        }
+                    let repository = match create_sqlite_repository(db_file, self.db_tx.clone()).await {
+                        Ok(repository) => repository,
                         Err(e) => {
                             tracing::error!("DB initialization failed: {}", e);
 
-                            self.state_action_tx
-                                .send(StateAction::Toast(Toast::error("DB initialization failed")))?;
-                        }
-                    }
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::Toast(Toast::error("DB initialization failed")));
 
-                    if self.load_data().await.is_ok() {
-                        self.state_action_tx
-                            .send(StateAction::Toast(Toast::normal("DB data loaded")))?;
-                    }
-
-                    self.app_event_tx.send(AppEvent::DbLoadFinished)?;
-                }
-                AppEvent::TelemetryArrived(packet) => {
-                    let Some(repository) = &self.repository else {
-                        return Ok(());
-                    };
-
-                    let telemetry_entity = match packet.try_into() {
-                        Ok(e) => e,
-                        Err(e) => {
-                            tracing::error!("can't convert NodeTelemetry into DB entity: {}", e);
                             return Ok(());
                         }
                     };
 
-                    match repository.telemetry_insert(telemetry_entity).await {
-                        Ok(_) => {}
-                        Err(e) => {
-                            tracing::error!("telemetry store to DB failed: {}", e);
-                        }
-                    };
+                    self.load_data(&repository).await;
+                    self.repository = Some(Arc::new(repository));
+                    let _ = self.app_event_tx.send(AppEvent::DbLoadFinished);
                 }
                 _ => {}
             },
@@ -228,22 +244,13 @@ impl PersistenceService {
 
     fn handle_db_event(&mut self, maybe_event: Option<()>) -> anyhow::Result<()> {
         if maybe_event.is_some() {
-            self.state_action_tx.send(StateAction::DbIndicatorTrigger)?;
+            let _ = self.state_action_tx.send(StateAction::DbIndicatorTrigger);
         }
 
         Ok(())
     }
 
-    async fn load_data(&self) -> anyhow::Result<()> {
-        let Some(repository) = &self.repository else {
-            tracing::warn!("DB data not loaded");
-
-            self.state_action_tx
-                .send(StateAction::Toast(Toast::warning("DB data not loaded")))?;
-
-            return Ok(());
-        };
-
+    async fn load_data(&self, repository: &Repository) {
         // nodes
         let nodes: Vec<Node> = match repository.node_find_all().await {
             Ok(nodes) => {
@@ -254,14 +261,15 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("nodes load failed: {}", e);
 
-                self.state_action_tx
-                    .send(StateAction::Toast(Toast::error("nodes not loaded from DB")))?;
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::error("nodes not loaded from DB")));
 
-                return Ok(());
+                return;
             }
         };
 
-        self.state_action_tx.send(StateAction::DbNodesLoad(nodes))?;
+        let _ = self.state_action_tx.send(StateAction::DbNodesLoad(nodes));
 
         // messages
         let messages: Vec<Message> = match repository.message_find_all().await {
@@ -273,14 +281,15 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("messages load failed: {}", e);
 
-                self.state_action_tx
-                    .send(StateAction::Toast(Toast::error("messages not loaded from DB")))?;
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::error("messages not loaded from DB")));
 
-                return Ok(());
+                return;
             }
         };
 
-        self.state_action_tx.send(StateAction::DbMessagesLoad(messages))?;
+        let _ = self.state_action_tx.send(StateAction::DbMessagesLoad(messages));
 
         // traceroutes
         let traceroutes: Vec<Traceroute> = match repository.traceroute_find_all().await {
@@ -301,14 +310,15 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("traceroutes load failed: {}", e);
 
-                self.state_action_tx
-                    .send(StateAction::Toast(Toast::error("traceroutes not loaded from DB")))?;
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::error("traceroutes not loaded from DB")));
 
-                return Ok(());
+                return;
             }
         };
 
-        self.state_action_tx.send(StateAction::DbTracerouteLoad(traceroutes))?;
+        let _ = self.state_action_tx.send(StateAction::DbTracerouteLoad(traceroutes));
 
         // telemetry
         match repository.telemetry_find_last_for_each_node().await {
@@ -316,9 +326,11 @@ impl PersistenceService {
                 for (_, telemetry) in map.iter() {
                     for item in telemetry {
                         match item.try_into() {
-                            Ok(node_telemetry) => self
-                                .state_action_tx
-                                .send(StateAction::NodeLastTelemetrySet(node_telemetry))?,
+                            Ok(node_telemetry) => {
+                                let _ = self
+                                    .state_action_tx
+                                    .send(StateAction::NodeLastTelemetrySet(node_telemetry));
+                            }
                             Err(e) => {
                                 tracing::error!(
                                     "telemetry conversion failed, id: {:?}, node_key: {}, kind: {}, error: {}",
@@ -341,13 +353,38 @@ impl PersistenceService {
             Err(e) => {
                 tracing::error!("telemetry load failed: {}", e);
 
-                self.state_action_tx
-                    .send(StateAction::Toast(Toast::error("telemetry not loaded from DB")))?;
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::error("telemetry not loaded from DB")));
 
-                return Ok(());
+                return;
             }
         };
 
-        Ok(())
+        // position
+        match repository.position_find_last_for_each_node().await {
+            Ok(map) => {
+                for (_, position) in map.iter() {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::NodeLastPositionSet(position.into()));
+                }
+
+                tracing::info!("position data loaded from DB: {} items", map.len());
+            }
+            Err(e) => {
+                tracing::error!("position load failed: {}", e);
+
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::error("position data not loaded from DB")));
+
+                return;
+            }
+        };
+
+        let _ = self
+            .state_action_tx
+            .send(StateAction::Toast(Toast::normal("DB data loaded")));
     }
 }

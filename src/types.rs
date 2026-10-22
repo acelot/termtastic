@@ -5,7 +5,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use emojis::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
-use meshtastic::protobufs::{channel, config, module_config, routing};
+use meshtastic::protobufs::{Position, channel, config, module_config, routing};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::sync::LazyLock;
@@ -96,7 +96,6 @@ pub enum AppEvent {
     SettingsFormSaveRequested(FormId),
     SettingsFormSelected(FormId),
     SplashLogoRequested,
-    TelemetryArrived(NodeTelemetry),
     TabNextRequested,
     TabPreviousRequested,
     TracerouteRequested(u32),
@@ -1018,6 +1017,13 @@ impl TelemetryItem {
             formatted_value: formatted_value.map(|v| v.to_string()),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct NodePosition {
+    pub node_key: u32,
+    pub datetime: DateTime<Utc>,
+    pub position: Position,
 }
 
 #[derive(Debug, Display, Clone, PartialEq, Eq, Hash)]

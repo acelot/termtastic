@@ -73,14 +73,7 @@ impl<'a> Component for Messenger<'a> {
 
         if self.replying_to.contains_key(active_chat) {
             return vec![
-                input_has_something.then_some(Hotkey::new(
-                    if cfg!(target_os = "macos") {
-                        "⌥ enter"
-                    } else {
-                        "alt+enter"
-                    },
-                    "new line",
-                )),
+                input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
                 Some(Hotkey::new("F5", "emoji")),
                 input_has_single_emoji.then_some(Hotkey::new("enter", "send reaction")),
                 (!input_has_single_emoji && input_has_valid_value).then_some(Hotkey::new("enter", "send reply")),
@@ -100,12 +93,12 @@ impl<'a> Component for Messenger<'a> {
         Vec::from([
             (!input_has_something).then_some(Hotkey::new("↑↓", "scroll")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F2", "reply")),
-            (is_message_selected && !input_has_something).then_some(Hotkey::new("F4", "node info")),
+            (is_message_selected && !input_has_something).then_some(Hotkey::new("F4", "info")),
             Some(Hotkey::new("F5", "emoji")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F7", "reactions")),
             input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
             input_has_valid_value.then_some(Hotkey::new("enter", "send")),
-            Some(Hotkey::new("esc", "switch channel")),
+            Some(Hotkey::new("esc", "channel")),
         ])
         .into_iter()
         .flatten()

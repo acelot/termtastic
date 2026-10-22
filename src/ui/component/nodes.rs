@@ -105,6 +105,10 @@ impl<'a> Nodes<'a> {
                 Span::from("$telemetry  ").magenta(),
                 Span::from("show only nodes with telemetry"),
             ]),
+            Line::from(vec![
+                Span::from("$position   ").magenta(),
+                Span::from("show only nodes with position"),
+            ]),
         ])
         .wrap(Wrap { trim: false })
         .scroll((self.filter_help_scroll_state.get_position() as u16, 0));
@@ -136,11 +140,11 @@ impl<'a> Component for Nodes<'a> {
 
         vec![
             Hotkey::new("↑↓", "scroll"),
+            Hotkey::new("enter", "info"),
             Hotkey::new("F1", "help"),
-            Hotkey::new("enter (F4)", "node info"),
             Hotkey::new("F2", "direct"),
             Hotkey::new("F5", "emoji"),
-            Hotkey::new("F6", "sort by"),
+            Hotkey::new("F6", "sort"),
         ]
     }
 

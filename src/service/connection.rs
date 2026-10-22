@@ -73,43 +73,46 @@ impl ConnectionService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::DeviceSelected(hardware) => {
-                    self.state_action_tx.send(StateAction::DeviceActiveSet(hardware))?;
+                    let _ = self.state_action_tx.send(StateAction::DeviceActiveSet(hardware));
                 }
                 AppEvent::DisconnectionRequested => {
-                    self.meshtastic_command_tx.send(CommandToMeshtastic::Disconnect)?;
+                    let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::Disconnect);
                 }
                 AppEvent::DeviceRediscoverRequested => {
                     if self.state_rx.borrow().device_discovering_state.is_scanning() {
                         return Ok(());
                     }
 
-                    self.state_action_tx.send(StateAction::DeviceDiscoveringStart)?;
+                    let _ = self.state_action_tx.send(StateAction::DeviceDiscoveringStart);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("discovering...")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("discovering...")));
 
                     self.discover_devices();
                 }
                 AppEvent::DeviceRebootRequested => {
                     let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::Reboot { my_node_num, secs: 3 })?;
+                    let _ = self
+                        .meshtastic_command_tx
+                        .send(CommandToMeshtastic::Reboot { my_node_num, secs: 3 });
                 }
                 AppEvent::DeviceShutdownRequested => {
                     let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::Shutdown { my_node_num, secs: 3 })?;
+                    let _ = self
+                        .meshtastic_command_tx
+                        .send(CommandToMeshtastic::Shutdown { my_node_num, secs: 3 });
                 }
                 AppEvent::DbLoadFinished => {
-                    self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio)?;
+                    let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio);
                 }
                 AppEvent::DeviceSubmitted(device) => {
-                    self.state_action_tx.send(StateAction::DevicesAdd(device))?;
+                    let _ = self.state_action_tx.send(StateAction::DevicesAdd(device));
                 }
                 AppEvent::DeviceRemoveRequested(device) => {
-                    self.state_action_tx.send(StateAction::DevicesRemove(device))?;
+                    let _ = self.state_action_tx.send(StateAction::DevicesRemove(device));
                 }
                 _ => {}
             },
@@ -131,21 +134,23 @@ impl ConnectionService {
                 MeshtasticEvent::Connected => {
                     tracing::info!("connection established");
 
-                    self.state_action_tx.send(StateAction::ConnectionLoadConfig)?;
+                    let _ = self.state_action_tx.send(StateAction::ConnectionLoadConfig);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("loading data...")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("loading data...")));
                 }
                 MeshtasticEvent::ConnectionError(e) => {
-                    self.state_action_tx.send(StateAction::ConnectionFail(e))?;
+                    let _ = self.state_action_tx.send(StateAction::ConnectionFail(e));
                 }
                 MeshtasticEvent::Disconnected => {
                     tracing::info!("disconnected");
 
-                    self.state_action_tx.send(StateAction::ConnectionStop)?;
+                    let _ = self.state_action_tx.send(StateAction::ConnectionStop);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("disconnected")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("disconnected")));
                 }
                 MeshtasticEvent::IncomingPacket(packet) => {
                     let packet = &*packet;
@@ -154,24 +159,28 @@ impl ConnectionService {
                         from_radio::PayloadVariant::MyInfo(my_info) => {
                             self.my_node_key = Some(my_info.my_node_num);
 
-                            self.state_action_tx
-                                .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::MyNodeKeySet(my_info.my_node_num));
 
-                            self.state_action_tx
-                                .send(StateAction::NodesLoaderTotalSet(my_info.nodedb_count))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::NodesLoaderTotalSet(my_info.nodedb_count));
 
-                            self.app_event_tx.send(AppEvent::DbLoadRequested(my_info.my_node_num))?;
+                            let _ = self.app_event_tx.send(AppEvent::DbLoadRequested(my_info.my_node_num));
                         }
                         from_radio::PayloadVariant::Metadata(metadata) => {
-                            self.state_action_tx
-                                .send(StateAction::DeviceMetadataSet(metadata.clone()))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::DeviceMetadataSet(metadata.clone()));
                         }
                         from_radio::PayloadVariant::Channel(ch) => {
-                            self.state_action_tx
-                                .send(StateAction::ChannelSet(ch.index as u32, Channel::from(ch)))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::ChannelSet(ch.index as u32, Channel::from(ch)));
                         }
                         from_radio::PayloadVariant::ConfigCompleteId(_) => {
-                            self.state_action_tx.send(StateAction::ConnectionSuccess)?;
+                            let _ = self.state_action_tx.send(StateAction::ConnectionSuccess);
 
                             if let Some(my_node_key) = self.my_node_key.take() {
                                 self.meshtastic_command_tx
@@ -180,12 +189,14 @@ impl ConnectionService {
                                     })?;
                             }
 
-                            self.state_action_tx
-                                .send(StateAction::Toast(Toast::success("connected")))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::Toast(Toast::success("connected")));
                         }
                         from_radio::PayloadVariant::Rebooted(true) => {
-                            self.state_action_tx
-                                .send(StateAction::Toast(Toast::success("device has been rebooted")))?;
+                            let _ = self
+                                .state_action_tx
+                                .send(StateAction::Toast(Toast::success("device has been rebooted")));
                         }
                         from_radio::PayloadVariant::Packet(mesh_packet) => {
                             let state = self.state_rx.borrow();
@@ -197,7 +208,7 @@ impl ConnectionService {
                         _ => {}
                     }
 
-                    self.state_action_tx.send(StateAction::RxIndicatorTrigger)?;
+                    let _ = self.state_action_tx.send(StateAction::RxIndicatorTrigger);
 
                     if !matches!(packet, from_radio::PayloadVariant::Packet(_)) {
                         tracing::debug!("PACKET {:?}", packet);
@@ -227,8 +238,9 @@ impl ConnectionService {
 
                 let time_left = backoff_duration.saturating_sub(Instant::now().duration_since(*since));
 
-                self.state_action_tx
-                    .send(StateAction::ReconnectionBackoffSet(time_left))?;
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::ReconnectionBackoffSet(time_left));
 
                 if time_left.is_zero() {
                     self.connect(device)?;
@@ -242,7 +254,7 @@ impl ConnectionService {
     }
 
     fn connect(&self, device: &Device) -> anyhow::Result<()> {
-        self.state_action_tx.send(StateAction::ConnectionStart)?;
+        let _ = self.state_action_tx.send(StateAction::ConnectionStart);
 
         match device {
             Device::Tcp { address, .. } => self
@@ -301,7 +313,7 @@ async fn discover_serial_devices(state_action_tx: mpsc::UnboundedSender<StateAct
         });
 
         for device in serial_devices.into_iter() {
-            state_action_tx.send(StateAction::DevicesDiscoveredAdd(device))?;
+            let _ = state_action_tx.send(StateAction::DevicesDiscoveredAdd(device));
         }
 
         Ok(())
@@ -320,7 +332,7 @@ async fn discover_ble_devices(state_action_tx: mpsc::UnboundedSender<StateAction
     });
 
     for device in ble_devices.into_iter() {
-        state_action_tx.send(StateAction::DevicesDiscoveredAdd(device))?;
+        let _ = state_action_tx.send(StateAction::DevicesDiscoveredAdd(device));
     }
 
     Ok(())

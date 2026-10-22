@@ -61,16 +61,17 @@ impl ChatService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::ChatSelected(chat) => {
-                    self.state_action_tx.send(StateAction::ActiveChatSet(chat))?;
+                    let _ = self.state_action_tx.send(StateAction::ActiveChatSet(chat));
                 }
                 AppEvent::ChatPurgeRequested(chat) => {
-                    self.state_action_tx.send(StateAction::ChatPurge(chat))?;
+                    let _ = self.state_action_tx.send(StateAction::ChatPurge(chat));
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::success("chat is purged")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::success("chat is purged")));
                 }
                 AppEvent::ChatSwitchRequested => {
-                    self.state_action_tx.send(StateAction::ActiveChatUnset)?;
+                    let _ = self.state_action_tx.send(StateAction::ActiveChatUnset);
                 }
                 AppEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
@@ -138,8 +139,9 @@ impl ChatService {
                 MeshtasticEvent::MessageRejected(e) => {
                     tracing::error!("message rejected: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("message rejected by node")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("message rejected by node")));
                 }
                 _ => {}
             },

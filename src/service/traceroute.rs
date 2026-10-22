@@ -110,8 +110,9 @@ impl TracerouteService {
                     let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
 
                     if node_key == my_node_key {
-                        self.state_action_tx
-                            .send(StateAction::Toast(Toast::warning("can't traceroute yourself")))?;
+                        let _ = self
+                            .state_action_tx
+                            .send(StateAction::Toast(Toast::warning("can't traceroute yourself")));
 
                         return Ok(());
                     }
@@ -140,14 +141,16 @@ impl TracerouteService {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
                 MeshtasticEvent::TracerouteStarted => {
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("traceroute started")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("traceroute started")));
                 }
                 MeshtasticEvent::TracerouteFailed(e) => {
                     tracing::error!("traceroute failed: {:?}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("traceroute failed")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("traceroute failed")));
                 }
                 _ => {}
             },
@@ -210,8 +213,7 @@ impl TracerouteService {
                     && notification.level() == log_record::Level::Warning
                     && notification.message.to_lowercase().contains("traceroute")
                 {
-                    self.state_action_tx
-                        .send(StateAction::TracerouteRemove { message_id })?;
+                    let _ = self.state_action_tx.send(StateAction::TracerouteRemove { message_id });
                 }
             }
             _ => {}

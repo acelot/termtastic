@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use meshtastic::protobufs::{config, module_config, routing};
 
 use crate::types::{
-    AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node,
+    AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node, NodePosition,
     NodeTelemetry, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
 };
 
@@ -59,6 +59,7 @@ pub enum StateAction {
     NodeDelete(u32),
     NodeOwnerSet(NodeUser),
     NodeLastTelemetrySet(NodeTelemetry),
+    NodeLastPositionSet(NodePosition),
     NodesSortBySet(NodesSortBy),
     NodesFilterSet(String),
     NodesOnlineSet(u32),

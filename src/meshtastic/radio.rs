@@ -34,7 +34,7 @@ impl RadioService {
                     self.paused = false;
                 }
                 maybe_packet = radio_rx.recv(), if !self.paused => {
-                    if !self.handle_radio_packet(maybe_packet)? {
+                    if !self.handle_radio_packet(maybe_packet) {
                         tracing::warn!("radio channel was closed unexpectedly");
                         return Ok(());
                     }
@@ -43,7 +43,7 @@ impl RadioService {
         }
     }
 
-    fn handle_radio_packet(&mut self, maybe_packet: Option<FromRadio>) -> anyhow::Result<bool> {
+    fn handle_radio_packet(&mut self, maybe_packet: Option<FromRadio>) -> bool {
         match maybe_packet {
             Some(packet) => {
                 if let Some(payload) = packet.payload_variant {
@@ -52,15 +52,15 @@ impl RadioService {
                         self.paused = true;
                     }
 
-                    self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(payload)))?;
+                    let _ = self.event_tx.send(MeshtasticEvent::IncomingPacket(Box::new(payload)));
                 }
 
-                Ok(true)
+                true
             }
             None => {
-                self.event_tx.send(MeshtasticEvent::RadioStopped)?;
+                let _ = self.event_tx.send(MeshtasticEvent::RadioStopped);
 
-                Ok(false)
+                false
             }
         }
     }

@@ -634,6 +634,15 @@ impl Store {
 
                 true
             }
+            StateAction::NodeLastPositionSet(node_position) => {
+                self.state_tx.send_modify(|state| {
+                    state
+                        .nodes_last_position
+                        .insert(node_position.node_key, node_position.position);
+                });
+
+                true
+            }
             StateAction::ChannelSet(key, channel) => {
                 self.state_tx.send_modify(|state| {
                     let chat = Chat::Channel(key);

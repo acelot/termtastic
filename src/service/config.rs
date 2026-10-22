@@ -55,13 +55,14 @@ impl ConfigService {
         match event {
             Ok(AppEvent::InitializationRequested) => match confy::load_path::<AppConfig>(self.config_path.as_path()) {
                 Ok(app_config) => {
-                    self.state_action_tx.send(StateAction::AppConfigApply(app_config))?;
+                    let _ = self.state_action_tx.send(StateAction::AppConfigApply(app_config));
                 }
                 Err(e) => {
                     tracing::error!("can't load app config: {}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("app config load failed")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("app config load failed")));
                 }
             },
             Err(broadcast::error::RecvError::Lagged(n)) => {
@@ -77,8 +78,9 @@ impl ConfigService {
         match event {
             Ok(action) => {
                 if matches!(action, StateAction::AppConfigApply(_)) {
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::normal("config loaded")))?;
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::normal("config loaded")));
                 }
 
                 let state = self.state_rx.borrow();

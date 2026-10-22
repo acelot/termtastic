@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use chrono::Utc;
+use meshtastic::protobufs::Position;
 use meshtastic::protobufs::mesh_packet::TransportMechanism;
 use meshtastic::{
     Message as _,
@@ -15,7 +16,7 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::types::{NodeTelemetry, Toast};
+use crate::types::{NodePosition, NodeTelemetry, Toast};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
@@ -27,7 +28,6 @@ pub const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 2;
 
 pub struct NodesService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -38,7 +38,6 @@ pub struct NodesService {
 
 impl NodesService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
@@ -46,7 +45,6 @@ impl NodesService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,
@@ -80,18 +78,18 @@ impl NodesService {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::DirectChatRequested(node_key) => {
-                    self.state_action_tx.send(StateAction::DirectChatStart(node_key))?;
+                    let _ = self.state_action_tx.send(StateAction::DirectChatStart(node_key));
                 }
                 AppEvent::NodesSortByPrevRequested => {
-                    self.state_action_tx
-                        .send(StateAction::NodesSortBySet(state.nodes_sort_by.prev()))?;
+                    let _ = self.state_action_tx
+                        .send(StateAction::NodesSortBySet(state.nodes_sort_by.prev()));
                 }
                 AppEvent::NodesSortByNextRequested => {
-                    self.state_action_tx
-                        .send(StateAction::NodesSortBySet(state.nodes_sort_by.next()))?;
+                    let _ = self.state_action_tx
+                        .send(StateAction::NodesSortBySet(state.nodes_sort_by.next()));
                 }
                 AppEvent::NodesFilterChanged(filter) => {
-                    self.state_action_tx.send(StateAction::NodesFilterSet(filter))?;
+                    let _ = self.state_action_tx.send(StateAction::NodesFilterSet(filter));
                 }
                 AppEvent::NodeInfoBroadcastRequested => {
                     let my_node = state.get_my_node().expect("should be Some");
@@ -101,29 +99,29 @@ impl NodesService {
                         Err(e) => {
                             tracing::error!("NodeInfo broadcast failed: {}", e);
 
-                            self.state_action_tx
-                                .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")))?;
+                            let _ = self.state_action_tx
+                                .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")));
 
                             return Ok(());
                         }
                     };
 
-                    self.meshtastic_command_tx
-                        .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user })?;
+                    let _ = self.meshtastic_command_tx
+                        .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user });
                 }
                 AppEvent::NodeInfoPopupOpenRequested(node_key) => {
-                    self.state_action_tx.send(StateAction::NodeInfoSet(node_key))?;
+                    let _ = self.state_action_tx.send(StateAction::NodeInfoSet(node_key));
                 }
                 AppEvent::NodeInfoPopupCloseRequested => {
-                    self.state_action_tx.send(StateAction::NodeInfoUnset)?;
+                    let _ = self.state_action_tx.send(StateAction::NodeInfoUnset);
                 }
                 AppEvent::NodeDeleteRequested(node_key) => {
                     let my_node_num = state.my_node_key.expect("should be Some");
 
-                    self.meshtastic_command_tx.send(CommandToMeshtastic::DeleteNode {
+                    let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::DeleteNode {
                         node_num: node_key,
                         my_node_num,
-                    })?;
+                    });
                 }
                 _ => {}
             },
@@ -143,23 +141,27 @@ impl NodesService {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
-                MeshtasticEvent::NodeInfoBroadcastSent => self
-                    .state_action_tx
-                    .send(StateAction::Toast(Toast::success("NodeInfo broadcast sent")))?,
+                MeshtasticEvent::NodeInfoBroadcastSent => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::success("NodeInfo broadcast sent")));
+                }
                 MeshtasticEvent::NodeInfoBroadcastFailed(e) => {
                     tracing::error!("NodeInfo broadcast failed: {:?}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")))?;
+                    let _ = self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")));
                 }
-                MeshtasticEvent::NodeRemoveAccepted => self
-                    .state_action_tx
-                    .send(StateAction::Toast(Toast::success("node removed")))?,
+                MeshtasticEvent::NodeRemoveAccepted => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::success("node removed")));
+                }
                 MeshtasticEvent::NodeRemoveFailed(e) => {
                     tracing::error!("node remove failed: {:?}", e);
 
-                    self.state_action_tx
-                        .send(StateAction::Toast(Toast::error("node remove failed")))?;
+                    let _ = self.state_action_tx
+                        .send(StateAction::Toast(Toast::error("node remove failed")));
                 }
                 _ => {}
             },
@@ -177,26 +179,26 @@ impl NodesService {
             from_radio::PayloadVariant::MyInfo(my_info) => {
                 self.local_my_node_num = Some(my_info.my_node_num);
 
-                self.state_action_tx
-                    .send(StateAction::MyNodeKeySet(my_info.my_node_num))?;
+                let _ = self.state_action_tx
+                    .send(StateAction::MyNodeKeySet(my_info.my_node_num));
             }
             from_radio::PayloadVariant::NodeInfo(node_info) => {
-                self.state_action_tx.send(StateAction::NodesLoaderIncrement)?;
+                let _ = self.state_action_tx.send(StateAction::NodesLoaderIncrement);
 
                 match Node::try_from(&node_info) {
                     Ok(node) => {
                         let node_key = node.key;
                         let last_heard = node.last_heard.unwrap_or(Utc::now());
 
-                        self.state_action_tx.send(StateAction::NodeInit(node))?;
+                        let _ = self.state_action_tx.send(StateAction::NodeInit(node));
 
                         if let Some(device_metrics) = node_info.device_metrics {
-                            self.state_action_tx
+                            let _ = self.state_action_tx
                                 .send(StateAction::NodeLastTelemetrySet(NodeTelemetry {
                                     node_key,
                                     datetime: last_heard,
                                     variant: meshtastic::protobufs::telemetry::Variant::DeviceMetrics(device_metrics),
-                                }))?;
+                                }));
                         }
                     }
                     Err(e) => {
@@ -206,8 +208,8 @@ impl NodesService {
             }
             from_radio::PayloadVariant::Packet(mesh_packet) => {
                 if mesh_packet.transport_mechanism() != TransportMechanism::TransportInternal {
-                    self.state_action_tx
-                        .send(StateAction::NodeInit((&mesh_packet).into()))?;
+                    let _ = self.state_action_tx
+                        .send(StateAction::NodeInit((&mesh_packet).into()));
                 }
 
                 match &mesh_packet.payload_variant {
@@ -215,7 +217,9 @@ impl NodesService {
                         PortNum::NodeinfoApp => match User::decode(&*data.payload) {
                             Ok(user) => {
                                 match Node::try_from((&mesh_packet, &user)) {
-                                    Ok(node) => self.state_action_tx.send(StateAction::NodeUpdate(node))?,
+                                    Ok(node) => {
+                                        let _ = self.state_action_tx.send(StateAction::NodeUpdate(node));
+                                    }
                                     Err(e) => {
                                         tracing::debug!(
                                             node_key = mesh_packet.from,
@@ -232,10 +236,10 @@ impl NodesService {
                         PortNum::AdminApp => match AdminMessage::decode(&*data.payload) {
                             Ok(admin_message) => match admin_message.payload_variant {
                                 Some(admin_message::PayloadVariant::SetOwner(user)) => {
-                                    self.state_action_tx.send(StateAction::NodeOwnerSet((&user).into()))?;
+                                    let _ = self.state_action_tx.send(StateAction::NodeOwnerSet((&user).into()));
                                 }
                                 Some(admin_message::PayloadVariant::RemoveByNodenum(node_num)) => {
-                                    self.state_action_tx.send(StateAction::NodeDelete(node_num))?;
+                                    let _ = self.state_action_tx.send(StateAction::NodeDelete(node_num));
                                 }
                                 _ => {}
                             },
@@ -254,17 +258,29 @@ impl NodesService {
                                     variant: data.clone(),
                                 };
 
-                                self.app_event_tx
-                                    .send(AppEvent::TelemetryArrived(node_telemetry.clone()))?;
-
-                                self.state_action_tx
-                                    .send(StateAction::NodeLastTelemetrySet(node_telemetry))?;
+                                let _ = self.state_action_tx
+                                    .send(StateAction::NodeLastTelemetrySet(node_telemetry));
                             }
                             Ok(_) => {
                                 tracing::debug!("TelemetryApp with empty variant");
                             }
                             Err(e) => {
                                 tracing::debug!("can't decode TelemetryApp payload: {:?}", e);
+                            }
+                        },
+                        PortNum::PositionApp => match Position::decode(&*data.payload) {
+                            Ok(position) => {
+                                let node_position = NodePosition {
+                                    node_key: mesh_packet.from,
+                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    position,
+                                };
+
+                                let _ = self.state_action_tx
+                                    .send(StateAction::NodeLastPositionSet(node_position));
+                            }
+                            Err(e) => {
+                                tracing::debug!("can't decode Position payload: {:?}", e);
                             }
                         },
                         _ => {}
@@ -275,12 +291,12 @@ impl NodesService {
                 self.send_node_update_last_heard(&mesh_packet)?;
             }
             from_radio::PayloadVariant::ClientNotification(notification) => {
-                self.state_action_tx
+                let _ = self.state_action_tx
                     .send(StateAction::Toast(match notification.level() {
                         log_record::Level::Warning => Toast::warning(notification.message),
                         log_record::Level::Error | log_record::Level::Critical => Toast::error(notification.message),
                         _ => Toast::normal(notification.message),
-                    }))?;
+                    }));
             }
             _ => {}
         }
@@ -289,12 +305,12 @@ impl NodesService {
     }
 
     fn send_node_update_last_heard(&self, packet: &MeshPacket) -> anyhow::Result<()> {
-        self.state_action_tx.send(StateAction::NodeUpdateLastHeard {
+        let _ = self.state_action_tx.send(StateAction::NodeUpdateLastHeard {
             node_key: packet.from,
             hops: packet.hop_start.saturating_sub(packet.hop_limit),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
-        })?;
+        });
 
         self.update_online_nodes()?;
 
@@ -314,7 +330,7 @@ impl NodesService {
             counter
         });
 
-        self.state_action_tx.send(StateAction::NodesOnlineSet(count))?;
+        let _ = self.state_action_tx.send(StateAction::NodesOnlineSet(count));
 
         Ok(())
     }

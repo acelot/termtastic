@@ -2,6 +2,7 @@ use crate::service::ONLINE_NODE_THRESHOLD_SECS;
 use crate::types::*;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use meshtastic::protobufs::Position;
 use ordermap::OrderMap;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -36,6 +37,7 @@ pub struct State {
     pub nodeinfo: Option<u32>,
     pub nodes_filter: String,
     pub nodes_last_telemetry: HashMap<u32, NodeLastTelemetry>,
+    pub nodes_last_position: HashMap<u32, Position>,
     pub nodes_loader_current: u32,
     pub nodes_loader_total: u32,
     pub nodes_sort_by: NodesSortBy,
@@ -88,6 +90,7 @@ impl Default for State {
             nodeinfo_telemetry: Vec::default(),
             nodes_traceroutes: HashMap::with_capacity(200),
             nodes_last_telemetry: HashMap::with_capacity(200),
+            nodes_last_position: HashMap::with_capacity(200),
             nodes_sort_by: NodesSortBy::default(),
             nodes_filter: String::default(),
             nodes_view: Vec::with_capacity(1000),
@@ -169,11 +172,18 @@ impl State {
                     ""
                 };
 
+                let position_token = if self.nodes_last_position.contains_key(&node.key) {
+                    "$position"
+                } else {
+                    ""
+                };
+
                 filter.iter().all(|token| {
                     node.fulltext.contains(token)
                         || online_token.contains(token)
                         || traceroute_token.contains(token)
                         || telemetry_token.contains(token)
+                        || position_token.contains(token)
                 })
             })
             .sorted_by(|n1, n2| {
