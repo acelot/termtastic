@@ -44,8 +44,8 @@ impl<'a> Widget for PositionWidget<'a> {
         // first line
         Line::from(vec![
             match self.item.position.location_source() {
-                LocSource::LocUnset => Span::from("POS ").magenta(),
-                LocSource::LocManual => Span::from("FIX ").dark_gray(),
+                LocSource::LocUnset => Span::from("POS ").dark_gray(),
+                LocSource::LocManual => Span::from("FIX ").yellow(),
                 LocSource::LocInternal => Span::from("INT ").green(),
                 LocSource::LocExternal => Span::from("EXT ").blue(),
             },
