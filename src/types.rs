@@ -1019,7 +1019,7 @@ impl TelemetryItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NodePosition {
     pub node_key: u32,
     pub datetime: DateTime<Utc>,

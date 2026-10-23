@@ -16,7 +16,10 @@ use crate::ui::{
         Base64EncoderExt, ListStateExt, default_scrollbar, hops_to_spans, humanize_uptime, last_heard_to_spans,
         short_name_to_span,
     },
-    widget::{PositionWidget, TraceroutePopupWidget, TraceroutePopupWidgetState, TracerouteWidget},
+    widget::{
+        PositionPopupWidget, PositionPopupWidgetState, PositionWidget, TraceroutePopupWidget,
+        TraceroutePopupWidgetState, TracerouteWidget,
+    },
 };
 use crate::{
     types::NodePosition,
@@ -99,6 +102,8 @@ pub struct NodeInfoWidgetState {
     telemetry_list_state: ListState,
     traceroute_popup: Option<u32>,
     traceroute_popup_state: TraceroutePopupWidgetState,
+    position_popup: Option<NodePosition>,
+    position_popup_state: PositionPopupWidgetState,
     is_delete_node_popup_visible: bool,
 }
 
@@ -144,7 +149,10 @@ impl NodeInfoWidgetState {
             return Ok(true);
         }
 
-        if self.active_tab == NodeInfoTab::Position && self.position_list_state.handle_navigation_events(&event, None) {
+        if self.active_tab == NodeInfoTab::Position
+            && self.position_popup.is_none()
+            && self.position_list_state.handle_navigation_events(&event, None)
+        {
             return Ok(true);
         }
 
@@ -225,9 +233,41 @@ impl NodeInfoWidgetState {
                     emit(NodeInfoWidgetEvent::TracerouteRequested)?;
                     return Ok(true);
                 }
-                (NodeInfoTab::Position, KeyCode::Char('c')) if modifiers.is_empty() => {
+                (NodeInfoTab::Position, KeyCode::Enter) if modifiers.is_empty() => {
+                    if let Some(item) = self.position_list_state.selected.and_then(|i| context.position.get(i)) {
+                        self.position_popup = Some(item.clone());
+                        self.position_popup_state.scroll_to_top();
+                    }
+
+                    return Ok(true);
+                }
+                (NodeInfoTab::Position, KeyCode::Up) if modifiers.is_empty() && self.position_popup.is_some() => {
+                    self.position_popup_state.scroll_up();
+                    return Ok(true);
+                }
+                (NodeInfoTab::Position, KeyCode::Down) if modifiers.is_empty() && self.position_popup.is_some() => {
+                    self.position_popup_state.scroll_down();
+                    return Ok(true);
+                }
+                (NodeInfoTab::Position, KeyCode::Esc) if modifiers.is_empty() && self.position_popup.is_some() => {
+                    self.position_popup = None;
+                    return Ok(true);
+                }
+                (NodeInfoTab::Position, KeyCode::Char('c'))
+                    if modifiers.is_empty() && self.position_popup.is_none() =>
+                {
                     if let Some(item) = self.position_list_state.selected.and_then(|i| context.position.get(i)) {
                         emit(NodeInfoWidgetEvent::CopyToClipboardRequested(item.coordinates_as_str()))?;
+                        return Ok(true);
+                    }
+                }
+                (NodeInfoTab::Position, KeyCode::Char('c'))
+                    if modifiers.is_empty() && self.position_popup.is_some() =>
+                {
+                    if let Some(item) = self.position_popup.as_ref() {
+                        emit(NodeInfoWidgetEvent::CopyToClipboardRequested(
+                            serde_json::to_string_pretty(item).unwrap_or("serialize failed".to_owned()),
+                        ))?;
                         return Ok(true);
                     }
                 }
@@ -257,12 +297,28 @@ impl NodeInfoWidgetState {
                 _ => {}
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
-                MouseEventKind::ScrollUp if self.traceroute_popup.is_some() => {
+                MouseEventKind::ScrollUp
+                    if self.active_tab == NodeInfoTab::Traceroutes && self.traceroute_popup.is_some() =>
+                {
                     self.traceroute_popup_state.scroll_up();
                     return Ok(true);
                 }
-                MouseEventKind::ScrollDown if self.traceroute_popup.is_some() => {
+                MouseEventKind::ScrollDown
+                    if self.active_tab == NodeInfoTab::Traceroutes && self.traceroute_popup.is_some() =>
+                {
                     self.traceroute_popup_state.scroll_down();
+                    return Ok(true);
+                }
+                MouseEventKind::ScrollUp
+                    if self.active_tab == NodeInfoTab::Position && self.position_popup.is_some() =>
+                {
+                    self.position_popup_state.scroll_up();
+                    return Ok(true);
+                }
+                MouseEventKind::ScrollDown
+                    if self.active_tab == NodeInfoTab::Position && self.position_popup.is_some() =>
+                {
+                    self.position_popup_state.scroll_down();
                     return Ok(true);
                 }
                 _ => {}
@@ -291,6 +347,9 @@ impl NodeInfoWidgetState {
             ],
             NodeInfoTab::Traceroutes if self.traceroute_popup.is_some() => {
                 vec![Hotkey::new("c", "copy result"), Hotkey::new("esc", "close")]
+            }
+            NodeInfoTab::Position if self.position_popup.is_some() => {
+                vec![Hotkey::new("c", "copy as JSON"), Hotkey::new("esc", "close")]
             }
             NodeInfoTab::Position => vec![
                 Hotkey::new("enter", "expand"),
@@ -452,6 +511,12 @@ impl<'a> NodeInfoWidget<'a> {
             return;
         };
 
+        let dim_modifier = if state.position_popup.is_some() {
+            Modifier::DIM
+        } else {
+            Modifier::empty()
+        };
+
         state.position_list_state.fix_selection(position.len());
 
         let list_builder = ListBuilder::new(|context| {
@@ -465,9 +530,15 @@ impl<'a> NodeInfoWidget<'a> {
 
         let list = ListView::new(list_builder, position.len())
             .infinite_scrolling(false)
-            .scrollbar(default_scrollbar());
+            .scrollbar(default_scrollbar())
+            .add_modifier(dim_modifier);
 
         list.render(area, buf, &mut state.position_list_state);
+
+        // expanded view
+        if let Some(position) = state.position_popup.as_ref() {
+            PositionPopupWidget { position }.render(area, buf, &mut state.position_popup_state);
+        }
     }
 
     fn render_telemetry(
