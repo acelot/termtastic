@@ -14,32 +14,36 @@
 
 <table>
   <tr>
-    <td><img width="886" height="713" alt="messenger" src="https://github.com/user-attachments/assets/8623b06a-ff40-443d-9c94-4f89cf30aca4" /></td>
-    <td><img width="930" height="757" alt="messenger_emoji_selector" src="https://github.com/user-attachments/assets/f79e00b3-8675-4528-a8b0-3a065cdce7af" /></td>
+    <td><img width="888" height="713" alt="channels" src="https://github.com/user-attachments/assets/390f3269-a337-4ce6-b121-3bf582254532" /></td>
+    <td><img width="888" height="713" alt="chat" src="https://github.com/user-attachments/assets/065028e5-e68d-4ee6-bc2e-855a83d4a3cc" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="messenger_reactions_viewer" src="https://github.com/user-attachments/assets/3887d587-0b3c-4fda-b8aa-deaf85219e5e" /></td>
-    <td><img width="930" height="757" alt="messenger_multiline_message" src="https://github.com/user-attachments/assets/f3468114-0d09-438b-bbb8-f64e5fd6ee37" /></td>
+    <td><img width="888" height="713" alt="reactions" src="https://github.com/user-attachments/assets/1440367b-2b33-423d-9f71-66f2a41346c9" /></td>
+    <td><img width="888" height="713" alt="emoji" src="https://github.com/user-attachments/assets/26205ea9-7fae-4274-932a-cccc349c8f2a" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="channels" src="https://github.com/user-attachments/assets/fb94c88d-8c55-4359-af63-7ee8ca43a80c" /></td>
-    <td><img width="930" height="757" alt="nodes" src="https://github.com/user-attachments/assets/4539b999-8f38-4fa5-9e84-740978856bad" /></td>
+    <td><img width="888" height="713" alt="multiline" src="https://github.com/user-attachments/assets/551ea4b3-e507-4b36-a537-0cf9fa524060" /></td>
+    <td><img width="888" height="713" alt="settings" src="https://github.com/user-attachments/assets/2f30c653-1738-4855-a43f-51adf459e856" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="nodes_help" src="https://github.com/user-attachments/assets/bd8c6e66-c46a-49df-a2e7-7aef586e9fd0" /></td>
-    <td><img width="930" height="757" alt="nodes_nodeinfo" src="https://github.com/user-attachments/assets/aaf27b86-8969-4ae7-a4e4-d02491988baa" /></td>
+    <td><img width="888" height="713" alt="nodes" src="https://github.com/user-attachments/assets/5375e057-b70d-412a-9def-083ff9c06887" /></td>
+    <td><img width="888" height="713" alt="filters" src="https://github.com/user-attachments/assets/2dc54bea-d257-47a1-b054-6a5afcb5fc3a" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="settings" src="https://github.com/user-attachments/assets/caf9da10-9e0c-4cb0-94a6-8d8eba66e4dd" /></td>
-    <td><img width="930" height="757" alt="settings_bitmask_input" src="https://github.com/user-attachments/assets/5ac5494a-9e93-46ef-9a1d-3a4a323f7b54" /></td>
+    <td><img width="888" height="713" alt="node_info" src="https://github.com/user-attachments/assets/cf145ec5-2cfb-423a-ac6c-a52605ad7abc" /></td>
+    <td><img width="888" height="713" alt="traceroute_popup" src="https://github.com/user-attachments/assets/f0bd0e88-cd26-4804-835c-580d172caf12" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="connections" src="https://github.com/user-attachments/assets/c09f3001-94e6-43d5-a92f-2c23b253eed5" /></td>
-    <td><img width="930" height="757" alt="connections_discovery" src="https://github.com/user-attachments/assets/0f20de05-a1f2-4037-b179-da541f73b7b0" /></td>
+    <td><img width="888" height="713" alt="position" src="https://github.com/user-attachments/assets/e0dfaddb-9f23-4222-88b0-935f4872de0d" /></td>
+    <td><img width="888" height="713" alt="telemetry" src="https://github.com/user-attachments/assets/c0c79957-57a2-41d1-96a0-bb218379b847" /></td>
   </tr>
   <tr>
-    <td><img width="930" height="757" alt="logs" src="https://github.com/user-attachments/assets/942eaf5e-6771-4423-aff9-4e0b8dcf11fa" /></td>
-    <td><img width="930" height="757" alt="logs_expanded_view" src="https://github.com/user-attachments/assets/f4faeb55-6b39-402b-8944-6a6f8d0b199e" /></td>
+    <td><img width="888" height="713" alt="connection" src="https://github.com/user-attachments/assets/4753e672-0c59-4537-a7e9-bd1efc437dab" /></td>
+    <td><img width="888" height="713" alt="device_discovery" src="https://github.com/user-attachments/assets/ec1f78b5-f145-46ee-8bcf-688392de2a1a" /></td>
+  </tr>
+  <tr>
+    <td><img width="888" height="713" alt="logs" src="https://github.com/user-attachments/assets/180a72eb-d0c4-429a-8165-17723f9f0350" /></td>
+    <td><img width="888" height="713" alt="log_expanded" src="https://github.com/user-attachments/assets/8df3d9df-336f-4e45-b233-d950ef8c9adc" /></td>
   </tr>
 </table>
 
@@ -120,10 +124,9 @@
 - [x] Extended traceroute info popup
 - [x] Ability to copy traceroute result
 - [x] Storing traceroutes in the local DB
+- [x] Position info
 - [ ] Ignore node feature
 - [ ] Add node to favorite feature
-- [ ] Position info
-- [ ] TBD
 
 ### Settings tab
 
@@ -220,7 +223,7 @@
 
 ✅ – tested, 🔬 – untested, ❌ – not working
 
-| Feature                      | 🐧 Linux | 🍏 macOS | 🪟 Windows |
+| Feature                      |  Linux   |  macOS   |  Windows   |
 |:-----------------------------|:--------:|:--------:|:----------:|
 | BLE devices discovery        |    ✅     |    ✅     |     ✅      |
 | Serial devices discovery     |    ✅     |    ✅     |     ✅      |
