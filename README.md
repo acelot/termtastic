@@ -209,14 +209,14 @@
 | TUI: Lists                  | [tui-widget-list](https://github.com/preiter93/tui-widget-list)                                                      |
 | Interaction with Meshtastic | [meshtastic](https://github.com/meshtastic/rust)                                                                     |
 | Clipboard functionality     | [arboard](https://github.com/1Password/arboard)                                                                      |
-| Bluetooth devices discovery | [bluest](https://github.com/alexmoon/bluest/)                                                                        |
+| Bluetooth devices discovery | [btleplug](https://github.com/deviceplug/btleplug)                                                                        |
 | TCP devices discovery       | [mdns-sd](https://github.com/keepsimple1/mdns-sd)                                                                    |
 | Logging                     | [tracing](https://github.com/tokio-rs/tracing)                                                                       |
 | Async/Channels              | [tokio](https://github.com/tokio-rs/tokio)                                                                           |
 | Configuration               | [confy](https://github.com/rust-cli/confy), [etcetera](https://github.com/lunacookies/etcetera)                      |
 | Errors                      | [anyhow](https://github.com/dtolnay/anyhow), [thiserror](https://github.com/dtolnay/thiserror)                       |
 | Datetime                    | [chrono](https://github.com/chronotope/chrono)                                                                       |
-| Emoji selector              | [emoji](https://github.com/Shizcow/emoji-rs)                                                                         |
+| Emoji selector              | [emojis](https://github.com/rossmacarthur/emojis)                                                                         |
 | Local DB                    | [rusqlite](https://github.com/rusqlite/rusqlite), [rusqlite_migration](https://github.com/cljoly/rusqlite_migration) |
 
 ## Compatibility
