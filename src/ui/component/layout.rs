@@ -44,7 +44,7 @@ impl<'a> Layout<'a> {
 
 impl<'a> Component for Layout<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
-        if let Some(node_key) = state.nodeinfo {
+        if let Some(node_key) = state.nodeinfo_key {
             return self
                 .nodeinfo_widget_state
                 .get_hotkeys(state.my_node_key == Some(node_key));
@@ -76,7 +76,7 @@ impl<'a> Component for Layout<'a> {
             return Ok(true);
         }
 
-        if let Some(node_key) = state.nodeinfo {
+        if let Some(node_key) = state.nodeinfo_key {
             if self.nodeinfo_widget_state.handle_event(
                 build_nodeinfo_context(node_key, state),
                 event.clone(),
@@ -211,7 +211,7 @@ impl<'a> Component for Layout<'a> {
         HotkeysWidget::new(&self.get_hotkeys(state)).render(v[5], frame.buffer_mut());
 
         // node info popup
-        if let Some(node_key) = state.nodeinfo {
+        if let Some(node_key) = state.nodeinfo_key {
             let popup_area = area.centered(Constraint::Length(60), Constraint::Length(17));
 
             Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
@@ -285,6 +285,7 @@ fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
                     .collect()
             })
             .unwrap_or_default(),
+        position: &state.nodeinfo_position,
         telemetry: &state.nodeinfo_telemetry,
         uptime: state
             .nodes_last_telemetry

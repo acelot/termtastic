@@ -7,7 +7,6 @@ use std::collections::HashMap;
 pub const TABLE_NAME: &str = "positions";
 
 impl Repository {
-    #[allow(dead_code)]
     pub async fn position_find_last_for_each_node(&self) -> Result<HashMap<u32, Position>, RepositoryError> {
         let result: HashMap<u32, Position> = self
             .conn
@@ -31,6 +30,28 @@ impl Repository {
                     .map(|item| item.map(|p| (p.node_key, p)))
                     .collect::<Result<HashMap<u32, Position>, _>>()
                     .map_err(Into::into)
+            })
+            .await?;
+
+        Ok(result)
+    }
+
+    pub async fn position_find_by_node_key(&self, node_key: u32) -> Result<Vec<Position>, RepositoryError> {
+        let result: Vec<Position> = self
+            .conn
+            .call(move |conn| -> Result<_, RepositoryError> {
+                let mut statement = conn.prepare(&format!(
+                    r#"
+                    SELECT *
+                    FROM {}
+                    WHERE node_key = :node_key;
+                    "#,
+                    TABLE_NAME
+                ))?;
+
+                let result: Result<_, _> = from_rows::<Position>(statement.query(params![node_key])?).collect();
+
+                result.map_err(Into::into)
             })
             .await?;
 

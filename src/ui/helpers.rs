@@ -1,16 +1,11 @@
-use crate::state::State;
-use crate::types::{ChannelRole, Chat, HopsSnrRssiAware, Node};
-use base64::prelude::BASE64_STANDARD;
-use base64::{DecodeError, Engine};
+use base64::{DecodeError, Engine, prelude::BASE64_STANDARD};
 use chrono::{DateTime, Datelike, Local, SubsecRound, TimeDelta, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use emojis::Emoji;
 use itertools::Itertools;
-use meshtastic::protobufs::config;
-use meshtastic::protobufs::routing;
-use ratatui::style::Modifier;
+use meshtastic::protobufs::{config, routing};
 use ratatui::{
-    style::{Color, Style, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     symbols::scrollbar::Set as ScrollbarSet,
     text::{Line, Span},
     widgets::{Scrollbar, ScrollbarOrientation},
@@ -20,6 +15,9 @@ use regex::{Regex, RegexBuilder};
 use std::ops::Add;
 use std::sync::LazyLock;
 use tui_widget_list::ListState;
+
+use crate::state::State;
+use crate::types::{ChannelRole, Chat, HopsSnrRssiAware, Node};
 
 static NEWLINE_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\r?\n|\r").unwrap());
 

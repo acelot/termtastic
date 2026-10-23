@@ -308,7 +308,7 @@ impl<'a> Component for Nodes<'a> {
 
         let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(area);
         let is_popup_visible =
-            state.nodeinfo.is_some() || self.is_filter_help_visible || self.is_emoji_selector_visible;
+            state.nodeinfo_key.is_some() || self.is_filter_help_visible || self.is_emoji_selector_visible;
 
         if !state.nodes_view.is_empty() {
             let list_builder = ListBuilder::new(|context| {

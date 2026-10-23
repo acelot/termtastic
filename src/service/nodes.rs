@@ -81,11 +81,13 @@ impl NodesService {
                     let _ = self.state_action_tx.send(StateAction::DirectChatStart(node_key));
                 }
                 AppEvent::NodesSortByPrevRequested => {
-                    let _ = self.state_action_tx
+                    let _ = self
+                        .state_action_tx
                         .send(StateAction::NodesSortBySet(state.nodes_sort_by.prev()));
                 }
                 AppEvent::NodesSortByNextRequested => {
-                    let _ = self.state_action_tx
+                    let _ = self
+                        .state_action_tx
                         .send(StateAction::NodesSortBySet(state.nodes_sort_by.next()));
                 }
                 AppEvent::NodesFilterChanged(filter) => {
@@ -99,21 +101,23 @@ impl NodesService {
                         Err(e) => {
                             tracing::error!("NodeInfo broadcast failed: {}", e);
 
-                            let _ = self.state_action_tx
+                            let _ = self
+                                .state_action_tx
                                 .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")));
 
                             return Ok(());
                         }
                     };
 
-                    let _ = self.meshtastic_command_tx
+                    let _ = self
+                        .meshtastic_command_tx
                         .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user });
                 }
                 AppEvent::NodeInfoPopupOpenRequested(node_key) => {
-                    let _ = self.state_action_tx.send(StateAction::NodeInfoSet(node_key));
+                    let _ = self.state_action_tx.send(StateAction::NodeInfoKeySet(node_key));
                 }
                 AppEvent::NodeInfoPopupCloseRequested => {
-                    let _ = self.state_action_tx.send(StateAction::NodeInfoUnset);
+                    let _ = self.state_action_tx.send(StateAction::NodeInfoKeyUnset);
                 }
                 AppEvent::NodeDeleteRequested(node_key) => {
                     let my_node_num = state.my_node_key.expect("should be Some");
@@ -149,7 +153,8 @@ impl NodesService {
                 MeshtasticEvent::NodeInfoBroadcastFailed(e) => {
                     tracing::error!("NodeInfo broadcast failed: {:?}", e);
 
-                    let _ = self.state_action_tx
+                    let _ = self
+                        .state_action_tx
                         .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")));
                 }
                 MeshtasticEvent::NodeRemoveAccepted => {
@@ -160,7 +165,8 @@ impl NodesService {
                 MeshtasticEvent::NodeRemoveFailed(e) => {
                     tracing::error!("node remove failed: {:?}", e);
 
-                    let _ = self.state_action_tx
+                    let _ = self
+                        .state_action_tx
                         .send(StateAction::Toast(Toast::error("node remove failed")));
                 }
                 _ => {}
@@ -179,7 +185,8 @@ impl NodesService {
             from_radio::PayloadVariant::MyInfo(my_info) => {
                 self.local_my_node_num = Some(my_info.my_node_num);
 
-                let _ = self.state_action_tx
+                let _ = self
+                    .state_action_tx
                     .send(StateAction::MyNodeKeySet(my_info.my_node_num));
             }
             from_radio::PayloadVariant::NodeInfo(node_info) => {
@@ -193,7 +200,8 @@ impl NodesService {
                         let _ = self.state_action_tx.send(StateAction::NodeInit(node));
 
                         if let Some(device_metrics) = node_info.device_metrics {
-                            let _ = self.state_action_tx
+                            let _ = self
+                                .state_action_tx
                                 .send(StateAction::NodeLastTelemetrySet(NodeTelemetry {
                                     node_key,
                                     datetime: last_heard,
@@ -208,8 +216,7 @@ impl NodesService {
             }
             from_radio::PayloadVariant::Packet(mesh_packet) => {
                 if mesh_packet.transport_mechanism() != TransportMechanism::TransportInternal {
-                    let _ = self.state_action_tx
-                        .send(StateAction::NodeInit((&mesh_packet).into()));
+                    let _ = self.state_action_tx.send(StateAction::NodeInit((&mesh_packet).into()));
                 }
 
                 match &mesh_packet.payload_variant {
@@ -258,7 +265,8 @@ impl NodesService {
                                     variant: data.clone(),
                                 };
 
-                                let _ = self.state_action_tx
+                                let _ = self
+                                    .state_action_tx
                                     .send(StateAction::NodeLastTelemetrySet(node_telemetry));
                             }
                             Ok(_) => {
@@ -276,7 +284,8 @@ impl NodesService {
                                     position,
                                 };
 
-                                let _ = self.state_action_tx
+                                let _ = self
+                                    .state_action_tx
                                     .send(StateAction::NodeLastPositionSet(node_position));
                             }
                             Err(e) => {
@@ -291,7 +300,8 @@ impl NodesService {
                 self.send_node_update_last_heard(&mesh_packet)?;
             }
             from_radio::PayloadVariant::ClientNotification(notification) => {
-                let _ = self.state_action_tx
+                let _ = self
+                    .state_action_tx
                     .send(StateAction::Toast(match notification.level() {
                         log_record::Level::Warning => Toast::warning(notification.message),
                         log_record::Level::Error | log_record::Level::Critical => Toast::error(notification.message),

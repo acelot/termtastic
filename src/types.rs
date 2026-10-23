@@ -1026,6 +1026,22 @@ pub struct NodePosition {
     pub position: Position,
 }
 
+impl NodePosition {
+    const POSITION_DENOMINATOR: f32 = 10_000_000 as f32;
+
+    pub fn coordinates(&self) -> (f32, f32) {
+        (
+            self.position.longitude_i() as f32 / Self::POSITION_DENOMINATOR,
+            self.position.latitude_i() as f32 / Self::POSITION_DENOMINATOR,
+        )
+    }
+
+    pub fn coordinates_as_str(&self) -> String {
+        let (lat, lon) = self.coordinates();
+        format!("{:.5}, {:.5}", lat, lon)
+    }
+}
+
 #[derive(Debug, Display, Clone, PartialEq, Eq, Hash)]
 pub enum FormId {
     RadioLora,

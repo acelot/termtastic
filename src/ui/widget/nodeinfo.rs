@@ -1,23 +1,31 @@
 use std::collections::HashMap;
 use std::iter;
 
-use chrono::Utc;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use itertools::Itertools;
 use ratatui::{
     prelude::*,
     text::ToSpan,
-    widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph, ScrollbarState, Wrap},
+    widgets::{Block, BorderType, Padding},
 };
 use strum::{Display, EnumCount, EnumIter, FromRepr, IntoEnumIterator};
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
-use crate::types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE};
-use crate::ui::helpers::{
-    Base64EncoderExt, ListStateExt, SnrColorExt, default_scrollbar, hops_to_spans, humanize_time_delta,
-    humanize_uptime, last_heard_to_spans, routing_error_to_span, short_name_to_span,
+use crate::ui::{
+    helpers::{
+        Base64EncoderExt, ListStateExt, default_scrollbar, hops_to_spans, humanize_uptime, last_heard_to_spans,
+        short_name_to_span,
+    },
+    widget::{PositionWidget, TraceroutePopupWidget, TraceroutePopupWidgetState, TracerouteWidget},
 };
-use crate::ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, ThreeColumnWidget};
+use crate::{
+    types::NodePosition,
+    ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, TelemetryItemWidget, ThreeColumnWidget},
+};
+use crate::{
+    types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE},
+    ui::widget::InfoWidget,
+};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, FromRepr, Display, EnumIter, EnumCount)]
 enum NodeInfoTab {
@@ -72,6 +80,7 @@ pub struct NodeInfoContext<'a> {
     pub my_node_key: u32,
     pub nodes: &'a HashMap<u32, Node>,
     pub traceroutes: Vec<&'a Traceroute>,
+    pub position: &'a Vec<NodePosition>,
     pub telemetry: &'a Vec<TelemetryItem>,
     pub uptime: Option<u32>,
 }
@@ -86,9 +95,10 @@ impl<'a> NodeInfoContext<'a> {
 pub struct NodeInfoWidgetState {
     active_tab: NodeInfoTab,
     traceroute_list_state: ListState,
+    position_list_state: ListState,
     telemetry_list_state: ListState,
-    expanded_traceroute: Option<u32>,
-    expanded_traceroute_scroll_state: ScrollbarState,
+    traceroute_popup: Option<u32>,
+    traceroute_popup_state: TraceroutePopupWidgetState,
     is_delete_node_popup_visible: bool,
 }
 
@@ -123,7 +133,7 @@ impl NodeInfoWidgetState {
         }
 
         if self.active_tab == NodeInfoTab::Traceroutes
-            && self.expanded_traceroute.is_none()
+            && self.traceroute_popup.is_none()
             && self.traceroute_list_state.handle_navigation_events(&event, None)
         {
             return Ok(true);
@@ -131,6 +141,10 @@ impl NodeInfoWidgetState {
 
         if self.active_tab == NodeInfoTab::Telemetry && self.telemetry_list_state.handle_navigation_events(&event, None)
         {
+            return Ok(true);
+        }
+
+        if self.active_tab == NodeInfoTab::Position && self.position_list_state.handle_navigation_events(&event, None) {
             return Ok(true);
         }
 
@@ -171,27 +185,25 @@ impl NodeInfoWidgetState {
                         .selected
                         .and_then(|i| context.traceroutes.get(i))
                     {
-                        self.expanded_traceroute = Some(traceroute.message_id);
-                        self.expanded_traceroute_scroll_state.first();
+                        self.traceroute_popup = Some(traceroute.message_id);
+                        self.traceroute_popup_state.scroll_to_top();
                     }
 
                     return Ok(true);
                 }
-                (NodeInfoTab::Traceroutes, KeyCode::Up)
-                    if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
-                {
-                    self.expanded_traceroute_scroll_state.prev();
+                (NodeInfoTab::Traceroutes, KeyCode::Up) if modifiers.is_empty() && self.traceroute_popup.is_some() => {
+                    self.traceroute_popup_state.scroll_up();
                     return Ok(true);
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Down)
-                    if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
+                    if modifiers.is_empty() && self.traceroute_popup.is_some() =>
                 {
-                    self.expanded_traceroute_scroll_state.next();
+                    self.traceroute_popup_state.scroll_down();
                     return Ok(true);
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Char('c'))
                     if modifiers.is_empty()
-                        && let Some(message_id) = self.expanded_traceroute =>
+                        && let Some(message_id) = self.traceroute_popup =>
                 {
                     if let Some(traceroute) = context
                         .traceroutes
@@ -205,15 +217,19 @@ impl NodeInfoWidgetState {
 
                     return Ok(true);
                 }
-                (NodeInfoTab::Traceroutes, KeyCode::Esc)
-                    if modifiers.is_empty() && self.expanded_traceroute.is_some() =>
-                {
-                    self.expanded_traceroute = None;
+                (NodeInfoTab::Traceroutes, KeyCode::Esc) if modifiers.is_empty() && self.traceroute_popup.is_some() => {
+                    self.traceroute_popup = None;
                     return Ok(true);
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Char('r')) if modifiers.is_empty() => {
                     emit(NodeInfoWidgetEvent::TracerouteRequested)?;
                     return Ok(true);
+                }
+                (NodeInfoTab::Position, KeyCode::Char('c')) if modifiers.is_empty() => {
+                    if let Some(item) = self.position_list_state.selected.and_then(|i| context.position.get(i)) {
+                        emit(NodeInfoWidgetEvent::CopyToClipboardRequested(item.coordinates_as_str()))?;
+                        return Ok(true);
+                    }
                 }
                 (NodeInfoTab::Telemetry, KeyCode::Char('c')) if modifiers.is_empty() => {
                     if let Some(item) = self
@@ -241,12 +257,12 @@ impl NodeInfoWidgetState {
                 _ => {}
             },
             Event::Mouse(MouseEvent { kind, .. }) => match kind {
-                MouseEventKind::ScrollUp if self.expanded_traceroute.is_some() => {
-                    self.expanded_traceroute_scroll_state.prev();
+                MouseEventKind::ScrollUp if self.traceroute_popup.is_some() => {
+                    self.traceroute_popup_state.scroll_up();
                     return Ok(true);
                 }
-                MouseEventKind::ScrollDown if self.expanded_traceroute.is_some() => {
-                    self.expanded_traceroute_scroll_state.next();
+                MouseEventKind::ScrollDown if self.traceroute_popup.is_some() => {
+                    self.traceroute_popup_state.scroll_down();
                     return Ok(true);
                 }
                 _ => {}
@@ -268,14 +284,19 @@ impl NodeInfoWidgetState {
             .into_iter()
             .flatten()
             .collect(),
-            NodeInfoTab::Traceroutes if self.expanded_traceroute.is_none() => vec![
+            NodeInfoTab::Traceroutes if self.traceroute_popup.is_none() => vec![
                 Hotkey::new("enter", "expand"),
                 Hotkey::new("r", "run traceroute"),
                 Hotkey::new("esc", "close"),
             ],
-            NodeInfoTab::Traceroutes if self.expanded_traceroute.is_some() => {
+            NodeInfoTab::Traceroutes if self.traceroute_popup.is_some() => {
                 vec![Hotkey::new("c", "copy result"), Hotkey::new("esc", "close")]
             }
+            NodeInfoTab::Position => vec![
+                Hotkey::new("enter", "expand"),
+                Hotkey::new("c", "copy coordinates"),
+                Hotkey::new("esc", "close"),
+            ],
             NodeInfoTab::Telemetry => vec![Hotkey::new("c", "copy value"), Hotkey::new("esc", "close")],
             _ => vec![],
         }
@@ -375,7 +396,7 @@ impl<'a> NodeInfoWidget<'a> {
             return;
         }
 
-        let dim_modifier = if state.expanded_traceroute.is_some() {
+        let dim_modifier = if state.traceroute_popup.is_some() {
             Modifier::DIM
         } else {
             Modifier::empty()
@@ -407,100 +428,46 @@ impl<'a> NodeInfoWidget<'a> {
 
         // expanded view
         if let Some(traceroute) = state
-            .expanded_traceroute
+            .traceroute_popup
             .and_then(|message_id| self.context.traceroutes.iter().find(|t| t.message_id == message_id))
         {
-            self.render_traceroute_popup(traceroute, area, buf, state);
+            (TraceroutePopupWidget {
+                traceroute,
+                nodes: self.context.nodes,
+                my_node_key: self.context.my_node_key,
+            })
+            .render(area, buf, &mut state.traceroute_popup_state);
         }
     }
 
-    fn render_traceroute_popup(
+    fn render_position(
         &self,
-        traceroute: &Traceroute,
+        position: &Vec<NodePosition>,
         area: Rect,
         buf: &mut Buffer,
         state: &mut NodeInfoWidgetState,
     ) {
-        let popup_area = Rect {
-            x: area.x - 1,
-            y: area.y + 2,
-            width: area.width + 2,
-            height: area.height - 1,
+        if position.is_empty() {
+            PlaceholderWidget::dark_gray("no position data collected yet").render(area, buf);
+            return;
         };
 
-        let popup_block = Block::new()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .padding(Padding::symmetric(1, 0));
+        state.position_list_state.fix_selection(position.len());
 
-        let popup_block_area = popup_block.inner(popup_area);
+        let list_builder = ListBuilder::new(|context| {
+            let widget = PositionWidget {
+                item: &position[context.index],
+                is_selected: context.is_selected,
+            };
 
-        Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
-        popup_block.render(popup_area, buf);
+            (widget, 3)
+        });
 
-        let route_span_mapper = |item: &TracerouteItem| match item {
-            TracerouteItem::Node(node_key) => {
-                let node = self.context.nodes.get(&node_key).unwrap_or(&UNKNOWN_NODE);
-                short_name_to_span(node, node_key == &self.context.my_node_key)
-            }
-            TracerouteItem::Snr(snr) => Span::from(format!("{:.2}dB", snr)).style(Style::new().fg(snr.snr_to_color())),
-        };
+        let list = ListView::new(list_builder, position.len())
+            .infinite_scrolling(false)
+            .scrollbar(default_scrollbar());
 
-        #[allow(unstable_name_collisions)]
-        let towards_spans: Vec<Span<'_>> = iter::once(&TracerouteItem::Node(self.context.my_node_key))
-            .chain(traceroute.route_towards.iter())
-            .chain(iter::once(&TracerouteItem::Node(self.context.node_key)))
-            .map(route_span_mapper)
-            .intersperse(Span::from(" \u{2192}\u{A0}").dark_gray())
-            .collect();
-
-        #[allow(unstable_name_collisions)]
-        let back_spans: Vec<Span<'_>> = iter::once(&TracerouteItem::Node(self.context.node_key))
-            .chain(traceroute.route_back.iter())
-            .chain(iter::once(&TracerouteItem::Node(self.context.my_node_key)))
-            .map(route_span_mapper)
-            .intersperse(Span::from(" \u{2192}\u{A0}").dark_gray())
-            .collect();
-
-        match traceroute.state {
-            TracerouteState::Started => {
-                PlaceholderWidget::yellow("pending...").render(popup_block_area, buf);
-            }
-            TracerouteState::RoutingError => {
-                PlaceholderWidget::red(routing_error_to_span(traceroute.routing_error)).render(popup_block_area, buf);
-            }
-            TracerouteState::TimedOut => {
-                PlaceholderWidget::dark_gray("timed out").render(popup_block_area, buf);
-            }
-            TracerouteState::Finished => {
-                let h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Length(1)])
-                    .split(popup_block_area);
-
-                let paragraph = Paragraph::new(vec![
-                    Line::from(Span::from("ROUTE TOWARDS").magenta()),
-                    Line::from(towards_spans),
-                    Line::from(Span::from("")),
-                    Line::from(Span::from("ROUTE BACK").magenta()),
-                    Line::from(back_spans),
-                    Line::from(Span::from("")),
-                    Line::from(Span::from("ROUND TRIP TIME").magenta()),
-                    Line::from(Span::from(humanize_uptime(traceroute.duration.num_seconds() as u32))),
-                ])
-                .wrap(Wrap { trim: false });
-
-                let paragraph_lines = paragraph.line_count(popup_block_area.width - 2);
-
-                state.expanded_traceroute_scroll_state = state
-                    .expanded_traceroute_scroll_state
-                    .content_length(paragraph_lines.saturating_sub(popup_block_area.height as usize) + 1);
-
-                paragraph
-                    .scroll((state.expanded_traceroute_scroll_state.get_position() as u16, 0))
-                    .render(h[0], buf);
-
-                default_scrollbar().render(h[2], buf, &mut state.expanded_traceroute_scroll_state);
-            }
-        };
+        list.render(area, buf, &mut state.position_list_state);
     }
 
     fn render_telemetry(
@@ -576,187 +543,8 @@ impl<'a> StatefulWidget for NodeInfoWidget<'a> {
         match &state.active_tab {
             NodeInfoTab::Info => self.render_info(node, v[2], buf, state),
             NodeInfoTab::Traceroutes => self.render_traceroutes(&self.context.traceroutes, v[2], buf, state),
+            NodeInfoTab::Position => self.render_position(self.context.position, v[2], buf, state),
             NodeInfoTab::Telemetry => self.render_telemetry(self.context.telemetry, v[2], buf, state),
-            _ => PlaceholderWidget::red("not implemented").render(v[2], buf),
-        }
-    }
-}
-
-#[derive(Clone)]
-struct InfoWidget<'a> {
-    pub title: &'a str,
-    pub value: Line<'a>,
-}
-
-impl<'a> InfoWidget<'a> {
-    pub fn new(title: &'a str, value: impl Into<Line<'a>>) -> Self {
-        Self {
-            title,
-            value: value.into(),
-        }
-    }
-}
-
-impl<'a> Widget for InfoWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
-        Paragraph::new(vec![Line::from(Span::from(self.title).dark_gray()), self.value]).render(area, buf);
-    }
-}
-
-struct TracerouteWidget<'a> {
-    item: &'a Traceroute,
-    is_selected: bool,
-}
-
-impl<'a> Widget for TracerouteWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let area = Rect::new(area.x, area.y, area.width, 2);
-
-        let block = Block::new()
-            .padding(Padding::new(1, 3, 0, 0))
-            .borders(Borders::LEFT)
-            .border_type(if self.is_selected {
-                BorderType::Thick
-            } else {
-                BorderType::Plain
-            })
-            .border_style(Style::new().fg(if self.is_selected {
-                Color::Yellow
-            } else {
-                Color::DarkGray
-            }));
-
-        let block_area = block.inner(area);
-        block.render(area, buf);
-
-        let v = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(block_area);
-        let v0_h = Layout::horizontal([Constraint::Fill(4), Constraint::Length(1), Constraint::Fill(1)]).split(v[0]);
-        let v1_h = Layout::horizontal([
-            Constraint::Fill(2),
-            Constraint::Length(1),
-            Constraint::Fill(2),
-            Constraint::Length(1),
-            Constraint::Fill(1),
-        ])
-        .split(v[1]);
-
-        // state
-        (match &self.item.state {
-            TracerouteState::Started => Span::from("pending...").yellow(),
-            TracerouteState::RoutingError => routing_error_to_span(self.item.routing_error),
-            TracerouteState::TimedOut => Span::from("timed out").dark_gray(),
-            TracerouteState::Finished => Span::from("finished").green(),
-        })
-        .add_modifier(if self.is_selected {
-            Modifier::BOLD
-        } else {
-            Modifier::empty()
-        })
-        .render(v0_h[0], buf);
-
-        // date
-        Line::from(humanize_time_delta(
-            Utc::now().signed_duration_since(self.item.datetime),
-        ))
-        .right_aligned()
-        .render(v0_h[2], buf);
-
-        // towards
-        Line::from(
-            vec![Span::from("twrd ").dark_gray()]
-                .into_iter()
-                .chain(if !self.item.route_towards.is_empty() {
-                    hops_to_spans(&self.item.route_towards, false)
-                } else {
-                    vec![Span::from("no data").dark_gray().dim()]
-                })
-                .collect_vec(),
-        )
-        .render(v1_h[0], buf);
-
-        // back
-        Line::from(
-            vec![Span::from("back ").dark_gray()]
-                .into_iter()
-                .chain(if !self.item.route_back.is_empty() {
-                    hops_to_spans(&self.item.route_back, false)
-                } else {
-                    vec![Span::from("no data").dark_gray().dim()]
-                })
-                .collect_vec(),
-        )
-        .render(v1_h[2], buf);
-
-        // time
-        Line::from(vec![
-            Span::from("rtt ").dark_gray(),
-            Span::from(humanize_uptime(if self.item.state == TracerouteState::Started {
-                Utc::now()
-                    .signed_duration_since(self.item.datetime)
-                    .num_seconds()
-                    .max(0) as u32
-            } else {
-                self.item.duration.num_seconds() as u32
-            })),
-        ])
-        .right_aligned()
-        .render(v1_h[4], buf);
-    }
-}
-
-struct TelemetryItemWidget<'a> {
-    item: &'a TelemetryItem,
-    is_selected: bool,
-}
-
-impl<'a> Widget for TelemetryItemWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        match self.item {
-            TelemetryItem::Group { title, datetime, .. } => {
-                let h =
-                    Layout::horizontal([Constraint::Fill(3), Constraint::Fill(2), Constraint::Length(2)]).split(area);
-
-                Line::from(vec![Span::from(title).bold().add_modifier(if self.is_selected {
-                    Modifier::UNDERLINED
-                } else {
-                    Modifier::empty()
-                })])
-                .magenta()
-                .render(h[0], buf);
-
-                Line::from(humanize_time_delta(Utc::now().signed_duration_since(datetime)))
-                    .right_aligned()
-                    .render(h[1], buf);
-            }
-            TelemetryItem::Item {
-                title, formatted_value, ..
-            } => {
-                let v = Layout::horizontal([Constraint::Ratio(1, 2), Constraint::Ratio(1, 2)]).split(area);
-
-                Line::from(vec![
-                    Span::from("  "),
-                    Span::from(format!("{}:", title)).add_modifier(if self.is_selected {
-                        Modifier::UNDERLINED | Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    }),
-                ])
-                .render(v[0], buf);
-
-                formatted_value
-                    .as_ref()
-                    .map(Span::from)
-                    .unwrap_or(Span::from("no data").dark_gray())
-                    .add_modifier(if self.is_selected {
-                        Modifier::UNDERLINED | Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    })
-                    .render(v[1], buf);
-            }
         }
     }
 }

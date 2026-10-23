@@ -47,8 +47,9 @@ pub enum StateAction {
     NodesLoaderIncrement,
     NodesLoaderTotalSet(u32),
     NodeInit(Node),
-    NodeInfoSet(u32),
-    NodeInfoUnset,
+    NodeInfoKeySet(u32),
+    NodeInfoKeyUnset,
+    NodeInfoPositionSet(Vec<NodePosition>),
     NodeUpdate(Node),
     NodeUpdateLastHeard {
         node_key: u32,

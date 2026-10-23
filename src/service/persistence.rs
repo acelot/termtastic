@@ -144,6 +144,20 @@ impl PersistenceService {
                     }
                 };
             }
+            StateAction::NodeInfoKeySet(node_key) => match repository.position_find_by_node_key(node_key).await {
+                Ok(items) => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::NodeInfoPositionSet(items.iter().map(Into::into).collect()));
+                }
+                Err(e) => {
+                    tracing::error!("position loading failed: {}", e);
+
+                    let _ = self.state_action_tx.send(StateAction::Toast(Toast::error(
+                        "An error occurred while loading position data",
+                    )));
+                }
+            },
             StateAction::TracerouteFinish { message_id, .. } | StateAction::TracerouteTimeout { message_id } => {
                 let Some(traceroute) = self.state_rx.borrow().traceroutes.get(&message_id).cloned() else {
                     return Ok(());

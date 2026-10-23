@@ -365,7 +365,7 @@ impl<'a> Component for Messenger<'a> {
         .split(area);
 
         let is_any_popup_visible =
-            state.nodeinfo.is_some() || self.is_emoji_selector_visible || self.is_reaction_viewer_visible;
+            state.nodeinfo_key.is_some() || self.is_emoji_selector_visible || self.is_reaction_viewer_visible;
 
         // list
         if !message_ids.is_empty() {

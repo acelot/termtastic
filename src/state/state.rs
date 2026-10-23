@@ -2,7 +2,6 @@ use crate::service::ONLINE_NODE_THRESHOLD_SECS;
 use crate::types::*;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use meshtastic::protobufs::Position;
 use ordermap::OrderMap;
 use std::cmp::Ordering;
 use std::collections::HashSet;
@@ -34,10 +33,11 @@ pub struct State {
     pub messages: HashMap<u32, Message>,
     pub my_node_key: Option<u32>,
     pub nodeinfo_telemetry: Vec<TelemetryItem>,
-    pub nodeinfo: Option<u32>,
+    pub nodeinfo_position: Vec<NodePosition>,
+    pub nodeinfo_key: Option<u32>,
     pub nodes_filter: String,
     pub nodes_last_telemetry: HashMap<u32, NodeLastTelemetry>,
-    pub nodes_last_position: HashMap<u32, Position>,
+    pub nodes_last_position: HashMap<u32, NodePosition>,
     pub nodes_loader_current: u32,
     pub nodes_loader_total: u32,
     pub nodes_sort_by: NodesSortBy,
@@ -86,8 +86,9 @@ impl Default for State {
             logs: Vec::with_capacity(1000),
             messages: HashMap::with_capacity(1000),
             my_node_key: None,
-            nodeinfo: None,
+            nodeinfo_key: None,
             nodeinfo_telemetry: Vec::default(),
+            nodeinfo_position: Vec::default(),
             nodes_traceroutes: HashMap::with_capacity(200),
             nodes_last_telemetry: HashMap::with_capacity(200),
             nodes_last_position: HashMap::with_capacity(200),

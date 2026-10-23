@@ -161,7 +161,7 @@ impl Store {
                     state.device_module_config = Default::default();
                     state.messages.clear();
                     state.my_node_key = None;
-                    state.nodeinfo = None;
+                    state.nodeinfo_key = None;
                     state.nodeinfo_telemetry.clear();
                     state.nodes_loader_current = 0;
                     state.nodes_loader_total = 0;
@@ -432,19 +432,27 @@ impl Store {
                         false
                     }
                 }),
-            StateAction::NodeInfoSet(node_key) => {
+            StateAction::NodeInfoKeySet(node_key) => {
                 self.state_tx.send_modify(|state| {
-                    state.nodeinfo = Some(node_key);
+                    state.nodeinfo_key = Some(node_key);
 
                     update_nodeinfo_telemetry(state);
                 });
 
                 true
             }
-            StateAction::NodeInfoUnset => {
+            StateAction::NodeInfoKeyUnset => {
                 self.state_tx.send_modify(|state| {
-                    state.nodeinfo = None;
+                    state.nodeinfo_key = None;
                     state.nodeinfo_telemetry.clear();
+                    state.nodeinfo_position.clear();
+                });
+
+                true
+            }
+            StateAction::NodeInfoPositionSet(items) => {
+                self.state_tx.send_modify(|state| {
+                    state.nodeinfo_position = items;
                 });
 
                 true
@@ -496,10 +504,10 @@ impl Store {
 
                 state.nodes_last_telemetry.remove(&node_key);
 
-                if let Some(nodeinfo_key) = state.nodeinfo
+                if let Some(nodeinfo_key) = state.nodeinfo_key
                     && nodeinfo_key == node_key
                 {
-                    state.nodeinfo = None;
+                    state.nodeinfo_key = None;
                     state.nodeinfo_telemetry.clear();
                 }
 
@@ -636,9 +644,7 @@ impl Store {
             }
             StateAction::NodeLastPositionSet(node_position) => {
                 self.state_tx.send_modify(|state| {
-                    state
-                        .nodes_last_position
-                        .insert(node_position.node_key, node_position.position);
+                    state.nodes_last_position.insert(node_position.node_key, node_position);
                 });
 
                 true
@@ -776,7 +782,7 @@ impl Store {
                         state.chats.insert_sorted(chat.clone(), Vec::new());
                     }
 
-                    state.nodeinfo = None;
+                    state.nodeinfo_key = None;
                     state.active_chat = Some(chat);
                     state.active_tab = Tab::Chat;
                 });

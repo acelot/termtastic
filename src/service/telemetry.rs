@@ -23,7 +23,7 @@ macro_rules! power_metrics {
 }
 
 pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
-    let Some(node_key) = state.nodeinfo else {
+    let Some(node_key) = state.nodeinfo_key else {
         return false;
     };
 
@@ -68,17 +68,13 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "channel util",
             device_metrics.data.channel_utilization,
-            device_metrics
-                .data
-                .channel_utilization.map(|v| format!("{:.2}%", v)),
+            device_metrics.data.channel_utilization.map(|v| format!("{:.2}%", v)),
         ));
 
         items.push(TelemetryItem::item(
             "uptime",
             device_metrics.data.uptime_seconds,
-            device_metrics
-                .data
-                .uptime_seconds.map(humanize_uptime),
+            device_metrics.data.uptime_seconds.map(humanize_uptime),
         ));
     }
 
@@ -93,17 +89,13 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "temperature",
             environment_metrics.data.temperature,
-            environment_metrics
-                .data
-                .temperature.map(|v| format!("{:.1}°C", v)),
+            environment_metrics.data.temperature.map(|v| format!("{:.1}°C", v)),
         ));
 
         items.push(TelemetryItem::item(
             "relative humidity",
             environment_metrics.data.relative_humidity,
-            environment_metrics
-                .data
-                .relative_humidity.map(|v| format!("{:.1}%", v)),
+            environment_metrics.data.relative_humidity.map(|v| format!("{:.1}%", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -111,31 +103,26 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             environment_metrics.data.barometric_pressure,
             environment_metrics
                 .data
-                .barometric_pressure.map(|v| format!("{:.1}hPA", v)),
+                .barometric_pressure
+                .map(|v| format!("{:.1}hPA", v)),
         ));
 
         items.push(TelemetryItem::item(
             "gas resistance",
             environment_metrics.data.gas_resistance,
-            environment_metrics
-                .data
-                .gas_resistance.map(|v| format!("{:.1}MOhm", v)),
+            environment_metrics.data.gas_resistance.map(|v| format!("{:.1}MOhm", v)),
         ));
 
         items.push(TelemetryItem::item(
             "current",
             environment_metrics.data.current,
-            environment_metrics
-                .data
-                .current.map(|v| format!("{:.1}A", v)),
+            environment_metrics.data.current.map(|v| format!("{:.1}A", v)),
         ));
 
         items.push(TelemetryItem::item(
             "voltage",
             environment_metrics.data.voltage,
-            environment_metrics
-                .data
-                .voltage.map(|v| format!("{:.1}V", v)),
+            environment_metrics.data.voltage.map(|v| format!("{:.1}V", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -147,9 +134,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "distance",
             environment_metrics.data.distance,
-            environment_metrics
-                .data
-                .distance.map(|v| format!("{:.3}mm", v)),
+            environment_metrics.data.distance.map(|v| format!("{:.3}mm", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -161,9 +146,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "white lux",
             environment_metrics.data.white_lux,
-            environment_metrics
-                .data
-                .white_lux.map(|v| format!("{:.2}", v)),
+            environment_metrics.data.white_lux.map(|v| format!("{:.2}", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -181,81 +164,61 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "wind direction",
             environment_metrics.data.wind_direction,
-            environment_metrics
-                .data
-                .wind_direction.map(|v| format!("{}°", v)),
+            environment_metrics.data.wind_direction.map(|v| format!("{}°", v)),
         ));
 
         items.push(TelemetryItem::item(
             "wind speed",
             environment_metrics.data.wind_speed,
-            environment_metrics
-                .data
-                .wind_speed.map(|v| format!("{:.2}m/s", v)),
+            environment_metrics.data.wind_speed.map(|v| format!("{:.2}m/s", v)),
         ));
 
         items.push(TelemetryItem::item(
             "wind gust",
             environment_metrics.data.wind_gust,
-            environment_metrics
-                .data
-                .wind_gust.map(|v| format!("{:.2}m/s", v)),
+            environment_metrics.data.wind_gust.map(|v| format!("{:.2}m/s", v)),
         ));
 
         items.push(TelemetryItem::item(
             "wind lull",
             environment_metrics.data.wind_lull,
-            environment_metrics
-                .data
-                .wind_lull.map(|v| format!("{:.2}m/s", v)),
+            environment_metrics.data.wind_lull.map(|v| format!("{:.2}m/s", v)),
         ));
 
         items.push(TelemetryItem::item(
             "weight",
             environment_metrics.data.weight,
-            environment_metrics
-                .data
-                .weight.map(|v| format!("{:.3}kg", v)),
+            environment_metrics.data.weight.map(|v| format!("{:.3}kg", v)),
         ));
 
         items.push(TelemetryItem::item(
             "radiation",
             environment_metrics.data.radiation,
-            environment_metrics
-                .data
-                .radiation.map(|v| format!("{:.3}µR/h", v)),
+            environment_metrics.data.radiation.map(|v| format!("{:.3}µR/h", v)),
         ));
 
         items.push(TelemetryItem::item(
             "rainfall 1h",
             environment_metrics.data.rainfall_1h,
-            environment_metrics
-                .data
-                .rainfall_1h.map(|v| format!("{:.1}mm", v)),
+            environment_metrics.data.rainfall_1h.map(|v| format!("{:.1}mm", v)),
         ));
 
         items.push(TelemetryItem::item(
             "rainfall 24h",
             environment_metrics.data.rainfall_24h,
-            environment_metrics
-                .data
-                .rainfall_24h.map(|v| format!("{:.1}mm", v)),
+            environment_metrics.data.rainfall_24h.map(|v| format!("{:.1}mm", v)),
         ));
 
         items.push(TelemetryItem::item(
             "soil moisture",
             environment_metrics.data.soil_moisture,
-            environment_metrics
-                .data
-                .soil_moisture.map(|v| format!("{}%", v)),
+            environment_metrics.data.soil_moisture.map(|v| format!("{}%", v)),
         ));
 
         items.push(TelemetryItem::item(
             "soil temperature",
             environment_metrics.data.soil_temperature,
-            environment_metrics
-                .data
-                .soil_temperature.map(|v| format!("{:.1}°C", v)),
+            environment_metrics.data.soil_temperature.map(|v| format!("{:.1}°C", v)),
         ));
     }
 
@@ -270,25 +233,19 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "PM1.0 standard",
             air_quality_metrics.data.pm10_standard,
-            air_quality_metrics
-                .data
-                .pm10_standard.map(|v| format!("{}µg/m³", v)),
+            air_quality_metrics.data.pm10_standard.map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM2.5 standard",
             air_quality_metrics.data.pm25_standard,
-            air_quality_metrics
-                .data
-                .pm25_standard.map(|v| format!("{}µg/m³", v)),
+            air_quality_metrics.data.pm25_standard.map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM10 standard",
             air_quality_metrics.data.pm100_standard,
-            air_quality_metrics
-                .data
-                .pm100_standard.map(|v| format!("{}µg/m³", v)),
+            air_quality_metrics.data.pm100_standard.map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -296,7 +253,8 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             air_quality_metrics.data.pm10_environmental,
             air_quality_metrics
                 .data
-                .pm10_environmental.map(|v| format!("{}µg/m³", v)),
+                .pm10_environmental
+                .map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -304,7 +262,8 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             air_quality_metrics.data.pm25_environmental,
             air_quality_metrics
                 .data
-                .pm25_environmental.map(|v| format!("{}µg/m³", v)),
+                .pm25_environmental
+                .map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -312,55 +271,44 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             air_quality_metrics.data.pm100_environmental,
             air_quality_metrics
                 .data
-                .pm100_environmental.map(|v| format!("{}µg/m³", v)),
+                .pm100_environmental
+                .map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
             "0.3µm particles",
             air_quality_metrics.data.particles_03um,
-            air_quality_metrics
-                .data
-                .particles_03um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_03um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "0.5µm particles",
             air_quality_metrics.data.particles_05um,
-            air_quality_metrics
-                .data
-                .particles_05um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_05um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "1.0µm particles",
             air_quality_metrics.data.particles_10um,
-            air_quality_metrics
-                .data
-                .particles_10um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_10um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "2.5µm particles",
             air_quality_metrics.data.particles_25um,
-            air_quality_metrics
-                .data
-                .particles_25um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_25um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "5.0µm particles",
             air_quality_metrics.data.particles_50um,
-            air_quality_metrics
-                .data
-                .particles_50um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_50um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "10.0µm particles",
             air_quality_metrics.data.particles_100um,
-            air_quality_metrics
-                .data
-                .particles_100um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_100um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -372,17 +320,13 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "CO2 temperature",
             air_quality_metrics.data.co2_temperature,
-            air_quality_metrics
-                .data
-                .co2_temperature.map(|v| format!("{:.1}°C", v)),
+            air_quality_metrics.data.co2_temperature.map(|v| format!("{:.1}°C", v)),
         ));
 
         items.push(TelemetryItem::item(
             "CO2 humidity",
             air_quality_metrics.data.co2_humidity,
-            air_quality_metrics
-                .data
-                .co2_humidity.map(|v| format!("{:.1}%", v)),
+            air_quality_metrics.data.co2_humidity.map(|v| format!("{:.1}%", v)),
         ));
 
         items.push(TelemetryItem::item(
@@ -390,79 +334,62 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             air_quality_metrics.data.form_formaldehyde,
             air_quality_metrics
                 .data
-                .form_formaldehyde.map(|v| format!("{:.1}ppb", v)),
+                .form_formaldehyde
+                .map(|v| format!("{:.1}ppb", v)),
         ));
 
         items.push(TelemetryItem::item(
             "formaldehyde humidity",
             air_quality_metrics.data.form_humidity,
-            air_quality_metrics
-                .data
-                .form_humidity.map(|v| format!("{:.1}%RH", v)),
+            air_quality_metrics.data.form_humidity.map(|v| format!("{:.1}%RH", v)),
         ));
 
         items.push(TelemetryItem::item(
             "formaldehyde temperature",
             air_quality_metrics.data.form_temperature,
-            air_quality_metrics
-                .data
-                .form_temperature.map(|v| format!("{:.1}°C", v)),
+            air_quality_metrics.data.form_temperature.map(|v| format!("{:.1}°C", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM4.0 standard",
             air_quality_metrics.data.pm40_standard,
-            air_quality_metrics
-                .data
-                .pm40_standard.map(|v| format!("{}µg/m³", v)),
+            air_quality_metrics.data.pm40_standard.map(|v| format!("{}µg/m³", v)),
         ));
 
         items.push(TelemetryItem::item(
             "4.0µm particles",
             air_quality_metrics.data.particles_40um,
-            air_quality_metrics
-                .data
-                .particles_40um.map(|v| format!("{}/0.1L", v)),
+            air_quality_metrics.data.particles_40um.map(|v| format!("{}/0.1L", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM temperature",
             air_quality_metrics.data.pm_temperature,
-            air_quality_metrics
-                .data
-                .pm_temperature.map(|v| format!("{:.1}°C", v)),
+            air_quality_metrics.data.pm_temperature.map(|v| format!("{:.1}°C", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM humidity",
             air_quality_metrics.data.pm_humidity,
-            air_quality_metrics
-                .data
-                .pm_humidity.map(|v| format!("{:.1}%", v)),
+            air_quality_metrics.data.pm_humidity.map(|v| format!("{:.1}%", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM VOC index",
             air_quality_metrics.data.pm_voc_idx,
-            air_quality_metrics
-                .data
-                .pm_voc_idx.map(|v| format!("{:.2}", v)),
+            air_quality_metrics.data.pm_voc_idx.map(|v| format!("{:.2}", v)),
         ));
 
         items.push(TelemetryItem::item(
             "PM NOx index",
             air_quality_metrics.data.pm_nox_idx,
-            air_quality_metrics
-                .data
-                .pm_nox_idx.map(|v| format!("{:.2}", v)),
+            air_quality_metrics.data.pm_nox_idx.map(|v| format!("{:.2}", v)),
         ));
 
         items.push(TelemetryItem::item(
             "typical particle size",
             air_quality_metrics.data.particles_tps,
-            air_quality_metrics
-                .data
-                .particles_tps.map(|v| format!("{:.2}µm", v)),
+            air_quality_metrics.data.particles_tps.map(|v| format!("{:.2}µm", v)),
         ));
     }
 
@@ -495,17 +422,13 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "disk 2 free space",
             host_metrics.data.diskfree2_bytes,
-            host_metrics
-                .data
-                .diskfree2_bytes.map(|b| format!("{}MB", b / 1024)),
+            host_metrics.data.diskfree2_bytes.map(|b| format!("{}MB", b / 1024)),
         ));
 
         items.push(TelemetryItem::item(
             "disk 3 free space",
             host_metrics.data.diskfree3_bytes,
-            host_metrics
-                .data
-                .diskfree3_bytes.map(|b| format!("{}MB", b / 1024)),
+            host_metrics.data.diskfree3_bytes.map(|b| format!("{}MB", b / 1024)),
         ));
 
         items.push(TelemetryItem::item(
@@ -666,9 +589,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "body temperature",
             health_metrics.data.temperature,
-            health_metrics
-                .data
-                .temperature.map(|v| format!("{:.1}°C", v)),
+            health_metrics.data.temperature.map(|v| format!("{:.1}°C", v)),
         ));
     }
 
