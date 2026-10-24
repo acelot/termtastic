@@ -315,14 +315,15 @@ checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
 name = "cheap-clone"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23310282f1a049e4d2ec0e993cb18c0258fb318ad33db710b1e961f775a7c240"
+checksum = "f09bfeec850dd500e61d8a14a46ca7c09113cf93e7fc7a80ae09e32310516276"
 dependencies = [
  "either",
  "faststr",
- "paste",
+ "pastey",
  "seq-macro",
+ "smol-bytes",
  "smol_str 0.2.2",
  "smol_str 0.3.6",
  "triomphe",
@@ -1066,9 +1067,9 @@ dependencies = [
 
 [[package]]
 name = "hostaddr"
-version = "0.3.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06d6696eccb9fe1e1904ff7b25182686a809acabb87f435904c1da0a5a321df9"
+checksum = "aebe17f9b2f88165210d5941dc69f6b0d40abfd87d8fa417af3460fa57480467"
 dependencies = [
  "bytes",
  "cheap-clone",
@@ -1296,13 +1297,14 @@ checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
 
 [[package]]
 name = "iprfc"
-version = "0.2.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef9ffeec22969abcddea4070ffeffa22307f56e228063c26a9296c9a5e4bb9e2"
+checksum = "29ab9fb3724c3be005a8bf66c373ed1d6438f770e04008dccd136cbd446dbb8b"
 dependencies = [
  "bitflags 2.13.2",
  "ipnet",
- "paste",
+ "pastey",
+ "serde",
 ]
 
 [[package]]
@@ -1961,6 +1963,12 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+
+[[package]]
+name = "pastey"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 
 [[package]]
 name = "percent-encoding"
@@ -2790,6 +2798,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "smol-bytes"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50761797f6031155fd5b4b3f8e0fff47865c5113ff1f65668a280a48e295e1d4"
+dependencies = [
+ "bytes",
+ "pastey",
+ "serde_core",
 ]
 
 [[package]]

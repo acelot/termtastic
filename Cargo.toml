@@ -40,7 +40,7 @@ emojis = { version = "0.9.0" }
 etcetera = { version = "0.11.0" }
 fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }
-hostaddr = { version = "0.3.0", features = ["serde"] }
+hostaddr = { version = "1.0.0", features = ["serde"] }
 itertools = { version = "0.15.0" }
 mdns-sd = { version = "0.21.5" }
 meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "1741a83", features = [
