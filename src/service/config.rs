@@ -16,6 +16,7 @@ pub struct ConfigService {
     stored_action_rx: broadcast::Receiver<StateAction>,
     config_path: PathBuf,
     app_config_last_hash: u64,
+    is_config_applied: bool,
 }
 
 impl ConfigService {
@@ -33,6 +34,7 @@ impl ConfigService {
             stored_action_rx,
             config_path: config_dir.join("app.ron"),
             app_config_last_hash: 0,
+            is_config_applied: false,
         }
     }
 
@@ -78,9 +80,19 @@ impl ConfigService {
         match event {
             Ok(action) => {
                 if matches!(action, StateAction::AppConfigApply(_)) {
+                    self.is_config_applied = true;
+
                     let _ = self
                         .state_action_tx
                         .send(StateAction::Toast(Toast::normal("config loaded")));
+                }
+
+                if matches!(action, StateAction::ConnectionStop) {
+                    return Ok(());
+                }
+
+                if !self.is_config_applied {
+                    return Ok(());
                 }
 
                 let state = self.state_rx.borrow();
