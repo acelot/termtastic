@@ -52,7 +52,11 @@ impl<'a> EmojiSelectorState<'a> {
 
         self.input_widget.input(event);
         self.emojis = emojis::iter()
-            .filter(|e| e.name().contains(&self.input_widget.lines()[0]))
+            .filter(|e| {
+                e.name()
+                    .to_lowercase()
+                    .contains(&self.input_widget.lines()[0].to_lowercase())
+            })
             .take(MAX_EMOJIS_LIMIT)
             .collect();
 
