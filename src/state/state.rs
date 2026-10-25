@@ -6,6 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub const MAX_LOG_RECORDS: usize = 1000;
+
 #[derive(Debug, Clone)]
 pub struct State {
     pub active_chat: Option<Chat>,
@@ -25,7 +27,7 @@ pub struct State {
     pub device_module_config: DeviceModuleConfig,
     pub devices_discovered: BTreeSet<Device>,
     pub devices: BTreeSet<Device>,
-    pub logs: Vec<LogRecord>,
+    pub logs: VecDeque<LogRecord>,
     pub messages: HashMap<u32, Message>,
     pub my_node_key: Option<u32>,
     pub nodeinfo_telemetry: Vec<TelemetryItem>,
@@ -79,7 +81,7 @@ impl Default for State {
             device_canned_messages: None,
             devices_discovered: BTreeSet::default(),
             devices: BTreeSet::default(),
-            logs: Vec::with_capacity(1000),
+            logs: VecDeque::with_capacity(MAX_LOG_RECORDS),
             messages: HashMap::with_capacity(1000),
             my_node_key: None,
             nodeinfo_key: None,

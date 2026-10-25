@@ -15,7 +15,7 @@ use crate::types::{
     TracerouteItem, TracerouteState,
 };
 use crate::{
-    state::{State, StateAction},
+    state::{MAX_LOG_RECORDS, State, StateAction},
     types::{ConnectionState, DeviceDiscoveringState, FormItemKey, SettingsFormState, Tab},
 };
 
@@ -259,9 +259,14 @@ impl Store {
 
                 true
             }
-            StateAction::LogRecordAdd(r) => {
+            StateAction::LogRecordAdd(mut r) => {
                 self.state_tx.send_modify(|state| {
-                    state.logs.push(r);
+                    if state.logs.len() >= MAX_LOG_RECORDS {
+                        state.logs.pop_front();
+                    }
+
+                    r.id = state.logs.back().map_or(0, |last| last.id + 1);
+                    state.logs.push_back(r);
                 });
 
                 true

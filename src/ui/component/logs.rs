@@ -6,6 +6,7 @@ use crate::ui::prelude::*;
 pub struct Logs {
     list_state: ListState,
     follow: bool,
+    selected_id: Option<u64>,
     popup_record: Option<LogRecord>,
     popup_scroll_state: ScrollbarState,
 }
@@ -15,9 +16,21 @@ impl Logs {
         Self {
             list_state: ListState::default(),
             follow: true,
+            selected_id: None,
             popup_record: None,
             popup_scroll_state: ScrollbarState::default(),
         }
+    }
+
+    fn sync_selection(&mut self, state: &State) {
+        if self.follow {
+            self.selected_id = state.logs.back().map(|r| r.id);
+        }
+
+        self.list_state.selected = match (self.selected_id, state.logs.front()) {
+            (Some(id), Some(front)) => Some(id.saturating_sub(front.id) as usize),
+            _ => None,
+        };
     }
 }
 
@@ -46,7 +59,9 @@ impl Component for Logs {
         event: &Event,
         emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
     ) -> anyhow::Result<bool> {
-        if self.popup_record.is_some() {
+        self.sync_selection(state);
+
+        if let Some(record) = &self.popup_record {
             match event {
                 Event::Key(KeyEvent {
                     code,
@@ -62,8 +77,8 @@ impl Component for Logs {
                         self.popup_scroll_state.next();
                         return Ok(true);
                     }
-                    KeyCode::Char('c') if let Some(i) = self.list_state.selected => {
-                        emit(AppEvent::CopyToClipboardRequested(state.logs[i].clone().into()))?;
+                    KeyCode::Char('c') => {
+                        emit(AppEvent::CopyToClipboardRequested(record.clone().into()))?;
                         return Ok(true);
                     }
                     KeyCode::Esc => {
@@ -91,6 +106,7 @@ impl Component for Logs {
 
         if self.list_state.handle_navigation_events(event, Some(state.logs.len())) {
             if let Some(index) = self.list_state.selected {
+                self.selected_id = Some(state.logs[index].id);
                 self.follow = index == state.logs.len() - 1;
             }
 
@@ -128,9 +144,7 @@ impl Component for Logs {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        if self.follow && !state.logs.is_empty() {
-            self.list_state.select(Some(state.logs.len() - 1));
-        }
+        self.sync_selection(state);
 
         let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).split(area);
 

@@ -28,6 +28,7 @@ impl<S: tracing::Subscriber + Send + Sync> Layer<S> for LogToState {
         event.record(&mut visitor);
 
         let _ = self.state_action_tx.send(StateAction::LogRecordAdd(LogRecord {
+            id: 0,
             datetime: Utc::now(),
             level,
             source,

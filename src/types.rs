@@ -230,6 +230,7 @@ pub enum ConnectionState {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogRecord {
+    pub id: u64,
     pub datetime: DateTime<Utc>,
     pub level: Level,
     pub source: String,
