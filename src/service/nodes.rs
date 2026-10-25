@@ -1,6 +1,8 @@
+use std::cmp::Ordering;
 use std::time::Duration;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use meshtastic::protobufs::Position;
 use meshtastic::protobufs::mesh_packet::TransportMechanism;
 use meshtastic::{
@@ -16,7 +18,7 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::types::{NodePosition, NodeTelemetry, Toast};
+use crate::types::{NodePosition, NodeTelemetry, NodesSortBy, Toast};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
@@ -344,4 +346,100 @@ impl NodesService {
 
         Ok(())
     }
+}
+
+pub fn update_nodes_view(state: &mut State) {
+    let filter: Vec<&str> = state
+        .nodes_filter
+        .split_whitespace()
+        .map(|t| t.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    let now = Utc::now();
+
+    state.nodes_view = state
+        .nodes
+        .values()
+        .filter(|node| {
+            if filter.is_empty() {
+                return true;
+            }
+
+            let online_token = if node
+                .last_heard
+                .map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
+                .unwrap_or(false)
+            {
+                "$online"
+            } else {
+                "$offline"
+            };
+
+            let traceroute_token = if state
+                .nodes_traceroutes
+                .get(&node.key)
+                .and_then(|nt| Some(!nt.is_empty()))
+                .unwrap_or(false)
+            {
+                "$traceroute"
+            } else {
+                ""
+            };
+
+            let telemetry_token = if state.nodes_last_telemetry.contains_key(&node.key) {
+                "$telemetry"
+            } else {
+                ""
+            };
+
+            let position_token = if state.nodes_last_position.contains_key(&node.key) {
+                "$position"
+            } else {
+                ""
+            };
+
+            filter.iter().all(|token| {
+                node.fulltext.contains(token)
+                    || online_token.contains(token)
+                    || traceroute_token.contains(token)
+                    || telemetry_token.contains(token)
+                    || position_token.contains(token)
+            })
+        })
+        .sorted_by(|n1, n2| {
+            match (Some(n1.key) == state.my_node_key, Some(n2.key) == state.my_node_key) {
+                (true, true) => return Ordering::Equal,
+                (false, true) => return Ordering::Greater,
+                (true, false) => return Ordering::Less,
+                _ => {}
+            };
+
+            match &state.nodes_sort_by {
+                NodesSortBy::Hops => n1
+                    .hops
+                    .unwrap_or(u32::MAX)
+                    .cmp(&n2.hops.unwrap_or(u32::MAX))
+                    .then(n1.snr.total_cmp(&n2.snr).reverse()),
+                NodesSortBy::LastHeard => n1
+                    .last_heard
+                    .unwrap_or(DateTime::default())
+                    .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
+                    .reverse(),
+                NodesSortBy::ShortName => n1.short_name().cmp(&n2.short_name()),
+                NodesSortBy::LongName => n1.long_name().cmp(&n2.long_name()),
+                NodesSortBy::HwModel => n1
+                    .hw_model()
+                    .cmp(&n2.hw_model())
+                    .then(n1.short_name().cmp(&n2.short_name())),
+                NodesSortBy::Role => n1.role().cmp(&n2.role()).then(
+                    n1.hops
+                        .unwrap_or(u32::MAX)
+                        .cmp(&n2.hops.unwrap_or(u32::MAX))
+                        .then(n1.snr.total_cmp(&n2.snr).reverse()),
+                ),
+            }
+        })
+        .map(|node| node.key)
+        .collect();
 }

@@ -400,7 +400,7 @@ impl<'a> NodeInfoWidget<'a> {
                 self.context
                     .uptime
                     .map(|s| Span::from(humanize_uptime(s)))
-                    .unwrap_or(Span::from("no data").dark_gray()),
+                    .unwrap_or(Span::from("no data").dark_gray().dim()),
             )),
         }
         .render(v[1], buf);

@@ -644,6 +644,16 @@ impl From<&meshtastic::protobufs::MeshPacket> for Node {
     }
 }
 
+impl From<u32> for Node {
+    fn from(value: u32) -> Self {
+        let mut node = UNKNOWN_NODE.clone();
+        node.key = value;
+        node.update_fulltext();
+
+        node
+    }
+}
+
 impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::User)> for Node {
     type Error = anyhow::Error;
 

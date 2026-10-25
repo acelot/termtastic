@@ -1,9 +1,5 @@
-use crate::service::ONLINE_NODE_THRESHOLD_SECS;
 use crate::types::*;
-use chrono::{DateTime, Utc};
-use itertools::Itertools;
 use ordermap::OrderMap;
-use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
@@ -126,102 +122,6 @@ impl State {
 
     pub fn get_my_node(&self) -> Option<&Node> {
         self.my_node_key.and_then(|key| self.nodes.get(&key))
-    }
-
-    pub fn update_nodes_view(&mut self) {
-        let filter: Vec<&str> = self
-            .nodes_filter
-            .split_whitespace()
-            .map(|t| t.trim())
-            .filter(|s| !s.is_empty())
-            .collect();
-
-        let now = Utc::now();
-
-        self.nodes_view = self
-            .nodes
-            .values()
-            .filter(|node| {
-                if filter.is_empty() {
-                    return true;
-                }
-
-                let online_token = if node
-                    .last_heard
-                    .map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
-                    .unwrap_or(false)
-                {
-                    "$online"
-                } else {
-                    "$offline"
-                };
-
-                let traceroute_token = if self
-                    .nodes_traceroutes
-                    .get(&node.key)
-                    .and_then(|nt| Some(!nt.is_empty()))
-                    .unwrap_or(false)
-                {
-                    "$traceroute"
-                } else {
-                    ""
-                };
-
-                let telemetry_token = if self.nodes_last_telemetry.contains_key(&node.key) {
-                    "$telemetry"
-                } else {
-                    ""
-                };
-
-                let position_token = if self.nodes_last_position.contains_key(&node.key) {
-                    "$position"
-                } else {
-                    ""
-                };
-
-                filter.iter().all(|token| {
-                    node.fulltext.contains(token)
-                        || online_token.contains(token)
-                        || traceroute_token.contains(token)
-                        || telemetry_token.contains(token)
-                        || position_token.contains(token)
-                })
-            })
-            .sorted_by(|n1, n2| {
-                match (Some(n1.key) == self.my_node_key, Some(n2.key) == self.my_node_key) {
-                    (true, true) => return Ordering::Equal,
-                    (false, true) => return Ordering::Greater,
-                    (true, false) => return Ordering::Less,
-                    _ => {}
-                };
-
-                match &self.nodes_sort_by {
-                    NodesSortBy::Hops => n1
-                        .hops
-                        .unwrap_or(u32::MAX)
-                        .cmp(&n2.hops.unwrap_or(u32::MAX))
-                        .then(n1.snr.total_cmp(&n2.snr).reverse()),
-                    NodesSortBy::LastHeard => n1
-                        .last_heard
-                        .unwrap_or(DateTime::default())
-                        .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
-                        .reverse(),
-                    NodesSortBy::ShortName => n1.short_name().cmp(&n2.short_name()),
-                    NodesSortBy::LongName => n1.long_name().cmp(&n2.long_name()),
-                    NodesSortBy::HwModel => n1
-                        .hw_model()
-                        .cmp(&n2.hw_model())
-                        .then(n1.short_name().cmp(&n2.short_name())),
-                    NodesSortBy::Role => n1.role().cmp(&n2.role()).then(
-                        n1.hops
-                            .unwrap_or(u32::MAX)
-                            .cmp(&n2.hops.unwrap_or(u32::MAX))
-                            .then(n1.snr.total_cmp(&n2.snr).reverse()),
-                    ),
-                }
-            })
-            .map(|node| node.key)
-            .collect();
     }
 
     pub fn default_channels() -> HashMap<u32, Channel> {

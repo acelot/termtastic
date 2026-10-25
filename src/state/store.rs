@@ -1,5 +1,6 @@
 use chrono::Utc;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
+use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::time::{Duration, Instant};
 use tokio::{
@@ -8,9 +9,10 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::service::update_nodeinfo_telemetry;
+use crate::service::{update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
-    Chat, Message, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteIndicatorState, TracerouteState,
+    Chat, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteIndicatorState,
+    TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{State, StateAction},
@@ -92,7 +94,7 @@ impl Store {
                     state.nodes_filter = cfg.nodes_filter;
                     state.ui_config = cfg.ui_config;
 
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -175,7 +177,7 @@ impl Store {
                     state.settings_form_state = Default::default();
                     state.traceroutes.clear();
 
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -223,7 +225,7 @@ impl Store {
                         }
                     }
 
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -244,6 +246,8 @@ impl Store {
 
                         state.traceroutes.insert(t.message_id, t);
                     }
+
+                    update_nodes_view(state);
                 });
 
                 true
@@ -410,28 +414,7 @@ impl Store {
 
                 true
             }
-            StateAction::NodeInit(node) => self
-                .state_tx
-                .send_if_modified(|state| match state.nodes.entry(node.key) {
-                    Entry::Vacant(entry) => {
-                        entry.insert(node);
-
-                        state.update_nodes_view();
-
-                        true
-                    }
-                    Entry::Occupied(mut entry) => {
-                        if node.user.is_some() && node.last_heard > entry.get().last_heard {
-                            entry.insert(node);
-
-                            state.update_nodes_view();
-
-                            return true;
-                        }
-
-                        false
-                    }
-                }),
+            StateAction::NodeInit(node) => self.state_tx.send_if_modified(|state| node_init(node, state)),
             StateAction::NodeInfoKeySet(node_key) => {
                 self.state_tx.send_modify(|state| {
                     state.nodeinfo_key = Some(node_key);
@@ -469,7 +452,7 @@ impl Store {
                 existing_node.rssi = node.rssi;
                 existing_node.update_fulltext();
 
-                state.update_nodes_view();
+                update_nodes_view(state);
 
                 true
             }),
@@ -493,7 +476,7 @@ impl Store {
 
                 node.update_fulltext();
 
-                state.update_nodes_view();
+                update_nodes_view(state);
 
                 true
             }),
@@ -511,7 +494,7 @@ impl Store {
                     state.nodeinfo_telemetry.clear();
                 }
 
-                state.update_nodes_view();
+                update_nodes_view(state);
 
                 true
             }),
@@ -524,7 +507,7 @@ impl Store {
                 if let Some(node) = state.nodes.get_mut(&my_node_key) {
                     node.user = Some(user);
 
-                    state.update_nodes_view();
+                    update_nodes_view(state);
 
                     return true;
                 }
@@ -638,6 +621,7 @@ impl Store {
                     };
 
                     update_nodeinfo_telemetry(state);
+                    update_nodes_view(state);
                 });
 
                 true
@@ -645,6 +629,8 @@ impl Store {
             StateAction::NodeLastPositionSet(node_position) => {
                 self.state_tx.send_modify(|state| {
                     state.nodes_last_position.insert(node_position.node_key, node_position);
+
+                    update_nodes_view(state);
                 });
 
                 true
@@ -744,7 +730,7 @@ impl Store {
             StateAction::NodesSortBySet(sort_by) => {
                 self.state_tx.send_modify(|state| {
                     state.nodes_sort_by = sort_by;
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -752,7 +738,7 @@ impl Store {
             StateAction::NodesFilterSet(filter) => {
                 self.state_tx.send_modify(|state| {
                     state.nodes_filter = filter.to_lowercase();
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -769,7 +755,7 @@ impl Store {
             StateAction::MyNodeKeySet(number) => {
                 self.state_tx.send_modify(|state| {
                     state.my_node_key = Some(number);
-                    state.update_nodes_view();
+                    update_nodes_view(state);
                 });
 
                 true
@@ -952,6 +938,8 @@ impl Store {
                     state.active_traceroutes.remove(&message_id);
                     state.traceroute_indicator = TracerouteIndicatorState::Error;
                     state.traceroute_indicator_t = Instant::now();
+
+                    update_nodes_view(state);
                 });
 
                 true
@@ -965,6 +953,13 @@ impl Store {
                 let mut is_changed = false;
 
                 self.state_tx.send_modify(|state| {
+                    get_traceroute_unknown_nodes(&route_towards, &state.nodes)
+                        .into_iter()
+                        .chain(get_traceroute_unknown_nodes(&route_back, &state.nodes))
+                        .for_each(|node| {
+                            is_changed |= node_init(node, state);
+                        });
+
                     state.traceroutes.entry(message_id).and_modify(|t| {
                         t.duration = datetime - t.datetime;
                         t.route_towards = route_towards;
@@ -981,6 +976,8 @@ impl Store {
                     if is_changed {
                         state.traceroute_indicator = TracerouteIndicatorState::Success;
                         state.traceroute_indicator_t = Instant::now();
+
+                        update_nodes_view(state);
                     }
                 });
 
@@ -997,6 +994,8 @@ impl Store {
 
                     state.active_traceroutes.remove(&message_id);
                     state.traceroute_indicator = TracerouteIndicatorState::Off;
+
+                    update_nodes_view(state);
                 });
 
                 true
@@ -1078,6 +1077,45 @@ impl Store {
 
         Ok(())
     }
+}
+
+fn node_init(node: Node, state: &mut State) -> bool {
+    match state.nodes.entry(node.key) {
+        Entry::Vacant(entry) => {
+            entry.insert(node);
+
+            update_nodes_view(state);
+
+            true
+        }
+        Entry::Occupied(mut entry) => {
+            if node.user.is_some() && node.last_heard > entry.get().last_heard {
+                entry.insert(node);
+
+                update_nodes_view(state);
+
+                return true;
+            }
+
+            false
+        }
+    }
+}
+
+fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMap<u32, Node>) -> Vec<Node> {
+    traceroute
+        .iter()
+        .filter_map(|item| match item {
+            TracerouteItem::Node(node_key) => {
+                if nodes.contains_key(node_key) {
+                    return None;
+                }
+
+                Some(Node::from(*node_key))
+            }
+            TracerouteItem::Snr(_) => None,
+        })
+        .collect()
 }
 
 fn add_message(message: Message, state: &mut State) {
