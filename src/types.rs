@@ -53,9 +53,9 @@ pub struct UiConfig {
     #[serde(default)]
     pub is_bottom_padding_hidden: bool,
     #[serde(default)]
-    pub is_left_padding_hidden: bool,
+    pub is_left_padding_reduced: bool,
     #[serde(default)]
-    pub is_right_padding_hidden: bool,
+    pub is_right_padding_reduced: bool,
 }
 
 #[derive(Debug, Clone)]

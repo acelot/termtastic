@@ -239,16 +239,16 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_left_padding_hidden in UiConfig)),
-                "Window: Hide left padding",
+                FormItemKey::Simple(name_of!(is_left_padding_reduced in UiConfig)),
+                "Window: Reduce left padding",
                 None,
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_right_padding_hidden in UiConfig)),
-                "Window: Hide right padding",
+                FormItemKey::Simple(name_of!(is_right_padding_reduced in UiConfig)),
+                "Window: Reduce right padding",
                 None,
                 FormItemKind::Switch,
                 |v| v.to_string(),
@@ -270,7 +270,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    RegionCode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    RegionCode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -293,7 +294,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    ModemPreset::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    ModemPreset::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -527,7 +529,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(admin_key in SecurityConfig))
                             .expect("should exists")
-                            .as_vec().first()
+                            .as_vec()
+                            .first()
                             .cloned()
                             .unwrap_or(FormValue::Vec(vec![]))
                     },
@@ -716,7 +719,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    Role::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    Role::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -731,7 +735,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    RebroadcastMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    RebroadcastMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -936,7 +941,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    GpsMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    GpsMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1208,7 +1214,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    DisplayUnits::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    DisplayUnits::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1295,7 +1302,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    DisplayMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    DisplayMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1310,7 +1318,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    OledType::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    OledType::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1325,7 +1334,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    CompassOrientation::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    CompassOrientation::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1354,7 +1364,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    PairingMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    PairingMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1448,7 +1459,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    AddressMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    AddressMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -1458,7 +1470,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(ip in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
+                            .and_then(|v| v.as_nested().get(name_of!(ip in IpV4Config)))
+                            .map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1498,7 +1511,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(gateway in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
+                            .and_then(|v| v.as_nested().get(name_of!(gateway in IpV4Config)))
+                            .map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1538,7 +1552,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(subnet in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
+                            .and_then(|v| v.as_nested().get(name_of!(subnet in IpV4Config)))
+                            .map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1578,7 +1593,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                     getter: |data| {
                         data.get(name_of!(ipv4_config in NetworkConfig))
                             .and_then(|v| v.as_option())
-                            .and_then(|v| v.as_nested().get(name_of!(dns in IpV4Config))).map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
+                            .and_then(|v| v.as_nested().get(name_of!(dns in IpV4Config)))
+                            .map(|v| FormValue::String(Ipv4Addr::from(v.as_u32()).to_string()))
                             .unwrap_or(FormValue::String("0.0.0.0".to_owned()))
                     },
                     setter: |data, value| {
@@ -1975,7 +1991,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    SerialBaud::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    SerialBaud::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2003,7 +2020,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    SerialMode::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    SerialMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2559,7 +2577,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    InputEventChar::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2574,7 +2593,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    InputEventChar::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2589,7 +2609,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    InputEventChar::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    InputEventChar::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
@@ -2867,7 +2888,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .collect(),
                 ),
                 |v| {
-                    TriggerType::try_from(v.as_i32()).map(|r| r.as_str_name().to_owned())
+                    TriggerType::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),

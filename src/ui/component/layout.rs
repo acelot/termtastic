@@ -10,7 +10,7 @@ use std::ops::Sub;
 use std::time::{Duration, Instant};
 use strum::IntoEnumIterator;
 
-const MIN_TERMINAL_SIZE: (u16, u16) = (80, 24);
+const MIN_TERMINAL_SIZE: (u16, u16) = (70, 20);
 
 pub struct Layout<'a> {
     header_component: Header,
@@ -168,8 +168,8 @@ impl<'a> Component for Layout<'a> {
         }
 
         let container = Block::default().padding(Padding::new(
-            if state.ui_config.is_left_padding_hidden { 0 } else { 2 },
-            if state.ui_config.is_right_padding_hidden { 0 } else { 2 },
+            if state.ui_config.is_left_padding_reduced { 1 } else { 2 },
+            if state.ui_config.is_right_padding_reduced { 1 } else { 2 },
             if state.ui_config.is_top_padding_hidden { 0 } else { 1 },
             if state.ui_config.is_bottom_padding_hidden { 0 } else { 1 },
         ));
