@@ -121,7 +121,7 @@ macro_rules! channel_form {
                         },
                         concat!("  #", $x, " PSK"),
                         Some("Base64 encoded string. Leave empty to disable encryption."),
-                        FormItemKind::InputOfBase64,
+                        FormItemKind::MaskedInputOfBase64,
                         |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
                         |v| (0..=32)
                             .contains(&v.as_vec().len())
@@ -500,7 +500,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKey::Simple(name_of!(private_key in SecurityConfig)),
                 "Private Key",
                 Some("The private key of the device. Used to create a shared key with a remote device."),
-                FormItemKind::InputOfBase64,
+                FormItemKind::MaskedInputOfBase64,
                 |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
                 |_| Ok(()),
             ),
@@ -551,8 +551,36 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 "Admin Key #1",
                 Some("The public key authorized to send admin messages to this node."),
-                FormItemKind::InputOfBase64,
+                FormItemKind::MaskedInputOfBase64,
                 |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |_| FormValue::Vec(vec![]),
+                    setter: |data, value| {
+                        let mut keys = data
+                            .get(name_of!(admin_key in SecurityConfig))
+                            .expect("should exists")
+                            .as_vec()
+                            .clone();
+
+                        if keys.len() < 3 {
+                            keys.resize(3, FormValue::Vec(vec![]));
+                        }
+
+                        keys[0] = value;
+
+                        data.insert(name_of!(admin_key in SecurityConfig).to_owned(), FormValue::Vec(keys));
+                    },
+                },
+                "  #1 Generate Key",
+                None,
+                FormItemKind::Button(|_| {
+                    let key: Vec<u8> = std::iter::repeat_with(|| fastrand::u8(..)).take(32).collect();
+                    FormValue::from(key)
+                }),
+                |_| "<REGENERATE>".to_owned(),
                 |_| Ok(()),
             ),
             FormItem::new(
@@ -582,8 +610,36 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 "Admin Key #2",
                 Some("The public key authorized to send admin messages to this node."),
-                FormItemKind::InputOfBase64,
+                FormItemKind::MaskedInputOfBase64,
                 |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |_| FormValue::Vec(vec![]),
+                    setter: |data, value| {
+                        let mut keys = data
+                            .get(name_of!(admin_key in SecurityConfig))
+                            .expect("should exists")
+                            .as_vec()
+                            .clone();
+
+                        if keys.len() < 3 {
+                            keys.resize(3, FormValue::Vec(vec![]));
+                        }
+
+                        keys[1] = value;
+
+                        data.insert(name_of!(admin_key in SecurityConfig).to_owned(), FormValue::Vec(keys));
+                    },
+                },
+                "  #2 Generate Key",
+                None,
+                FormItemKind::Button(|_| {
+                    let key: Vec<u8> = std::iter::repeat_with(|| fastrand::u8(..)).take(32).collect();
+                    FormValue::from(key)
+                }),
+                |_| "<REGENERATE>".to_owned(),
                 |_| Ok(()),
             ),
             FormItem::new(
@@ -613,8 +669,36 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 "Admin Key #3",
                 Some("The public key authorized to send admin messages to this node."),
-                FormItemKind::InputOfBase64,
+                FormItemKind::MaskedInputOfBase64,
                 |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |_| FormValue::Vec(vec![]),
+                    setter: |data, value| {
+                        let mut keys = data
+                            .get(name_of!(admin_key in SecurityConfig))
+                            .expect("should exists")
+                            .as_vec()
+                            .clone();
+
+                        if keys.len() < 3 {
+                            keys.resize(3, FormValue::Vec(vec![]));
+                        }
+
+                        keys[2] = value;
+
+                        data.insert(name_of!(admin_key in SecurityConfig).to_owned(), FormValue::Vec(keys));
+                    },
+                },
+                "  #3 Generate Key",
+                None,
+                FormItemKind::Button(|_| {
+                    let key: Vec<u8> = std::iter::repeat_with(|| fastrand::u8(..)).take(32).collect();
+                    FormValue::from(key)
+                }),
+                |_| "<REGENERATE>".to_owned(),
                 |_| Ok(()),
             ),
             FormItem::new(

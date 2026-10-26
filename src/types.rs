@@ -1349,6 +1349,9 @@ pub enum FormItemKind {
     InputOfUnsignedInt32,
     InputOfFloat32,
     InputOfBase64,
+    #[allow(dead_code)]
+    MaskedInputOfString,
+    MaskedInputOfBase64,
     Enum(Vec<FormEnumVariant>),
     BitMask(Vec<FormBitMaskVariant>),
     Switch,

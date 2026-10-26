@@ -125,11 +125,12 @@ impl<'a> Settings<'a> {
             FormItemKind::InputOfString
             | FormItemKind::InputOfInt32
             | FormItemKind::InputOfUnsignedInt32
-            | FormItemKind::InputOfFloat32 => {
+            | FormItemKind::InputOfFloat32
+            | FormItemKind::MaskedInputOfString => {
                 self.active_form_item = Some(form_item);
                 self.popup_input_state = Some(PopupInputState::new(Some(form_item.title), None, value.to_string()));
             }
-            FormItemKind::InputOfBase64 => {
+            FormItemKind::InputOfBase64 | FormItemKind::MaskedInputOfBase64 => {
                 self.active_form_item = Some(form_item);
                 self.popup_input_state = Some(PopupInputState::new(
                     Some(form_item.title),
@@ -602,7 +603,7 @@ fn handle_popup_input_submit(form_item: &FormItem, input_state: &mut PopupInputS
     let input_value = input_state.get_value();
 
     match form_item.kind {
-        FormItemKind::InputOfString => {
+        FormItemKind::InputOfString | FormItemKind::MaskedInputOfString => {
             let value = FormValue::from(input_value);
             (form_item.validator)(&value).map(|_| value)
         }
@@ -618,7 +619,7 @@ fn handle_popup_input_submit(form_item: &FormItem, input_state: &mut PopupInputS
             let value = FormValue::from(input_value.parse::<f32>()?);
             (form_item.validator)(&value).map(|_| value)
         }
-        FormItemKind::InputOfBase64 => {
+        FormItemKind::InputOfBase64 | FormItemKind::MaskedInputOfBase64 => {
             if input_value.is_empty() {
                 return Ok(FormValue::from(vec![]));
             }
@@ -735,6 +736,25 @@ impl<'a> Widget for FormItemWidget<'a> {
                             _ => Style::new(),
                         },
                     ),
+                )
+            }
+            FormItemKind::MaskedInputOfString | FormItemKind::MaskedInputOfBase64 => {
+                let formatted = (self.form_item.formatter)(&self.value);
+                let is_empty = formatted.is_empty();
+
+                Line::from(
+                    Span::from(if !is_empty {
+                        "********".to_owned()
+                    } else {
+                        "(empty)".to_owned()
+                    })
+                    .patch_style(match (self.is_selected, self.is_changed) {
+                        (true, true) => Style::new().white().on_cyan(),
+                        (true, false) => Style::new().black().on_yellow(),
+                        (false, true) => Style::new().cyan(),
+                        _ if is_empty => Style::new().dark_gray(),
+                        _ => Style::new(),
+                    }),
                 )
             }
             FormItemKind::Enum(_) => {
