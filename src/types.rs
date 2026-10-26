@@ -1048,7 +1048,7 @@ impl NodePosition {
     }
 
     pub fn coordinates_as_str(&self) -> String {
-        let (lat, lon) = self.coordinates();
+        let (lon, lat) = self.coordinates();
         format!("{:.5}, {:.5}", lat, lon)
     }
 }

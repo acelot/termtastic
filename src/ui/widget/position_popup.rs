@@ -36,7 +36,7 @@ impl<'a> PositionPopupWidget<'a> {
     fn rows(&self) -> Vec<(&'static str, Span<'a>)> {
         let p = &self.position.position;
 
-        let (lat, lon) = self.position.coordinates();
+        let (lon, lat) = self.position.coordinates();
 
         let optional = |v: Option<i32>| match v {
             Some(v) => Span::from(v.to_string()),
