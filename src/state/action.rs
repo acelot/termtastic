@@ -1,14 +1,15 @@
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use chrono::{DateTime, Utc};
 use meshtastic::protobufs::{config, module_config, routing};
+use strum::EnumProperty;
 
 use crate::types::{
     AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node, NodePosition,
     NodeTelemetry, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumProperty)]
 pub enum StateAction {
     AppConfigApply(AppConfig),
     ActiveChatSet(Chat),
@@ -21,8 +22,11 @@ pub enum StateAction {
     ConnectionLoadConfig,
     ConnectionSuccess,
     ReconnectionBackoffSet(Duration),
+    #[strum(props(dont_rebroadcast = true))]
     DbIndicatorTrigger,
     DbNodesLoad(Vec<Node>),
+    DbNodesLastTelemetryLoad(Vec<NodeTelemetry>),
+    DbNodesLastPositionLoad(HashMap<u32, NodePosition>),
     DbMessagesLoad(Vec<Message>),
     DbTracerouteLoad(Vec<Traceroute>),
     DeviceActiveSet(Device),
@@ -35,6 +39,7 @@ pub enum StateAction {
     DeviceModuleConfigSet(module_config::PayloadVariant),
     DeviceMetadataSet(meshtastic::protobufs::DeviceMetadata),
     DeviceCannedMessagesSet(String),
+    #[strum(props(dont_rebroadcast = true))]
     LogRecordAdd(LogRecord),
     DirectChatStart(u32),
     MessageAdd(Message),
@@ -44,7 +49,9 @@ pub enum StateAction {
         datetime: DateTime<Utc>,
     },
     MyNodeKeySet(u32),
+    #[strum(props(dont_rebroadcast = true))]
     NodesLoaderIncrement,
+    #[strum(props(dont_rebroadcast = true))]
     NodesLoaderTotalSet(u32),
     NodeInit(Node),
     NodeInfoKeySet(u32),
@@ -64,10 +71,13 @@ pub enum StateAction {
     NodesSortBySet(NodesSortBy),
     NodesFilterSet(String),
     NodesOnlineSet(u32),
+    #[strum(props(dont_rebroadcast = true))]
     RxIndicatorTrigger,
+    #[strum(props(dont_rebroadcast = true))]
     SplashLogo,
     TabSwitchToNext,
     TabSwitchToPrevious,
+    #[strum(props(dont_rebroadcast = true))]
     Toast(Toast),
     TracerouteStart {
         message_id: u32,
@@ -112,4 +122,10 @@ pub enum StateAction {
     UiConfigSet {
         config: UiConfig,
     },
+}
+
+impl StateAction {
+    pub fn should_rebroadcast(&self) -> bool {
+        !self.get_bool("dont_rebroadcast").unwrap_or(false)
+    }
 }

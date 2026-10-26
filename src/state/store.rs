@@ -11,7 +11,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::{update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
-    Chat, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem, Traceroute, TracerouteIndicatorState,
+    Chat, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem, NodeTelemetry, Traceroute, TracerouteIndicatorState,
     TracerouteItem, TracerouteState,
 };
 use crate::{
@@ -74,7 +74,7 @@ impl Store {
     }
 
     fn handle_action(&mut self, action: StateAction) -> anyhow::Result<()> {
-        let stored_action = action.clone();
+        let rebroadcast_action = action.should_rebroadcast().then(|| action.clone());
 
         let is_changed: bool = match action {
             StateAction::SplashLogo => {
@@ -225,6 +225,25 @@ impl Store {
                         }
                     }
 
+                    update_nodes_view(state);
+                });
+
+                true
+            }
+            StateAction::DbNodesLastTelemetryLoad(last_telemetry) => {
+                self.state_tx.send_modify(|state| {
+                    for telemetry in last_telemetry {
+                        set_last_telemetry(telemetry, state);
+                    }
+
+                    update_nodes_view(state);
+                });
+
+                true
+            }
+            StateAction::DbNodesLastPositionLoad(position) => {
+                self.state_tx.send_modify(|state| {
+                    state.nodes_last_position = position;
                     update_nodes_view(state);
                 });
 
@@ -521,110 +540,7 @@ impl Store {
             }),
             StateAction::NodeLastTelemetrySet(node_telemetry) => {
                 self.state_tx.send_modify(|state| {
-                    let telemetry = state
-                        .nodes_last_telemetry
-                        .entry(node_telemetry.node_key)
-                        .or_insert(NodeLastTelemetry::default());
-
-                    match node_telemetry.variant {
-                        telemetry::Variant::DeviceMetrics(metrics) => {
-                            if telemetry
-                                .device_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.device_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::EnvironmentMetrics(metrics) => {
-                            if telemetry
-                                .environment_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.environment_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::AirQualityMetrics(metrics) => {
-                            if telemetry
-                                .air_quality_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.air_quality_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::PowerMetrics(metrics) => {
-                            if telemetry
-                                .power_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.power_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::LocalStats(metrics) => {
-                            if telemetry
-                                .local_stats
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.local_stats = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::HealthMetrics(metrics) => {
-                            if telemetry
-                                .health_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.health_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::HostMetrics(metrics) => {
-                            if telemetry
-                                .host_metrics
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.host_metrics = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                        telemetry::Variant::TrafficManagementStats(metrics) => {
-                            if telemetry
-                                .traffic_management_stats
-                                .as_ref()
-                                .is_none_or(|m| node_telemetry.datetime > m.datetime)
-                            {
-                                telemetry.traffic_management_stats = Some(NodeLastTelemetryItem {
-                                    data: metrics,
-                                    datetime: node_telemetry.datetime,
-                                });
-                            }
-                        }
-                    };
-
+                    set_last_telemetry(node_telemetry, state);
                     update_nodeinfo_telemetry(state);
                     update_nodes_view(state);
                 });
@@ -1007,8 +923,8 @@ impl Store {
             }
         };
 
-        if is_changed {
-            let _ = self.stored_action_tx.send(stored_action);
+        if is_changed && let Some(rebroadcast_action) = rebroadcast_action {
+            let _ = self.stored_action_tx.send(rebroadcast_action);
         }
 
         Ok(())
@@ -1105,6 +1021,112 @@ fn node_init(node: Node, state: &mut State) -> bool {
             false
         }
     }
+}
+
+fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
+    let telemetry = state
+        .nodes_last_telemetry
+        .entry(node_telemetry.node_key)
+        .or_insert(NodeLastTelemetry::default());
+
+    match node_telemetry.variant {
+        telemetry::Variant::DeviceMetrics(metrics) => {
+            if telemetry
+                .device_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.device_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::EnvironmentMetrics(metrics) => {
+            if telemetry
+                .environment_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.environment_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::AirQualityMetrics(metrics) => {
+            if telemetry
+                .air_quality_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.air_quality_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::PowerMetrics(metrics) => {
+            if telemetry
+                .power_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.power_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::LocalStats(metrics) => {
+            if telemetry
+                .local_stats
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.local_stats = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::HealthMetrics(metrics) => {
+            if telemetry
+                .health_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.health_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::HostMetrics(metrics) => {
+            if telemetry
+                .host_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.host_metrics = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::TrafficManagementStats(metrics) => {
+            if telemetry
+                .traffic_management_stats
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.traffic_management_stats = Some(NodeLastTelemetryItem {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+    };
 }
 
 fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMap<u32, Node>) -> Vec<Node> {

@@ -40,7 +40,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     tracing::info!("data dir: {}", data_dir.display());
     tracing::info!("config dir: {}", config_dir.display());
 
-    let (app_event_tx, app_event_rx) = broadcast::channel::<AppEvent>(1024);
+    let (app_event_tx, app_event_rx) = broadcast::channel::<AppEvent>(2000);
 
     let persistence_service = PersistenceService::new(
         app_event_tx.clone(),

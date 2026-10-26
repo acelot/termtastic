@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, watch};
@@ -6,7 +7,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
-use crate::types::{Message, Node, Traceroute};
+use crate::types::{Message, Node, NodePosition, NodeTelemetry, Traceroute};
 use crate::{
     APP_NAME,
     state::StateAction,
@@ -144,7 +145,7 @@ impl PersistenceService {
                     }
                 };
             }
-            StateAction::NodeInfoKeySet(node_key) => match repository.position_find_by_node_key(node_key).await {
+            StateAction::NodeInfoKeySet(node_key) => match repository.position_find_by_node_key(node_key, 100).await {
                 Ok(items) => {
                     let _ = self
                         .state_action_tx
@@ -337,32 +338,36 @@ impl PersistenceService {
         // telemetry
         match repository.telemetry_find_last_for_each_node().await {
             Ok(map) => {
-                for (_, telemetry) in map.iter() {
-                    for item in telemetry {
-                        match item.try_into() {
-                            Ok(node_telemetry) => {
-                                let _ = self
-                                    .state_action_tx
-                                    .send(StateAction::NodeLastTelemetrySet(node_telemetry));
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "telemetry conversion failed, id: {:?}, node_key: {}, kind: {}, error: {}",
-                                    item.id,
-                                    item.node_key,
-                                    item.kind,
-                                    e
-                                )
-                            }
-                        }
-                    }
-                }
+                let last_telemetry: Vec<NodeTelemetry> = map
+                    .iter()
+                    .map(|(_, telemetry)| {
+                        telemetry
+                            .iter()
+                            .filter_map(|item| match NodeTelemetry::try_from(item) {
+                                Ok(t) => Some(t),
+                                Err(e) => {
+                                    tracing::error!(
+                                        "can't convert DB entity to NodeTelemetry, id: {:?}, node_key: {}, kind: {}, error: {}",
+                                        item.id,
+                                        item.node_key,
+                                        item.kind,
+                                        e
+                                    );
+                                    None
+                                }
+                            })
+                            .collect::<Vec<NodeTelemetry>>()
+                    })
+                    .flatten()
+                    .collect();
 
-                tracing::info!(
-                    "telemetry data loaded from DB: {} items for {} nodes",
-                    map.values().map(|items| items.len()).sum::<usize>(),
-                    map.len()
-                );
+                if !last_telemetry.is_empty() {
+                    tracing::info!("telemetry data loaded from DB: {}", last_telemetry.len());
+
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::DbNodesLastTelemetryLoad(last_telemetry));
+                }
             }
             Err(e) => {
                 tracing::error!("telemetry load failed: {}", e);
@@ -378,13 +383,16 @@ impl PersistenceService {
         // position
         match repository.position_find_last_for_each_node().await {
             Ok(map) => {
-                for (_, position) in map.iter() {
-                    let _ = self
-                        .state_action_tx
-                        .send(StateAction::NodeLastPositionSet(position.into()));
-                }
+                let last_position: HashMap<u32, NodePosition> = map
+                    .iter()
+                    .map(|(node_key, position_entity)| (*node_key, position_entity.into()))
+                    .collect();
 
-                tracing::info!("position data loaded from DB: {} items", map.len());
+                tracing::info!("position data loaded from DB: {}", last_position.len());
+
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::DbNodesLastPositionLoad(last_position));
             }
             Err(e) => {
                 tracing::error!("position load failed: {}", e);

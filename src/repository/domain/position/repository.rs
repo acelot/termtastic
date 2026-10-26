@@ -17,7 +17,7 @@ impl Repository {
                     FROM (
                         SELECT p.*, ROW_NUMBER() OVER (
                             PARTITION BY node_key
-                            ORDER BY datetime DESC
+                            ORDER BY datetime DESC, id DESC
                         ) AS rn
                         FROM {} p
                     )
@@ -36,7 +36,7 @@ impl Repository {
         Ok(result)
     }
 
-    pub async fn position_find_by_node_key(&self, node_key: u32) -> Result<Vec<Position>, RepositoryError> {
+    pub async fn position_find_by_node_key(&self, node_key: u32, limit: u32) -> Result<Vec<Position>, RepositoryError> {
         let result: Vec<Position> = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
@@ -44,12 +44,14 @@ impl Repository {
                     r#"
                     SELECT *
                     FROM {}
-                    WHERE node_key = :node_key;
+                    WHERE node_key = :node_key
+                    ORDER BY datetime DESC, id DESC
+                    LIMIT :limit;
                     "#,
                     TABLE_NAME
                 ))?;
 
-                let result: Result<_, _> = from_rows::<Position>(statement.query(params![node_key])?).collect();
+                let result: Result<_, _> = from_rows::<Position>(statement.query(params![node_key, limit])?).collect();
 
                 result.map_err(Into::into)
             })
