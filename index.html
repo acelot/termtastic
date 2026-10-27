@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>termtastic — Meshtastic® console client</title>
+  <meta name="description"
+    content="termtastic is a feature-rich handmade Meshtastic® console client written in Rust. Single binary, keyboard-centric, works over TCP, BLE and Serial.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1f20" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="termtastic">
+  <meta property="og:description" content="Feature-rich handmade Meshtastic® console client written in Rust.">
+  <meta property="og:image" content="assets/logo.png">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    try { var t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) { }
+  </script>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="glow" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="topbar">
+    <div class="wrap">
+      <a class="brand" href="#top">termtastic</a>
+      <nav class="nav" aria-label="Main">
+        <a class="opt" href="#demo">demo</a>
+        <a class="opt" href="#highlights">highlights</a>
+        <a href="#download">download</a>
+        <a href="https://github.com/acelot/termtastic">github</a>
+        <button class="theme-toggle" type="button" aria-label="Theme: auto" title="Theme: auto">
+          <svg class="i-auto" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4h16v16H4z" />
+            <path d="M12 4v16" />
+            <path d="M12 4h8v16h-8z" fill="currentColor" />
+          </svg>
+          <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 8h8v8H8z" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
+          </svg>
+          <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
+          </svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap">
+        <h1><img class="hero-logo" src="assets/logo.png" width="466" height="81" alt="termtastic"></h1>
+        <p class="lead">
+          <b>termtastic</b> is a feature-rich handmade
+          <a href="https://meshtastic.org">Meshtastic®</a> console client written in Rust.
+          Chat, nodes, telemetry, traceroutes and full device configuration — right in your terminal.
+        </p>
+        <ul class="tags" aria-label="Project facts">
+          <li>vibecode-free</li>
+          <li>rust</li>
+          <li>console</li>
+          <li>tui</li>
+          <li>tcp · ble · serial</li>
+          <li>linux · macos · windows</li>
+          <li>gpl-3.0</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="demo">
+      <div class="wrap">
+        <div class="video">
+          <div class="video-titlebar">
+            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="video-title">termtastic</span>
+          </div>
+          <video width="1612" height="1072" controls autoplay muted loop playsinline preload="metadata">
+            <source src="https://media.termtastic.app/demo2.mp4" type="video/mp4">
+            <source src="https://media.termtastic.app/demo2.webm" type="video/webm">
+            <a href="https://media.termtastic.app/demo2.mp4">Watch the demo video</a>
+          </video>
+        </div>
+      </div>
+    </section>
+
+    <section id="highlights">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>highlights</h2>
+        </div>
+        <ul class="cards">
+          <li class="card glass c-pink">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M15 4l5 5L9 20H4v-5z" />
+              <path d="M12.5 6.5l5 5" />
+            </svg>
+            <h3>Vibecode-free</h3>
+            <p>Fully handwritten code. Every line was typed by a human.</p>
+          </li>
+          <li class="card glass c-blue">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+              <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+            </svg>
+            <h3>Single binary</h3>
+            <p>Dependency-free application. Download, run, done.</p>
+          </li>
+          <li class="card glass c-cyan">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 7h15M15 4l3 3-3 3" />
+              <path d="M21 17H6M9 14l-3 3 3 3" />
+            </svg>
+            <h3>Fully asynchronous</h3>
+            <p>Built on Tokio channels. The UI never waits for the radio.</p>
+          </li>
+          <li class="card glass c-green">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 4h18v13H3z" />
+              <path d="M8 21h8M12 17v4" />
+              <path d="M6 8l3 2.5L6 13M11 13h4" />
+            </svg>
+            <h3>Small screens</h3>
+            <p>Optimized for tiny terminals, down to 80×24 characters.</p>
+          </li>
+          <li class="card glass c-yellow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />
+            </svg>
+            <h3>Your colors</h3>
+            <p>Respects the terminal palette. No opinionated TrueColor schemes.</p>
+          </li>
+          <li class="card glass c-magenta">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 6h20v12H2z" />
+              <path d="M6 10h1M10 10h1M14 10h1M18 10h1M7 14h10" />
+            </svg>
+            <h3>Keyboard-centric</h3>
+            <p>Navigate every screen without touching the mouse.</p>
+          </li>
+          <li class="card glass c-red">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 3h18v18H3z" />
+              <path d="M8 17l4-10 4 10M9.6 13h4.8" />
+            </svg>
+            <h3>Plain ASCII UI</h3>
+            <p>Minimum use of emoji and non-ASCII characters in the interface.</p>
+          </li>
+          <li class="card glass c-cyan">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 7h10v10H7z" />
+              <path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4" />
+            </svg>
+            <h3>Small footprint</h3>
+            <p>Tiny memory usage, around 20&nbsp;KB.</p>
+          </li>
+          <li class="card glass c-blue">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 5h6v6H3zM15 5h6v6h-6zM9 15h6v6H9z" />
+              <path d="M9 8h6M6 11v3h6v1M18 11v3h-6" />
+            </svg>
+            <h3>Multiple protocols</h3>
+            <p>Connect to your node over TCP, BLE or Serial.</p>
+          </li>
+          <li class="card glass c-green">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M11 11h2v2h-2z" />
+              <path d="M8 16a5.5 5.5 0 0 1 0-8M16 8a5.5 5.5 0 0 1 0 8M5 19a10 10 0 0 1 0-14M19 5a10 10 0 0 1 0 14" />
+            </svg>
+            <h3>Auto discovery</h3>
+            <p>Finds paired BLE devices, TCP devices via mDNS and Serial ports.</p>
+          </li>
+          <li class="card glass c-yellow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 5h7l2 2h9v12H3z" />
+              <path d="M3 10h18" />
+            </svg>
+            <h3>System directories</h3>
+            <p>Config, database and logs live where your OS expects them.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="download">
+      <div class="wrap">
+        <div class="download glass">
+          <h2>Get termtastic</h2>
+          <p>Prebuilt binaries for Linux, macOS and Windows.</p>
+          <a class="btn" href="https://github.com/acelot/termtastic/releases">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
+            </svg>
+            Download
+          </a>
+          <p class="hint">macOS: <code>xattr -d com.apple.quarantine ./termtastic</code> before the first run</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <p><span class="label">author</span> <a href="https://github.com/acelot">acelot</a></p>
+        <p><span class="label">license</span> <a
+            href="https://github.com/acelot/termtastic/blob/master/LICENSE">GPL-3.0</a></p>
+        <p><span class="label">source</span> <a
+            href="https://github.com/acelot/termtastic">github.com/acelot/termtastic</a></p>
+      </div>
+      <a class="mpowered" href="https://meshtastic.org" title="Meshtastic">
+        <img src="assets/logo-mpowered.png" width="144" height="28" alt="M-Powered by Meshtastic">
+      </a>
+      <p class="legal">
+        Meshtastic® is a registered trademark of Meshtastic LLC. termtastic is an independent project and is not
+        affiliated with Meshtastic LLC.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Theme toggle: auto (system) -> light -> dark -> auto.
+    (function () {
+      var root = document.documentElement;
+      var btn = document.querySelector('.theme-toggle');
+      var metas = document.querySelectorAll('meta[name="theme-color"]');
+      var colors = { light: '#fafafa', dark: '#1c1f20' };
+      var order = ['auto', 'light', 'dark'];
+
+      function apply(theme) {
+        if (theme === 'auto') root.removeAttribute('data-theme');
+        else root.setAttribute('data-theme', theme);
+        metas.forEach(function (m) {
+          m.content = theme === 'auto' ? colors[m.media.indexOf('dark') >= 0 ? 'dark' : 'light'] : colors[theme];
+        });
+        btn.title = 'Theme: ' + theme;
+        btn.setAttribute('aria-label', 'Theme: ' + theme);
+      }
+
+      apply(root.getAttribute('data-theme') || 'auto');
+      btn.addEventListener('click', function () {
+        var next = order[(order.indexOf(root.getAttribute('data-theme') || 'auto') + 1) % order.length];
+        apply(next);
+        try { next === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', next); } catch (e) { }
+      });
+    })();
+  </script>
+</body>
+
+</html>
