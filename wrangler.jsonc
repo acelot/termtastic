@@ -9,5 +9,8 @@
       "pattern": "termtastic.app",
       "custom_domain": true
     }
-  ]
+  ],
+  "observability": {
+    "enabled": false
+  }
 }
