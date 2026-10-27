@@ -1,0 +1,13 @@
+{
+  "name": "termtastic-website",
+  "compatibility_date": "2026-10-27",
+  "assets": {
+    "directory": "./assets"
+  },
+  "routes": [
+    {
+      "pattern": "termtastic.app",
+      "custom_domain": true
+    }
+  ]
+}
