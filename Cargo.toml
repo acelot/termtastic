@@ -9,7 +9,7 @@ publish = false
 license-file = "LICENSE"
 repository = "https://github.com/acelot/termtastic"
 readme = "README.md"
-keywords = ["cli", "tui", "meshtastic"]
+keywords = ["console", "cli", "tui", "client", "meshtastic", "lora"]
 build = "build.rs"
 
 [[bin]]
