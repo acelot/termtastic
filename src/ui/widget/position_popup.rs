@@ -61,7 +61,7 @@ impl<'a> PositionPopupWidget<'a> {
             ),
             ("latitude", Span::from(format!("{:.5}", lat))),
             ("longitude", Span::from(format!("{:.5}", lon))),
-            ("latitude", optional(p.altitude)),
+            ("altitude", optional(p.altitude)),
             ("location source", Span::from(p.location_source().as_str_name())),
             ("altitude source", Span::from(p.altitude_source().as_str_name())),
             ("timestamp", Span::from(p.timestamp.to_string())),
