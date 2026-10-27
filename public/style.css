@@ -11,6 +11,7 @@
   --grid: rgba(56, 58, 66, 0.05);
   --glass: rgba(250, 250, 250, 0.62);
   --glass-strong: rgba(250, 250, 250, 0.82);
+  --meshtastic: #1a8a50;
 
   --red: #e45649;
   --green: #50a14f;
@@ -40,6 +41,7 @@
     --grid: rgba(211, 215, 207, 0.045);
     --glass: rgba(46, 52, 54, 0.5);
     --glass-strong: rgba(28, 31, 32, 0.78);
+    --meshtastic: #67ea94;
 
     --red: #ef2929;
     --green: #8ae234;
@@ -218,8 +220,8 @@ code {
 }
 
 .brand::before {
-  content: "> ";
-  color: var(--faint);
+  content: "❱ ";
+  color: var(--pink);
   font-weight: 400;
 }
 
@@ -322,6 +324,10 @@ code {
   font-weight: 700;
 }
 
+.meshtastic-link {
+  color: var(--meshtastic);
+}
+
 .tags {
   display: flex;
   flex-wrap: wrap;
@@ -411,9 +417,17 @@ section {
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
 }
 
-.video-titlebar .lights i:nth-child(1) { background: #ff5f57; }
-.video-titlebar .lights i:nth-child(2) { background: #febc2e; }
-.video-titlebar .lights i:nth-child(3) { background: #28c840; }
+.video-titlebar .lights i:nth-child(1) {
+  background: #ff5f57;
+}
+
+.video-titlebar .lights i:nth-child(2) {
+  background: #febc2e;
+}
+
+.video-titlebar .lights i:nth-child(3) {
+  background: #28c840;
+}
 
 .video video {
   display: block;
