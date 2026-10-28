@@ -2,11 +2,11 @@ name: Termtastic Pipeline
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
     tags:
       - "v*"
   pull_request:
-    branches: [ master ]
+    branches: [master]
   workflow_dispatch:
 
 env:
@@ -151,3 +151,79 @@ jobs:
           prerelease: false
           files: |
             artifacts/**/*
+
+  update-homebrew:
+    name: Update Homebrew tap
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Checkout tap
+        uses: actions/checkout@v6
+        with:
+          repository: acelot/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+
+      - name: Generate formula
+        shell: bash
+        run: |
+          VERSION="${GIT_REF_NAME#v}"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${GIT_REF_NAME}"
+          sha() { sha256sum "artifacts/termtastic-$1.tar.gz/termtastic-$1.tar.gz" | cut -d' ' -f1; }
+
+          mkdir -p tap/Formula
+          cat > tap/Formula/termtastic.rb <<EOF
+          class Termtastic < Formula
+            desc "Feature-rich Meshtastic console client"
+            homepage "https://github.com/acelot/termtastic"
+            version "${VERSION}"
+            license "GPL-3.0-only"
+
+            on_macos do
+              on_arm do
+                url "${BASE_URL}/termtastic-aarch64-apple-darwin.tar.gz"
+                sha256 "$(sha aarch64-apple-darwin)"
+              end
+              on_intel do
+                url "${BASE_URL}/termtastic-x86_64-apple-darwin.tar.gz"
+                sha256 "$(sha x86_64-apple-darwin)"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "${BASE_URL}/termtastic-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "$(sha aarch64-unknown-linux-gnu)"
+              end
+              on_intel do
+                url "${BASE_URL}/termtastic-x86_64-unknown-linux-musl.tar.gz"
+                sha256 "$(sha x86_64-unknown-linux-musl)"
+              end
+            end
+
+            def install
+              bin.install "termtastic"
+            end
+
+            test do
+              assert_predicate bin/"termtastic", :executable?
+            end
+          end
+          EOF
+          sed -i 's/^          //' tap/Formula/termtastic.rb
+          cat tap/Formula/termtastic.rb
+
+      - name: Commit and push
+        working-directory: tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/termtastic.rb
+          git commit -m "termtastic ${GIT_REF_NAME}" || exit 0
+          git push
