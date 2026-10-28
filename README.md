@@ -243,13 +243,15 @@
 
 ## Download
 
-| Source             | Link                                                      |
-|:-------------------|:----------------------------------------------------------|
-| Manual download    | [Releases](https://github.com/acelot/termtastic/releases) |
-| Debian PPA         | 🏗️ TBA                                                   |
-| Arch Linux AUR     | 🏗️ TBA                                                   |
-| macOS Brew         | 🏗️ TBA                                                   |
-| Windows Chocolatey | 🏗️ TBA                                                   |
+| Source             | Link                                                                | Notes                                               |
+|:-------------------|:--------------------------------------------------------------------|:----------------------------------------------------|
+| Manual download    | [Releases](https://github.com/acelot/termtastic/releases)           |                                                     |
+| Debian PPA         | TBA                                                                 |                                                     |
+| Arch Linux AUR     | [termtastic](https://aur.archlinux.org/packages/termtastic)         | Maintained by [Ateles](https://github.com/4goettma) |
+|                    | [termtastic-bin](https://aur.archlinux.org/packages/termtastic-bin) | Maintained by [Ateles](https://github.com/4goettma) |
+|                    | [termtastic-git](https://aur.archlinux.org/packages/termtastic-git) | Maintained by [Ateles](https://github.com/4goettma) |
+| macOS Brew         | TBA                                                                 |                                                     |
+| Windows Chocolatey | TBA                                                                 |                                                     |
 
 ## FAQ
 
