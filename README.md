@@ -209,3 +209,7 @@ The same named option exists in other terminals too. Check your terminal docs.
 
 Unfortunately, Windows Terminal cannot display some compound emoji such as 1️⃣, 2️⃣, 3️⃣, etc.
 There is an issue in Github: <https://github.com/microsoft/terminal/issues/9708>
+
+<hr/>
+
+<sub>Meshtastic® is a registered trademark of Meshtastic LLC. termtastic is an independent project and is not affiliated with Meshtastic LLC.</sub>
