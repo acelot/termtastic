@@ -24,7 +24,7 @@
   </a>
 </p>
 
-<hr/>
+## Screenshots
 
 <table>
   <tr>
@@ -70,11 +70,11 @@
 - Vibecode-free fully handwritten code
 - Dependency-free single-binary application
 - Fully asynchronous (Tokio channels-based)
-- Optimized for small screens (down to 70x20 characters)
+- Optimized for small screens (down to `70x20` characters)
 - Respects the user terminal colors (no fancy opinionated TrueColor schemes)
 - Keyboard-centric UI navigation
 - Minimum use of emoji/non-ascii characters in UI
-- Small memory footprint (~20KB)
+- Small memory footprint (`~20KB`)
 - Supports multiple connection protocols (TCP, BLE, Serial)
 - Could discover devices automatically: BLE paired devices, TCP devices via mDNS, Serial devices
 - Uses standard system directories for storing configuration, database and logs
@@ -152,8 +152,8 @@
       <td></td>
     </tr>
     <tr>
-      <td>Debian PPA</td>
-      <td>TBA</td>
+      <td>Debian APT</td>
+      <td><em>TBA</em></td>
       <td></td>
     </tr>
     <tr>
@@ -171,8 +171,8 @@
       <td>Updated automatically on release</td>
     </tr>
     <tr>
-      <td>Windows Chocolatey</td>
-      <td>TBA</td>
+      <td>Windows WinGet</td>
+      <td><em>TBA</em></td>
       <td></td>
     </tr>
   </tbody>
