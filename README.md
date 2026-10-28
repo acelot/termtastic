@@ -1,5 +1,5 @@
 <!-- markdownlint-disable MD033 -->
-<p align="center"><img src="./logo.png" width="466" alt="termtastic"></p>
+<h1 align="center"><img src="./logo.png" width="466" alt="termtastic"></h1>
 
 <p align="center">
   <b>termtastic</b> is a feature-rich handmade <a href="https://meshtastic.org">Meshtastic®</a> console client written in Rust.
@@ -23,6 +23,8 @@
     </kbd>
   </a>
 </p>
+
+<hr/>
 
 <table>
   <tr>
@@ -79,142 +81,28 @@
 
 ## Features
 
-<details>
-<summary>Click here to expand</summary>
+- Chat list (channels and direct)
+- Multiline messages support
+- Reply to message
+- Reactions using emoji
+- Nodes list with filtering and sorting
+- Node info popup with detailed information
+- Traceroute
+- Position
+- Telemetry
+- Settings (all available sections including Module configs)
+- Connection manager with auto-discovery (TCP, BLE, Serial)
+- Logs screen
+- Indicators (battery, DB, traceroute, RX, online nodes)
 
-> [!NOTE]  
-> Unchecked items are not implemented yet.
+## Not implemented features
 
-### Chat tab
-
-#### Channels
-
-- [x] Scrollable channels list (Primary, Secondary)
-- [x] Direct conversations
-- [x] Display the last message for each channel
-- [x] Purge channel chat feature
-
-#### Messenger
-
-- [x] Storing messages in local DB
-- [x] Scrollable chat screen
-- [x] Display the short and long names of node
-- [x] Display the SNR/RSSI for direct nodes
-- [x] Display the number of hops for retranslated messages
-- [x] Display the time of messages
-- [x] Display the reactions (emojis)
-- [x] Display the routing info for the retranslated messages and reactions
-- [x] Ability to see detailed info about reactions
-- [x] Ability to see node info of the selected message author
-- [x] Ability to send broadcast messages to the channels
-- [x] Ability to send direct messages to the nodes
-- [x] Ability to reply to the messages
-- [x] Ability to send the reactions (emojis)
-- [x] Limiting the message length to 200 chars (with counter)
-
-### Nodes tab
-
-#### Nodes list
-
-- [x] Storing nodes in local DB
-- [x] Scrollable nodes list
-- [x] Ability to start direct conversation with the selected node
-- [x] Display the short and long names of node
-- [x] Display the SNR/RSSI for direct nodes
-- [x] Display the number of hops for the routed nodes
-- [x] Display the ID of the nodes
-- [x] Display the humanized last heard time of the nodes
-- [x] Sort nodes by different fields: last heard, hop count, distance, etc.
-- [x] Nodes fuzzy search
-- [x] Nodes filtering by special tokens
-- [x] Ability to see node info of the selected node
-
-#### Single node expanded view
-
-- [x] Display node detailed info
-- [x] Ability to copy public key to clipboard
-- [x] Ability to delete node feature
-- [x] Telemetry info
-- [x] Traceroute feature
-- [x] Extended traceroute info popup
-- [x] Ability to copy traceroute result
-- [x] Storing traceroutes in the local DB
-- [x] Position info
 - [ ] Ignore node feature
 - [ ] Add node to favorite feature
-
-### Settings tab
-
-#### General
-
-- [x] Loading device configuration (generic feature)
-- [x] Saving device configuration (generic feature)
-- [x] Storing telemetry in the local DB
-- [x] Loading last telemetry data for each node from the local DB on app start
 - [ ] Import configuration from the link
-
-#### App
-
-- [x] UI
-
-#### Radio
-
-- [x] LoRa
-- [x] Channels
-- [x] Security
-
-#### Device
-
-- [x] User
-- [x] Device
-- [x] Position
-- [x] Power
-- [x] Display
-- [x] Bluetooth
-- [x] Network
-
-#### Module
-
-- [x] MQTT
-- [x] Serial
-- [x] External Notification
-- [x] Store & Forward
-- [x] Range Test
-- [x] Telemetry
-- [x] Canned Message
-- [x] Neighbor Info
-- [x] Ambient Lighting
-- [x] Detection Sensor
-
-### Connection tab
-
-- [x] Scrollable devices list (TCP, BLE, Serial)
-- [x] Connection via TCP
-- [x] Connection via BLE
-- [x] Connection via Serial
-- [x] Device configuration loading during the connection process and storing it into state
-- [x] Storing TCP connections into a config file
-- [x] Discovering of BLE and Serial devices feature
-- [x] Discovering TCP devices through mDNS
-- [x] Reconnection feature with exponential backoff timeouts
-- [x] Ability to set a name for the device
-
-### Logs tab
-
-- [x] Writing logs into files using a daily rolling strategy
-- [x] Mirroring logs into the log list with scroll
-- [x] Ability to expand the single log record (useful for long logs)
-- [x] Ability to copy log record into clipboard
-
-### General features
-
-- [x] Battery indicator
-- [x] DB write indicator
-- [x] Traceroute indicator
-- [x] RX indicator
-- [x] Online/Total nodes counter
-
-</details>
+- [ ] Set fixed GPS position
+- [ ] Set time from host
+- [ ] Messages lazy-loading
 
 ## Stack
 
