@@ -14,10 +14,12 @@
 
 <p align="center">
   <a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/termtastic/" target="_blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.svg">
-      <img alt="Terminal Trove Tool of The Week" height="64" src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_black_on_white_bg.svg">
-    </picture>
+    <kbd>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.svg">
+        <img alt="Terminal Trove Tool of The Week" height="64" src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_black_on_white_bg.svg">
+      </picture>
+    </kbd>
   </a>
 </p>
 
