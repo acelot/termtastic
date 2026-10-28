@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 -->
 <p align="center"><img src="./logo.png" width="466" alt="termtastic"></p>
 
 <p align="center">
@@ -77,6 +78,9 @@
 - Uses standard system directories for storing configuration, database and logs
 
 ## Features
+
+<details>
+<summary>Click here to expand</summary>
 
 > [!NOTE]  
 > Unchecked items are not implemented yet.
@@ -210,6 +214,8 @@
 - [x] RX indicator
 - [x] Online/Total nodes counter
 
+</details>
+
 ## Stack
 
 | Feature                     | Library                                                                                                              |
@@ -220,14 +226,14 @@
 | TUI: Lists                  | [tui-widget-list](https://github.com/preiter93/tui-widget-list)                                                      |
 | Interaction with Meshtastic | [meshtastic](https://github.com/meshtastic/rust)                                                                     |
 | Clipboard functionality     | [arboard](https://github.com/1Password/arboard)                                                                      |
-| Bluetooth devices discovery | [btleplug](https://github.com/deviceplug/btleplug)                                                                        |
+| Bluetooth devices discovery | [btleplug](https://github.com/deviceplug/btleplug)                                                                   |
 | TCP devices discovery       | [mdns-sd](https://github.com/keepsimple1/mdns-sd)                                                                    |
 | Logging                     | [tracing](https://github.com/tokio-rs/tracing)                                                                       |
 | Async/Channels              | [tokio](https://github.com/tokio-rs/tokio)                                                                           |
 | Configuration               | [confy](https://github.com/rust-cli/confy), [etcetera](https://github.com/lunacookies/etcetera)                      |
 | Errors                      | [anyhow](https://github.com/dtolnay/anyhow), [thiserror](https://github.com/dtolnay/thiserror)                       |
 | Datetime                    | [chrono](https://github.com/chronotope/chrono)                                                                       |
-| Emoji selector              | [emojis](https://github.com/rossmacarthur/emojis)                                                                         |
+| Emoji selector              | [emojis](https://github.com/rossmacarthur/emojis)                                                                    |
 | Local DB                    | [rusqlite](https://github.com/rusqlite/rusqlite), [rusqlite_migration](https://github.com/cljoly/rusqlite_migration) |
 
 ## Compatibility
@@ -236,22 +242,53 @@
 
 | Feature                      |  Linux   |  macOS   |  Windows   |
 |:-----------------------------|:--------:|:--------:|:----------:|
-| BLE devices discovery        |    ✅     |    ✅     |     ✅      |
-| Serial devices discovery     |    ✅     |    ✅     |     ✅      |
-| TCP devices discovery (mDNS) |    ✅     |    ✅     |     ✅      |
-| Copy to clipboard            |    ✅     |    ✅     |     ✅      |
+| BLE devices discovery        |    ✅    |    ✅    |     ✅     |
+| Serial devices discovery     |    ✅    |    ✅    |     ✅     |
+| TCP devices discovery (mDNS) |    ✅    |    ✅    |     ✅     |
+| Copy to clipboard            |    ✅    |    ✅    |     ✅     |
 
 ## Download
 
-| Source             | Link                                                                | Notes                                               |
-|:-------------------|:--------------------------------------------------------------------|:----------------------------------------------------|
-| Manual download    | [Releases](https://github.com/acelot/termtastic/releases)           |                                                     |
-| Debian PPA         | TBA                                                                 |                                                     |
-| Arch Linux AUR     | [termtastic](https://aur.archlinux.org/packages/termtastic)         | Maintained by [Ateles](https://github.com/4goettma) |
-|                    | [termtastic-bin](https://aur.archlinux.org/packages/termtastic-bin) | Maintained by [Ateles](https://github.com/4goettma) |
-|                    | [termtastic-git](https://aur.archlinux.org/packages/termtastic-git) | Maintained by [Ateles](https://github.com/4goettma) |
-| macOS Brew         | `brew install acelot/tap/termtastic`                                | Updated automatically on release                    |
-| Windows Chocolatey | TBA                                                                 |                                                     |
+<table>
+  <thead>
+    <tr>
+      <th align="left">Source</th>
+      <th align="left">Link</th>
+      <th align="left">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Manual download</td>
+      <td><a href="https://github.com/acelot/termtastic/releases">Releases</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Debian PPA</td>
+      <td>TBA</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Arch Linux AUR</td>
+      <td>
+        <a href="https://aur.archlinux.org/packages/termtastic">termtastic</a>,
+        <a href="https://aur.archlinux.org/packages/termtastic-bin">termtastic-bin</a>,
+        <a href="https://aur.archlinux.org/packages/termtastic-git">termtastic-git</a>
+      </td>
+      <td>Maintained by <a href="https://github.com/4goettma">Ateles</a></td>
+    </tr>
+    <tr>
+      <td>macOS Brew</td>
+      <td><pre lang="sh">brew install acelot/tap/termtastic</pre></td>
+      <td>Updated automatically on release</td>
+    </tr>
+    <tr>
+      <td>Windows Chocolatey</td>
+      <td>TBA</td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
 
 ## FAQ
 
