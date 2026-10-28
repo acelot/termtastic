@@ -12,6 +12,15 @@
   <a href="./LICENSE"><img src="https://img.shields.io/github/license/acelot/termtastic.svg?style=flat&v=2" height="20" alt="GPL-3.0"/></a>
 </p>
 
+<p align="center">
+  <a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/termtastic/" target="_blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.svg">
+      <img alt="Terminal Trove Tool of The Week" height="64" src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/svg/terminal_trove_tool_of_the_week_black_on_white_bg.svg">
+    </picture>
+  </a>
+</p>
+
 <table>
   <tr>
     <td><img width="888" height="713" alt="channels" src="https://github.com/user-attachments/assets/390f3269-a337-4ce6-b121-3bf582254532" /></td>
