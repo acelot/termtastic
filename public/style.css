@@ -437,6 +437,55 @@ section {
   background: #000;
 }
 
+/* Awards */
+.awards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.awards a {
+  display: block;
+  border: 1px solid var(--line);
+  transition: border-color 0.15s;
+}
+
+.awards a:hover {
+  border-color: var(--accent);
+}
+
+.awards img {
+  width: auto;
+  height: 64px;
+}
+
+/* Badge variant follows the active theme, including the manual toggle */
+.badge-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .badge-light {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .badge-dark {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .badge-light {
+  display: none;
+}
+
+:root[data-theme="dark"] .badge-dark {
+  display: block;
+}
+
 /* Highlights */
 .cards {
   display: grid;
