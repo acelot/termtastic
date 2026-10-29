@@ -61,48 +61,48 @@
   </tr>
 </table>
 
-| :warning: WARNING                                                                       |
-|:----------------------------------------------------------------------------------------|
-| Project is under active development, things could be changed completely without notice. |
+| :warning: WARNING                                                                     |
+|:--------------------------------------------------------------------------------------|
+| The project is under active development; things may change completely without notice. |
 
 ## Tech highlights
 
-- Vibecode-free fully handwritten code
+- Fully handwritten code, no vibe-coding
 - Dependency-free single-binary application
-- Fully asynchronous (Tokio channels-based)
-- Optimized for small screens (down to `70x20` characters)
-- Respects the user terminal colors (no fancy opinionated TrueColor schemes)
+- Fully asynchronous (Tokio channel-based)
+- Optimized for small screens (down to `70x20`)
+- Respects the user's terminal color scheme (no opinionated TrueColor colors)
 - Keyboard-centric UI navigation
-- Minimum use of emoji/non-ascii characters in UI
+- Minimal use of emoji and non-ASCII characters in the UI
 - Small memory footprint (`~20KB`)
-- Supports multiple connection protocols (TCP, BLE, Serial)
-- Could discover devices automatically: BLE paired devices, TCP devices via mDNS, Serial devices
-- Uses standard system directories for storing configuration, database and logs
+- Supports multiple connection protocols (TCP, BLE, serial)
+- Can discover devices automatically: paired BLE devices, TCP devices via mDNS, serial devices
+- Uses standard system directories for configuration, database and logs
 
 ## Features
 
-- Chat list (channels and direct)
-- Multiline messages support
-- Reply to message
-- Reactions using emoji
-- Nodes list with filtering and sorting
+- Chat list (channels and direct messages)
+- Multiline message support
+- Reply to messages
+- Reactions with emoji
+- Node list with filtering and sorting
 - Node info popup with detailed information
 - Traceroute
 - Position
 - Telemetry
-- Settings (all available sections including Module configs)
-- Connection manager with auto-discovery (TCP, BLE, Serial)
+- Settings (all available sections, including module configs)
+- Connection manager with auto-discovery (TCP, BLE, serial)
 - Logs screen
 - Indicators (battery, DB, traceroute, RX, online nodes)
 
 ## Not implemented features
 
 - [ ] Ignore node feature
-- [ ] Add node to favorite feature
-- [ ] Import configuration from the link
+- [ ] Add node to favorites
+- [ ] Import configuration from a link
 - [ ] Set fixed GPS position
 - [ ] Set time from host
-- [ ] Messages lazy-loading
+- [ ] Lazy loading of messages
 
 ## Stack
 
