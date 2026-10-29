@@ -158,12 +158,8 @@
     </tr>
     <tr>
       <td>Arch Linux AUR</td>
-      <td>
-        <a href="https://aur.archlinux.org/packages/termtastic">termtastic</a>,
-        <a href="https://aur.archlinux.org/packages/termtastic-bin">termtastic-bin</a>,
-        <a href="https://aur.archlinux.org/packages/termtastic-git">termtastic-git</a>
-      </td>
-      <td>Maintained by <a href="https://github.com/4goettma">Ateles</a></td>
+      <td><a href="https://aur.archlinux.org/packages?K=termtastic">termtastic · termtastic-bin · termtastic-git</a></td>
+      <td>Maintained by <a href="https://aur.archlinux.org/account/Ateles">Ateles</a></td>
     </tr>
     <tr>
       <td>macOS Brew</td>
