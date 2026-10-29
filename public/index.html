@@ -219,14 +219,60 @@
       <div class="wrap">
         <div class="download glass">
           <h2>Get termtastic</h2>
-          <p>Prebuilt binaries for Linux, macOS and Windows.</p>
-          <a class="btn" href="https://github.com/acelot/termtastic/releases">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
-            </svg>
-            Download
-          </a>
-          <p class="hint">macOS: <code>xattr -d com.apple.quarantine ./termtastic</code> before the first run</p>
+          <p>Prebuilt binaries for Linux, macOS and Windows, or use your favourite package manager.</p>
+
+          <div class="install-list">
+            <div class="install-row">
+              <span class="install-label">Manual download</span>
+              <span class="install-action">
+                <a class="btn btn-sm" href="https://github.com/acelot/termtastic/releases">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3v12M7 10l5 5 5-5M4 20h16" />
+                  </svg>
+                  Releases
+                </a>
+
+                <span class="install-note">macOS: xattr -d com.apple.quarantine ./termtastic</span>
+              </span>
+            </div>
+
+            <div class="install-row">
+              <span class="install-label">macOS Brew</span>
+              <span class="install-action">
+                <span class="copy-group">
+                  <code>brew install acelot/tap/termtastic</code>
+                  <button class="copy-btn" type="button" data-copy="brew install acelot/tap/termtastic"
+                    aria-label="Copy command">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="9" y="9" width="10" height="10" />
+                      <path d="M6 15H5V6a1 1 0 0 1 1-1h9" />
+                    </svg>
+                  </button>
+                </span>
+                <span class="install-note">updated automatically on release</span>
+              </span>
+            </div>
+
+            <div class="install-row">
+              <span class="install-label">Arch Linux AUR</span>
+              <span class="install-action">
+                <a href="https://aur.archlinux.org/packages?K=termtastic">
+                  <code>termtastic · termtastic-bin · termtastic-git</code>
+                </a>
+                <span class="install-note">maintained by Ateles</span>
+              </span>
+            </div>
+
+            <div class="install-row is-soon">
+              <span class="install-label">Debian APT</span>
+              <span class="install-action"><span class="soon">coming soon</span></span>
+            </div>
+
+            <div class="install-row is-soon">
+              <span class="install-label">Windows WinGet</span>
+              <span class="install-action"><span class="soon">coming soon</span></span>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -275,6 +321,41 @@
         var next = order[(order.indexOf(root.getAttribute('data-theme') || 'auto') + 1) % order.length];
         apply(next);
         try { next === 'auto' ? localStorage.removeItem('theme') : localStorage.setItem('theme', next); } catch (e) { }
+      });
+    })();
+  </script>
+  <script>
+    // Copy buttons in the download section.
+    (function () {
+      document.querySelectorAll('.copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var text = btn.getAttribute('data-copy');
+
+          function done() {
+            btn.classList.add('copied');
+            btn.setAttribute('aria-label', 'Copied');
+            setTimeout(function () {
+              btn.classList.remove('copied');
+              btn.setAttribute('aria-label', 'Copy command');
+            }, 1500);
+          }
+
+          function fallback() {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (e) { }
+            document.body.removeChild(ta);
+            done();
+          }
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(fallback);
+          } else {
+            fallback();
+          }
+        });
       });
     })();
   </script>

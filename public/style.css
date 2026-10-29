@@ -605,6 +605,127 @@ section {
   stroke-linejoin: miter;
 }
 
+.btn-sm {
+  padding: 10px 20px;
+  font-size: 13px;
+}
+
+.install-list {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--glass-strong);
+}
+
+.install-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
+}
+
+.install-row+.install-row {
+  border-top: 1px solid var(--line);
+}
+
+.install-label {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.install-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  min-width: 0;
+  text-align: right;
+}
+
+.install-action code {
+  font-size: 13px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.copy-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.copy-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.copy-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.copy-btn.copied {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.install-note {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.soon {
+  padding: 3px 10px;
+  border: 1px dashed var(--line);
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.is-soon .install-label {
+  color: var(--faint);
+}
+
+@media (max-width: 560px) {
+  .install-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .install-action {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .install-action code {
+    white-space: normal;
+    word-break: break-all;
+  }
+}
+
 .download .hint {
   margin: 24px 0 0;
   font-size: 12px;
