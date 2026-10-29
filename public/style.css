@@ -8,7 +8,6 @@
   --muted: #696c77;
   --faint: #a0a1a7;
   --line: rgba(56, 58, 66, 0.16);
-  --grid: rgba(56, 58, 66, 0.05);
   --glass: rgba(250, 250, 250, 0.62);
   --glass-strong: rgba(250, 250, 250, 0.82);
   --meshtastic: #1a8a50;
@@ -38,7 +37,6 @@
     --muted: #a6aba3;
     --faint: #555753;
     --line: rgba(211, 215, 207, 0.16);
-    --grid: rgba(211, 215, 207, 0.045);
     --glass: rgba(46, 52, 54, 0.5);
     --glass-strong: rgba(28, 31, 32, 0.78);
     --meshtastic: #67ea94;
@@ -65,7 +63,6 @@
   --muted: #a6aba3;
   --faint: #555753;
   --line: rgba(211, 215, 207, 0.16);
-  --grid: rgba(211, 215, 207, 0.045);
   --glass: rgba(46, 52, 54, 0.5);
   --glass-strong: rgba(28, 31, 32, 0.78);
 
@@ -101,10 +98,6 @@ html {
 body {
   margin: 0;
   background-color: var(--bg);
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 32px 32px;
   color: var(--fg);
   font-family: var(--font);
   font-size: 15px;
