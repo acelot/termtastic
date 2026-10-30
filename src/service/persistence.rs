@@ -14,6 +14,8 @@ use crate::{
     types::{AppEvent, Toast},
 };
 
+const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 100;
+
 pub struct PersistenceService {
     app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
@@ -229,7 +231,7 @@ impl PersistenceService {
                     let db_file = self.data_dir.join(format!("{}_{}.sqlite3", APP_NAME, node_key));
                     tracing::debug!("DB file: {}", db_file.display());
 
-                    let repository = match create_sqlite_repository(db_file, self.db_tx.clone()).await {
+                    let repository = match create_sqlite_repository(db_file, node_key, self.db_tx.clone()).await {
                         Ok(repository) => repository,
                         Err(e) => {
                             tracing::error!("DB initialization failed: {}", e);
@@ -287,7 +289,10 @@ impl PersistenceService {
         let _ = self.state_action_tx.send(StateAction::DbNodesLoad(nodes));
 
         // messages
-        let messages: Vec<Message> = match repository.message_find_all().await {
+        let messages: Vec<Message> = match repository
+            .message_find_recent_for_each_chat(RECENT_MESSAGES_PER_CHAT_LIMIT)
+            .await
+        {
             Ok(messages) => {
                 tracing::info!("messages loaded from DB: {}", messages.len());
 

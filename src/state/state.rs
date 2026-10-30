@@ -15,7 +15,7 @@ pub struct State {
     pub active_tab: Tab,
     pub active_traceroutes: HashSet<u32>,
     pub channels: HashMap<u32, Channel>,
-    pub chats: OrderMap<Chat, Vec<u32>>,
+    pub chats: OrderMap<Chat, VecDeque<u32>>,
     pub connection_attempt: u32,
     pub connection_state: ConnectionState,
     pub db_indicator_t: Instant,

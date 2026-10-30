@@ -3,14 +3,12 @@ use crate::repository::{Repository, RepositoryError};
 use rusqlite::params;
 use serde_rusqlite::{from_rows, to_params_named};
 
-pub const TABLE_NAME: &str = "nodes";
-
 impl Repository {
     pub async fn node_find_all(&self) -> Result<Vec<Node>, RepositoryError> {
         let result: Vec<Node> = self
             .conn
             .call(|conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!("SELECT * FROM {}", TABLE_NAME))?;
+                let mut statement = conn.prepare("SELECT * FROM nodes")?;
                 let result: Result<_, _> = from_rows::<Node>(statement.query([])?).collect();
 
                 result.map_err(Into::into)
@@ -23,9 +21,9 @@ impl Repository {
     pub async fn node_upsert(&self, node: Node) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
+                let mut statement = conn.prepare(
                     r#"
-                    INSERT INTO {} (
+                    INSERT INTO nodes (
                         key,
                         hops,
                         last_heard,
@@ -82,8 +80,7 @@ impl Repository {
                         user_is_unmessagable = excluded.user_is_unmessagable
                     WHERE excluded.last_heard >= last_heard
                     "#,
-                    TABLE_NAME
-                ))?;
+                )?;
 
                 statement
                     .execute(to_params_named(&node)?.to_slice().as_slice())
@@ -97,7 +94,7 @@ impl Repository {
     pub async fn node_remove(&self, key: u32) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!("DELETE FROM {} WHERE key = :key", TABLE_NAME))?;
+                let mut statement = conn.prepare("DELETE FROM nodes WHERE key = :key")?;
                 statement.execute(params![key]).map_err(|e| e.into())
             })
             .await?;

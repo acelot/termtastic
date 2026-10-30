@@ -22,7 +22,7 @@ pub enum StateAction {
     ConnectionLoadConfig,
     ConnectionSuccess,
     ReconnectionBackoffSet(Duration),
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     DbIndicatorTrigger,
     DbNodesLoad(Vec<Node>),
     DbNodesLastTelemetryLoad(Vec<NodeTelemetry>),
@@ -39,7 +39,7 @@ pub enum StateAction {
     DeviceModuleConfigSet(module_config::PayloadVariant),
     DeviceMetadataSet(meshtastic::protobufs::DeviceMetadata),
     DeviceCannedMessagesSet(String),
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     LogRecordAdd(LogRecord),
     DirectChatStart(u32),
     MessageAdd(Message),
@@ -49,9 +49,9 @@ pub enum StateAction {
         datetime: DateTime<Utc>,
     },
     MyNodeKeySet(u32),
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     NodesLoaderIncrement,
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     NodesLoaderTotalSet(u32),
     NodeInit(Node),
     NodeInfoKeySet(u32),
@@ -71,13 +71,13 @@ pub enum StateAction {
     NodesSortBySet(NodesSortBy),
     NodesFilterSet(String),
     NodesOnlineSet(u32),
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     RxIndicatorTrigger,
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     SplashLogo,
     TabSwitchToNext,
     TabSwitchToPrevious,
-    #[strum(props(dont_rebroadcast = true))]
+    #[strum(props(rebroadcast = false))]
     Toast(Toast),
     TracerouteStart {
         message_id: u32,
@@ -126,6 +126,6 @@ pub enum StateAction {
 
 impl StateAction {
     pub fn should_rebroadcast(&self) -> bool {
-        !self.get_bool("dont_rebroadcast").unwrap_or(false)
+        self.get_bool("rebroadcast").unwrap_or(true)
     }
 }

@@ -2,18 +2,12 @@ use crate::repository::domain::traceroute::Traceroute;
 use crate::repository::{Repository, RepositoryError};
 use serde_rusqlite::{from_rows, to_params_named};
 
-pub const TABLE_NAME: &str = "traceroutes";
-
 impl Repository {
     pub async fn traceroute_find_all(&self) -> Result<Vec<Traceroute>, RepositoryError> {
         let result: Vec<Traceroute> = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
-                    "SELECT * FROM {} ORDER BY node_key, datetime DESC",
-                    TABLE_NAME
-                ))?;
-
+                let mut statement = conn.prepare("SELECT * FROM traceroutes ORDER BY node_key, datetime DESC")?;
                 let result: Result<_, _> = from_rows::<Traceroute>(statement.query([])?).collect();
 
                 result.map_err(Into::into)
@@ -27,9 +21,9 @@ impl Repository {
         let result: i64 = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
+                let mut statement = conn.prepare(
                     r#"
-                    INSERT INTO {} (
+                    INSERT INTO traceroutes (
                         message_id,
                         node_key,
                         datetime,
@@ -58,8 +52,7 @@ impl Repository {
                         route_back = excluded.route_back,
                         state = excluded.state
                     "#,
-                    TABLE_NAME
-                ))?;
+                )?;
 
                 statement
                     .insert(to_params_named(&traceroute)?.to_slice().as_slice())

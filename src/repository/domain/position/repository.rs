@@ -4,14 +4,12 @@ use rusqlite::params;
 use serde_rusqlite::{from_rows, to_params_named};
 use std::collections::HashMap;
 
-pub const TABLE_NAME: &str = "positions";
-
 impl Repository {
     pub async fn position_find_last_for_each_node(&self) -> Result<HashMap<u32, Position>, RepositoryError> {
         let result: HashMap<u32, Position> = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
+                let mut statement = conn.prepare(
                     r#"
                     SELECT *
                     FROM (
@@ -19,12 +17,11 @@ impl Repository {
                             PARTITION BY node_key
                             ORDER BY datetime DESC, id DESC
                         ) AS rn
-                        FROM {} p
+                        FROM positions AS p
                     )
                     WHERE rn = 1;
                     "#,
-                    TABLE_NAME
-                ))?;
+                )?;
 
                 from_rows::<Position>(statement.query([])?)
                     .map(|item| item.map(|p| (p.node_key, p)))
@@ -40,16 +37,15 @@ impl Repository {
         let result: Vec<Position> = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
+                let mut statement = conn.prepare(
                     r#"
                     SELECT *
-                    FROM {}
+                    FROM positions
                     WHERE node_key = :node_key
                     ORDER BY datetime DESC, id DESC
                     LIMIT :limit;
                     "#,
-                    TABLE_NAME
-                ))?;
+                )?;
 
                 let result: Result<_, _> = from_rows::<Position>(statement.query(params![node_key, limit])?).collect();
 
@@ -64,9 +60,9 @@ impl Repository {
         let result: i64 = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!(
+                let mut statement = conn.prepare(
                     r#"
-                    INSERT INTO {} (
+                    INSERT INTO positions (
                         node_key,
                         datetime,
                         latitude_i,
@@ -121,8 +117,7 @@ impl Repository {
                         :precision_bits
                     )
                     "#,
-                    TABLE_NAME
-                ))?;
+                )?;
 
                 statement
                     .insert(to_params_named(&position)?.to_slice().as_slice())
@@ -137,7 +132,7 @@ impl Repository {
     pub async fn position_remove_by_node_key(&self, node_key: u32) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare(&format!("DELETE FROM {} WHERE node_key = :node_key", TABLE_NAME))?;
+                let mut statement = conn.prepare("DELETE FROM positions WHERE node_key = :node_key")?;
                 statement.execute(params![node_key]).map_err(Into::into)
             })
             .await?;

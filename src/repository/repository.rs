@@ -1,23 +1,23 @@
 use rusqlite::hooks::Action;
 use rusqlite_migration::{M, Migrations};
-use std::path::PathBuf;
+use std::{iter, path::PathBuf};
 use tokio::sync::mpsc;
 use tokio_rusqlite_new::Connection;
 
-const MIGRATIONS_LIST: &[M<'_>] = &[
-    M::up(include_str!("migrations/0001.sql")),
-    M::up(include_str!("migrations/0002.sql")),
+const MIGRATIONS: &[&str] = &[
+    include_str!("migrations/0001.sql"),
+    include_str!("migrations/0002.sql"),
+    include_str!("migrations/0003.sql"),
 ];
-
-const MIGRATIONS: Migrations<'_> = Migrations::from_slice(MIGRATIONS_LIST);
 
 pub async fn create_sqlite_repository<'a>(
     file_path: PathBuf,
+    node_key: u32,
     db_tx: mpsc::Sender<()>,
 ) -> Result<Repository, anyhow::Error> {
     let conn = Connection::open(file_path).await?;
 
-    conn.call(|conn| {
+    conn.call(move |conn| {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
 
@@ -25,7 +25,17 @@ pub async fn create_sqlite_repository<'a>(
             let _ = db_tx.try_send(());
         }))?;
 
-        MIGRATIONS.to_latest(conn)
+        let third_migration_sql = MIGRATIONS[2].replace(":node_key", &node_key.to_string());
+
+        let migrations = Migrations::from_iter(
+            MIGRATIONS[..2]
+                .iter()
+                .chain(iter::once(&third_migration_sql.as_str()))
+                .chain(MIGRATIONS.get(3..).unwrap_or_default().iter())
+                .map(|sql| M::up(sql)),
+        );
+
+        migrations.to_latest(conn)
     })
     .await?;
 

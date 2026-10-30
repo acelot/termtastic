@@ -1,7 +1,11 @@
 use crossterm::event::KeyModifiers;
 use itertools::Itertools;
 use ordermap::OrderMap;
-use std::{collections::HashMap, iter, ops::RangeInclusive};
+use std::{
+    collections::{HashMap, VecDeque},
+    iter,
+    ops::RangeInclusive,
+};
 use tracing_unwrap::OptionExt;
 use tui_widget_list::ScrollDirection;
 
@@ -10,6 +14,8 @@ use crate::ui::prelude::*;
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
 const REACTIONS_LINE_MAX_WIDTH: usize = 20;
+
+static EMPTY_MESSAGES_VEC_DEQUE: VecDeque<u32> = VecDeque::new();
 
 pub struct Messenger<'a> {
     list_states: HashMap<Chat, ListState>,
@@ -352,7 +358,7 @@ impl<'a> Component for Messenger<'a> {
         let input_widget = self.input_widgets.get_mut(active_chat).unwrap();
         let follow_chat = self.follow_chat.get(active_chat).unwrap();
         let replying_to = self.replying_to.get(active_chat);
-        let message_ids = state.chats.get(active_chat).map(|ids| ids.as_slice()).unwrap_or(&[]);
+        let message_ids = state.chats.get(active_chat).unwrap_or(&EMPTY_MESSAGES_VEC_DEQUE);
 
         if *follow_chat && !message_ids.is_empty() {
             list_state.select(Some(message_ids.len() - 1));

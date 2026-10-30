@@ -1,7 +1,7 @@
 use chrono::Utc;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 use tokio::{
     sync::{broadcast, mpsc, watch},
@@ -567,7 +567,7 @@ impl Store {
                             state.active_chat = None;
                         }
                     } else if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat, Vec::new());
+                        state.chats.insert_sorted(chat, VecDeque::new());
                     }
 
                     state.channels.insert(key, channel);
@@ -686,7 +686,7 @@ impl Store {
                     let chat = Chat::Direct(node_key);
 
                     if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat.clone(), Vec::new());
+                        state.chats.insert_sorted(chat.clone(), VecDeque::new());
                     }
 
                     state.nodeinfo_key = None;
@@ -1168,9 +1168,9 @@ fn add_message(message: Message, state: &mut State) {
     let chat = Chat::from((&message, my_node_key));
 
     if let Some(chat_messages) = state.chats.get_mut(&chat) {
-        chat_messages.push(message.id);
+        chat_messages.push_back(message.id);
     } else {
-        state.chats.insert_sorted(chat, vec![message.id]);
+        state.chats.insert_sorted(chat, VecDeque::from([message.id]));
     }
 
     state.messages.insert(message.id, message);
