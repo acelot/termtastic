@@ -42,12 +42,12 @@ impl<'a> EmojiSelectorState<'a> {
         self.list_state.select(Some(0));
     }
 
-    pub fn handle_event(&mut self, event: Event) -> anyhow::Result<bool> {
+    pub fn handle_event(&mut self, event: Event) -> bool {
         if self
             .list_state
             .handle_navigation_events(&event, Some(self.emojis.len()))
         {
-            return Ok(true);
+            return true;
         }
 
         self.input_widget.input(event);
@@ -64,7 +64,7 @@ impl<'a> EmojiSelectorState<'a> {
             self.list_state.select(Some(0));
         }
 
-        Ok(true)
+        true
     }
 }
 

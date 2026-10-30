@@ -30,12 +30,7 @@ impl<'a> Component for Chat<'a> {
         ]
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         if state.active_chat.is_some() {
             return self.messenger_component.handle_event(state, event, emit);
         }
@@ -49,7 +44,7 @@ impl<'a> Component for Chat<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::ChatPurgeRequested(self.chat_purge.take().unwrap()))?;
+                        emit(AppEvent::ChatPurgeRequested(self.chat_purge.take().unwrap()));
                     }
                     KeyCode::Esc => {
                         self.chat_purge = None;
@@ -59,11 +54,11 @@ impl<'a> Component for Chat<'a> {
                 _ => {}
             }
 
-            return Ok(true);
+            return true;
         }
 
         if self.list_state.handle_navigation_events(event, Some(state.chats.len())) {
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -75,24 +70,24 @@ impl<'a> Component for Chat<'a> {
             }) => match code {
                 KeyCode::Enter if modifiers.is_empty() => {
                     if let Some((chat, _)) = self.list_state.selected.and_then(|i| state.chats.get_index(i)) {
-                        emit(AppEvent::ChatSelected(chat.clone()))?;
+                        emit(AppEvent::ChatSelected(chat.clone()));
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::Delete | KeyCode::Backspace if modifiers.is_empty() => {
                     if let Some((chat, _)) = self.list_state.selected.and_then(|i| state.chats.get_index(i)) {
                         self.chat_purge = Some(chat.clone());
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 _ => {}
             },
             _ => {}
         }
 
-        Ok(false)
+        false
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

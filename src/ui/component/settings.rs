@@ -114,12 +114,7 @@ impl<'a> Settings<'a> {
         }
     }
 
-    fn handle_form_item_edit(
-        &mut self,
-        form_item: &'static FormItem,
-        value: &FormValue,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<()> {
+    fn handle_form_item_edit(&mut self, form_item: &'static FormItem, value: &FormValue, emit: &impl Fn(AppEvent)) {
         match &form_item.kind {
             FormItemKind::ReadOnly => {}
             FormItemKind::InputOfString
@@ -167,17 +162,15 @@ impl<'a> Settings<'a> {
                         FormValue::Option(None) => FormValue::Option(None),
                         _ => unreachable!(),
                     },
-                ))?;
+                ));
             }
             FormItemKind::Button(handler) => {
-                emit(AppEvent::SettingsFormItemSubmitted(form_item, handler(value)))?;
+                emit(AppEvent::SettingsFormItemSubmitted(form_item, handler(value)));
             }
             FormItemKind::Action(event) => {
-                emit(event.clone())?;
+                emit(event.clone());
             }
         }
-
-        Ok(())
     }
 }
 
@@ -218,12 +211,7 @@ impl<'a> Component for Settings<'a> {
         .collect()
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         // confirm popup
         if self.is_exit_confirm_visible {
             match event {
@@ -234,7 +222,7 @@ impl<'a> Component for Settings<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::SettingsFormCancelRequested)?;
+                        emit(AppEvent::SettingsFormCancelRequested);
                         self.is_exit_confirm_visible = false;
                     }
                     KeyCode::Esc => {
@@ -245,7 +233,7 @@ impl<'a> Component for Settings<'a> {
                 _ => {}
             }
 
-            return Ok(true);
+            return true;
         }
 
         // input popup
@@ -262,7 +250,7 @@ impl<'a> Component for Settings<'a> {
                     KeyCode::Enter => {
                         match handle_popup_input_submit(form_item, popup_input_state) {
                             Ok(value) => {
-                                emit(AppEvent::SettingsFormItemSubmitted(form_item, value))?;
+                                emit(AppEvent::SettingsFormItemSubmitted(form_item, value));
                                 self.active_form_item = None;
                                 self.popup_input_state = None;
                             }
@@ -271,13 +259,13 @@ impl<'a> Component for Settings<'a> {
                             }
                         }
 
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Esc => {
                         self.active_form_item = None;
                         self.popup_input_state = None;
 
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -289,7 +277,7 @@ impl<'a> Component for Settings<'a> {
 
             let _ = popup_input_state.handle_event(event.clone());
 
-            return Ok(true);
+            return true;
         }
 
         // dropdown popup
@@ -306,18 +294,18 @@ impl<'a> Component for Settings<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::SettingsFormItemSubmitted(form_item, value.clone()))?;
+                        emit(AppEvent::SettingsFormItemSubmitted(form_item, value.clone()));
 
                         self.active_form_item = None;
                         self.popup_dropdown_state = None;
 
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Esc => {
                         self.active_form_item = None;
                         self.popup_dropdown_state = None;
 
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -326,7 +314,7 @@ impl<'a> Component for Settings<'a> {
 
             let _ = popup_dropdown_state.handle_event(event.clone());
 
-            return Ok(true);
+            return true;
         }
 
         // bitmask dropdown popup
@@ -344,18 +332,18 @@ impl<'a> Component for Settings<'a> {
                         emit(AppEvent::SettingsFormItemSubmitted(
                             form_item,
                             FormValue::UnsignedInt32(popup_dropdown_bitmask_state.get_value()),
-                        ))?;
+                        ));
 
                         self.active_form_item = None;
                         self.popup_dropdown_bitmask_state = None;
 
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Esc => {
                         self.active_form_item = None;
                         self.popup_dropdown_bitmask_state = None;
 
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -364,7 +352,7 @@ impl<'a> Component for Settings<'a> {
 
             let _ = popup_dropdown_bitmask_state.handle_event(event.clone());
 
-            return Ok(true);
+            return true;
         }
 
         // default
@@ -373,7 +361,7 @@ impl<'a> Component for Settings<'a> {
                 .settings_list_state
                 .handle_navigation_events(event, Some(SETTINGS.len()))
         {
-            return Ok(true);
+            return true;
         }
 
         if let SettingsFormState::Loaded { id } = &state.settings_form_state
@@ -381,7 +369,7 @@ impl<'a> Component for Settings<'a> {
                 .form_list_state
                 .handle_navigation_events(event, Some(FORMS[id].len()))
         {
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -395,22 +383,22 @@ impl<'a> Component for Settings<'a> {
                     if let Some(index) = self.settings_list_state.selected
                         && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
                     {
-                        emit(AppEvent::SettingsFormSelected(id.clone()))?;
-                        return Ok(true);
+                        emit(AppEvent::SettingsFormSelected(id.clone()));
+                        return true;
                     }
                 }
                 (KeyCode::Esc, SettingsFormState::Loading { .. } | SettingsFormState::LoadingFailed { .. })
                     if modifiers.is_empty() =>
                 {
-                    emit(AppEvent::SettingsFormCancelRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::SettingsFormCancelRequested);
+                    return true;
                 }
                 (KeyCode::Enter, SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
                     if self.is_exit_confirm_visible {
-                        emit(AppEvent::SettingsFormCancelRequested)?;
+                        emit(AppEvent::SettingsFormCancelRequested);
                         self.is_exit_confirm_visible = false;
 
-                        return Ok(true);
+                        return true;
                     }
 
                     let index = self.form_list_state.selected.expect("should be Some");
@@ -426,31 +414,31 @@ impl<'a> Component for Settings<'a> {
                         FormItemKey::None => FormValue::Option(None),
                     };
 
-                    self.handle_form_item_edit(form_item, &value, emit)?;
+                    self.handle_form_item_edit(form_item, &value, emit);
 
-                    return Ok(true);
+                    return true;
                 }
                 (KeyCode::Esc, SettingsFormState::Loaded { .. }) if modifiers.is_empty() => {
                     if state.settings_form_is_changed {
                         self.is_exit_confirm_visible = true;
                     } else {
-                        emit(AppEvent::SettingsFormCancelRequested)?;
+                        emit(AppEvent::SettingsFormCancelRequested);
                         self.form_list_state = ListState::default();
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 (KeyCode::Char('r'), SettingsFormState::Loaded { .. })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
-                    emit(AppEvent::SettingsFormResetRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::SettingsFormResetRequested);
+                    return true;
                 }
                 (KeyCode::Char('s'), SettingsFormState::Loaded { id })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
-                    emit(AppEvent::SettingsFormSaveRequested(id.clone()))?;
-                    return Ok(true);
+                    emit(AppEvent::SettingsFormSaveRequested(id.clone()));
+                    return true;
                 }
                 (KeyCode::Char('c'), SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
                     let index = self.form_list_state.selected.expect("should be Some");
@@ -463,8 +451,8 @@ impl<'a> Component for Settings<'a> {
                     };
 
                     if let Some(v) = form_value {
-                        emit(AppEvent::CopyToClipboardRequested((form_item.formatter)(&v)))?;
-                        return Ok(true);
+                        emit(AppEvent::CopyToClipboardRequested((form_item.formatter)(&v)));
+                        return true;
                     }
                 }
                 _ => {}
@@ -472,7 +460,7 @@ impl<'a> Component for Settings<'a> {
             _ => {}
         }
 
-        Ok(false)
+        false
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

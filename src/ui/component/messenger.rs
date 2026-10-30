@@ -111,12 +111,7 @@ impl<'a> Component for Messenger<'a> {
         .collect()
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
 
         let list_state = self.list_states.entry(active_chat.clone()).or_default();
@@ -144,7 +139,7 @@ impl<'a> Component for Messenger<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Esc => {
                         self.is_reaction_viewer_visible = false;
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -180,13 +175,13 @@ impl<'a> Component for Messenger<'a> {
                         if let Some(emoji) = self.emoji_selector_state.get_value() {
                             input_widget.insert_str(emoji.as_str());
                             self.is_emoji_selector_visible = false;
-                            return Ok(true);
+                            return true;
                         }
                     }
                     KeyCode::Esc => {
                         self.is_emoji_selector_visible = false;
                         self.emoji_selector_state.reset();
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -206,11 +201,11 @@ impl<'a> Component for Messenger<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::F(5) => {
                         self.is_emoji_selector_visible = true;
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Enter if modifiers.contains(KeyModifiers::SHIFT) => {
                         input_widget.insert_newline();
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Enter => {
                         if input_widget.trimmed_len() <= INPUT_VALUE_MAX_LENGTH
@@ -223,24 +218,24 @@ impl<'a> Component for Messenger<'a> {
                                     emit(AppEvent::ChatReactionSubmitted {
                                         emoji,
                                         reply_message_id: Some(message_id),
-                                    })?;
+                                    });
                                 }
                                 None => {
                                     emit(AppEvent::ChatMessageSubmitted {
                                         text: input_widget.trimmed_lines().join("\n"),
                                         reply_message_id: Some(message_id),
-                                    })?;
+                                    });
                                 }
                             }
 
                             input_widget.clear();
 
-                            return Ok(true);
+                            return true;
                         }
                     }
                     KeyCode::Esc => {
                         self.replying_to.remove(active_chat);
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -249,7 +244,7 @@ impl<'a> Component for Messenger<'a> {
 
             input_widget.input(event.clone());
 
-            return Ok(true);
+            return true;
         }
 
         if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
@@ -258,7 +253,7 @@ impl<'a> Component for Messenger<'a> {
                     .insert(active_chat.clone(), index == messages.len() - 1);
             }
 
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -270,7 +265,7 @@ impl<'a> Component for Messenger<'a> {
             }) => match code {
                 KeyCode::Enter if modifiers.contains(KeyModifiers::SHIFT) => {
                     input_widget.insert_newline();
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::Enter if modifiers.is_empty() => {
                     if input_widget.trimmed_len() <= INPUT_VALUE_MAX_LENGTH {
@@ -279,12 +274,12 @@ impl<'a> Component for Messenger<'a> {
                         emit(AppEvent::ChatMessageSubmitted {
                             text: input_widget.trimmed_lines().join("\n"),
                             reply_message_id: None,
-                        })?;
+                        });
 
                         input_widget.clear();
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(2) if modifiers.is_empty() => {
                     if let Some(message) = list_state.selected.and_then(|i| messages.get(i))
@@ -293,7 +288,7 @@ impl<'a> Component for Messenger<'a> {
                         self.replying_to.insert(active_chat.clone(), (node.clone(), message.id));
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(4) if modifiers.is_empty() => {
                     if let Some(node_key) = list_state
@@ -301,14 +296,14 @@ impl<'a> Component for Messenger<'a> {
                         .and_then(|i| messages.get(i))
                         .map(|message| message.from)
                     {
-                        emit(AppEvent::NodeInfoPopupOpenRequested(node_key))?;
+                        emit(AppEvent::NodeInfoPopupOpenRequested(node_key));
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(5) if modifiers.is_empty() => {
                     self.is_emoji_selector_visible = true;
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(7) if modifiers.is_empty() => {
                     if list_state.selected.and_then(|i| messages.get(i)).is_some() {
@@ -316,15 +311,15 @@ impl<'a> Component for Messenger<'a> {
                         self.is_reaction_viewer_visible = true;
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
-                    emit(AppEvent::ChatSwitchRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::ChatSwitchRequested);
+                    return true;
                 }
-                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc if modifiers.is_empty() => {
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc => {
                     // capture these events to prevent handling by input widget
-                    return Ok(false);
+                    return false;
                 }
                 _ => {}
             },
@@ -336,7 +331,7 @@ impl<'a> Component for Messenger<'a> {
 
         input_widget.input(event.clone());
 
-        Ok(true)
+        true
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

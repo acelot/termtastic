@@ -148,12 +148,7 @@ impl<'a> Component for Nodes<'a> {
         ]
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         if self.is_emoji_selector_visible {
             match event {
                 Event::Key(KeyEvent {
@@ -166,15 +161,15 @@ impl<'a> Component for Nodes<'a> {
                         if let Some(emoji) = self.emoji_selector_state.get_value() {
                             self.filter_input.insert_str(emoji.as_str());
                             self.is_emoji_selector_visible = false;
-                            emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()))?;
+                            emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()));
 
-                            return Ok(true);
+                            return true;
                         }
                     }
                     KeyCode::Esc => {
                         self.is_emoji_selector_visible = false;
                         self.emoji_selector_state.reset();
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
@@ -194,40 +189,40 @@ impl<'a> Component for Nodes<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Esc => {
                         self.is_filter_help_visible = false;
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Up => {
                         self.filter_help_scroll_state.prev();
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Down => {
                         self.filter_help_scroll_state.next();
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
                 Event::Mouse(MouseEvent { kind, .. }) => match kind {
                     MouseEventKind::ScrollUp => {
                         self.filter_help_scroll_state.prev();
-                        return Ok(true);
+                        return true;
                     }
                     MouseEventKind::ScrollDown => {
                         self.filter_help_scroll_state.next();
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
                 _ => {}
             }
 
-            return Ok(false);
+            return false;
         }
 
         if self
             .list_state
             .handle_navigation_events(event, Some(state.nodes_view.len()))
         {
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -239,51 +234,51 @@ impl<'a> Component for Nodes<'a> {
             }) => match code {
                 KeyCode::F(1) if modifiers.is_empty() => {
                     self.is_filter_help_visible = true;
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(4) | KeyCode::Enter if modifiers.is_empty() => {
                     if let Some(node_key) = self.list_state.selected.and_then(|index| state.nodes_view.get(index)) {
-                        emit(AppEvent::NodeInfoPopupOpenRequested(*node_key))?;
+                        emit(AppEvent::NodeInfoPopupOpenRequested(*node_key));
                     }
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(5) if modifiers.is_empty() => {
                     self.is_emoji_selector_visible = true;
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::F(6) if modifiers.contains(KeyModifiers::SHIFT) => {
-                    emit(AppEvent::NodesSortByPrevRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::NodesSortByPrevRequested);
+                    return true;
                 }
                 KeyCode::F(6) if modifiers.is_empty() => {
-                    emit(AppEvent::NodesSortByNextRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::NodesSortByNextRequested);
+                    return true;
                 }
                 KeyCode::F(2) if modifiers.is_empty() => {
                     if let Some(node_key) = self.list_state.selected.and_then(|index| state.nodes_view.get(index)) {
-                        emit(AppEvent::DirectChatRequested(*node_key))?;
+                        emit(AppEvent::DirectChatRequested(*node_key));
                     }
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc => {
                     // capture these events to prevent handling them by input widget
-                    return Ok(false);
+                    return false;
                 }
                 _ => {}
             },
             Event::Paste(text) => {
                 self.filter_input.insert_str(text);
-                emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()))?;
+                emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()));
             }
             _ => {}
         }
 
         if self.filter_input.input(event.clone()) {
             self.is_filter_input_dirty = true;
-            emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()))?;
+            emit(AppEvent::NodesFilterChanged(self.filter_input.lines()[0].clone()));
         }
 
-        Ok(true)
+        true
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

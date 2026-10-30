@@ -59,12 +59,7 @@ impl<'a> Component for Layout<'a> {
         }
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         if let Event::Key(KeyEvent {
             code: KeyCode::Char('c'),
             modifiers,
@@ -72,8 +67,8 @@ impl<'a> Component for Layout<'a> {
         }) = event
             && modifiers.contains(KeyModifiers::CONTROL)
         {
-            emit(AppEvent::QuitRequested)?;
-            return Ok(true);
+            emit(AppEvent::QuitRequested);
+            return true;
         }
 
         if let Some(node_key) = state.nodeinfo_key {
@@ -82,31 +77,26 @@ impl<'a> Component for Layout<'a> {
                 event.clone(),
                 &mut |ev| match ev {
                     NodeInfoWidgetEvent::CloseRequested => {
-                        emit(AppEvent::NodeInfoPopupCloseRequested)?;
-                        Ok(())
+                        emit(AppEvent::NodeInfoPopupCloseRequested);
                     }
                     NodeInfoWidgetEvent::CopyToClipboardRequested(s) => {
-                        emit(AppEvent::CopyToClipboardRequested(s))?;
-                        Ok(())
+                        emit(AppEvent::CopyToClipboardRequested(s));
                     }
                     NodeInfoWidgetEvent::DirectChatRequested(node_key) => {
-                        emit(AppEvent::DirectChatRequested(node_key))?;
-                        Ok(())
+                        emit(AppEvent::DirectChatRequested(node_key));
                     }
                     NodeInfoWidgetEvent::NodeDeleteRequested => {
-                        emit(AppEvent::NodeDeleteRequested(node_key))?;
-                        Ok(())
+                        emit(AppEvent::NodeDeleteRequested(node_key));
                     }
                     NodeInfoWidgetEvent::TracerouteRequested => {
-                        emit(AppEvent::TracerouteRequested(node_key))?;
-                        Ok(())
+                        emit(AppEvent::TracerouteRequested(node_key));
                     }
                 },
-            )? {
-                return Ok(true);
+            ) {
+                return true;
             }
 
-            return Ok(false);
+            return false;
         }
 
         let is_handled = match state.active_tab {
@@ -115,14 +105,14 @@ impl<'a> Component for Layout<'a> {
             Tab::Settings => self.settings_component.handle_event(state, event, emit),
             Tab::Connection => self.connection_component.handle_event(state, event, emit),
             Tab::Logs => self.logs_component.handle_event(state, event, emit),
-        }?;
+        };
 
         if is_handled {
-            return Ok(true);
+            return true;
         }
 
-        if self.header_component.handle_event(state, event, emit)? {
-            return Ok(true);
+        if self.header_component.handle_event(state, event, emit) {
+            return true;
         }
 
         match event {
@@ -133,22 +123,22 @@ impl<'a> Component for Layout<'a> {
                 ..
             }) => match code {
                 KeyCode::Tab if modifiers.is_empty() => {
-                    emit(AppEvent::TabNextRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::TabNextRequested);
+                    return true;
                 }
                 KeyCode::BackTab => {
-                    emit(AppEvent::TabPreviousRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::TabPreviousRequested);
+                    return true;
                 }
                 KeyCode::F(12) if modifiers.is_empty() => {
-                    emit(AppEvent::SplashLogoRequested)?;
-                    return Ok(true);
+                    emit(AppEvent::SplashLogoRequested);
+                    return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
                     if self.last_esc_t.elapsed() < Duration::from_millis(300) {
-                        emit(AppEvent::QuitRequested)?;
+                        emit(AppEvent::QuitRequested);
                     } else {
-                        emit(AppEvent::TryingToQuit)?;
+                        emit(AppEvent::TryingToQuit);
                     }
 
                     self.last_esc_t = Instant::now();
@@ -158,7 +148,7 @@ impl<'a> Component for Layout<'a> {
             _ => {}
         }
 
-        Ok(false)
+        false
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

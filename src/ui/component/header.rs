@@ -13,13 +13,8 @@ impl Component for Header {
         Vec::default()
     }
 
-    fn handle_event(
-        &mut self,
-        _state: &State,
-        _event: &Event,
-        _emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
-        Ok(false)
+    fn handle_event(&mut self, _state: &State, _event: &Event, _emit: &impl Fn(AppEvent)) -> bool {
+        false
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

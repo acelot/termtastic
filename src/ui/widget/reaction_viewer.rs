@@ -21,12 +21,12 @@ impl ReactionViewerState {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event, reactions_count: usize) -> anyhow::Result<bool> {
+    pub fn handle_event(&mut self, event: &Event, reactions_count: usize) -> bool {
         if self.list_state.handle_navigation_events(event, Some(reactions_count)) {
-            return Ok(true);
+            return true;
         }
 
-        Ok(false)
+        false
     }
 }
 

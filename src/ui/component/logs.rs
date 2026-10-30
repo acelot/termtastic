@@ -53,12 +53,7 @@ impl Component for Logs {
         ]
     }
 
-    fn handle_event(
-        &mut self,
-        state: &State,
-        event: &Event,
-        emit: &impl Fn(AppEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
         self.sync_selection(state);
 
         if let Some(record) = &self.popup_record {
@@ -71,37 +66,37 @@ impl Component for Logs {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Up => {
                         self.popup_scroll_state.prev();
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Down => {
                         self.popup_scroll_state.next();
-                        return Ok(true);
+                        return true;
                     }
                     KeyCode::Char('c') => {
-                        emit(AppEvent::CopyToClipboardRequested(record.clone().into()))?;
-                        return Ok(true);
+                        emit(AppEvent::CopyToClipboardRequested(record.clone().into()));
+                        return true;
                     }
                     KeyCode::Esc => {
                         self.popup_record = None;
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
                 Event::Mouse(MouseEvent { kind, .. }) => match kind {
                     MouseEventKind::ScrollUp => {
                         self.popup_scroll_state.prev();
-                        return Ok(true);
+                        return true;
                     }
                     MouseEventKind::ScrollDown => {
                         self.popup_scroll_state.next();
-                        return Ok(true);
+                        return true;
                     }
                     _ => {}
                 },
                 _ => {}
             }
 
-            return Ok(false);
+            return false;
         }
 
         if self.list_state.handle_navigation_events(event, Some(state.logs.len())) {
@@ -110,7 +105,7 @@ impl Component for Logs {
                 self.follow = index == state.logs.len() - 1;
             }
 
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -126,21 +121,21 @@ impl Component for Logs {
                         self.popup_scroll_state.first();
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 KeyCode::Char('c')
                     if modifiers.is_empty()
                         && let Some(i) = self.list_state.selected =>
                 {
-                    emit(AppEvent::CopyToClipboardRequested(state.logs[i].clone().into()))?;
-                    return Ok(true);
+                    emit(AppEvent::CopyToClipboardRequested(state.logs[i].clone().into()));
+                    return true;
                 }
                 _ => {}
             },
             _ => {}
         }
 
-        Ok(false)
+        false
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {

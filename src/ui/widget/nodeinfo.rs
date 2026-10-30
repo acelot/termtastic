@@ -112,8 +112,8 @@ impl NodeInfoWidgetState {
         &mut self,
         context: NodeInfoContext,
         event: Event,
-        emit: &mut impl FnMut(NodeInfoWidgetEvent) -> anyhow::Result<()>,
-    ) -> anyhow::Result<bool> {
+        emit: &mut impl FnMut(NodeInfoWidgetEvent),
+    ) -> bool {
         if self.is_delete_node_popup_visible {
             match event {
                 Event::Key(KeyEvent {
@@ -123,7 +123,7 @@ impl NodeInfoWidgetState {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(NodeInfoWidgetEvent::NodeDeleteRequested)?;
+                        emit(NodeInfoWidgetEvent::NodeDeleteRequested);
                         self.is_delete_node_popup_visible = false;
                     }
                     KeyCode::Esc => {
@@ -134,26 +134,26 @@ impl NodeInfoWidgetState {
                 _ => {}
             }
 
-            return Ok(true);
+            return true;
         }
 
         if self.active_tab == NodeInfoTab::Traceroutes
             && self.traceroute_popup.is_none()
             && self.traceroute_list_state.handle_navigation_events(&event, None)
         {
-            return Ok(true);
+            return true;
         }
 
         if self.active_tab == NodeInfoTab::Telemetry && self.telemetry_list_state.handle_navigation_events(&event, None)
         {
-            return Ok(true);
+            return true;
         }
 
         if self.active_tab == NodeInfoTab::Position
             && self.position_popup.is_none()
             && self.position_list_state.handle_navigation_events(&event, None)
         {
-            return Ok(true);
+            return true;
         }
 
         match event {
@@ -165,27 +165,27 @@ impl NodeInfoWidgetState {
             }) => match (self.active_tab, code) {
                 (_, KeyCode::Tab) if modifiers.is_empty() => {
                     self.active_tab = self.active_tab.next();
-                    return Ok(true);
+                    return true;
                 }
                 (_, KeyCode::BackTab) => {
                     self.active_tab = self.active_tab.prev();
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Info, KeyCode::F(2)) if modifiers.is_empty() => {
-                    emit(NodeInfoWidgetEvent::DirectChatRequested(context.node_key))?;
-                    return Ok(true);
+                    emit(NodeInfoWidgetEvent::DirectChatRequested(context.node_key));
+                    return true;
                 }
                 (NodeInfoTab::Info, KeyCode::Char('с')) if modifiers.is_empty() => {
                     if let Some(user) = context.nodes.get(&context.node_key).and_then(|n| n.user.as_ref()) {
                         emit(NodeInfoWidgetEvent::CopyToClipboardRequested(
                             user.public_key.base64_encode(),
-                        ))?;
-                        return Ok(true);
+                        ));
+                        return true;
                     }
                 }
                 (NodeInfoTab::Info, KeyCode::Delete | KeyCode::Backspace) if modifiers.is_empty() => {
                     self.is_delete_node_popup_visible = true;
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Enter) if modifiers.is_empty() => {
                     if let Some(traceroute) = self
@@ -197,17 +197,17 @@ impl NodeInfoWidgetState {
                         self.traceroute_popup_state.scroll_to_top();
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Up) if modifiers.is_empty() && self.traceroute_popup.is_some() => {
                     self.traceroute_popup_state.scroll_up();
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Down)
                     if modifiers.is_empty() && self.traceroute_popup.is_some() =>
                 {
                     self.traceroute_popup_state.scroll_down();
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Char('c'))
                     if modifiers.is_empty()
@@ -220,18 +220,18 @@ impl NodeInfoWidgetState {
                     {
                         emit(NodeInfoWidgetEvent::CopyToClipboardRequested(traceroute_to_text(
                             traceroute, &context,
-                        )))?;
+                        )));
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Esc) if modifiers.is_empty() && self.traceroute_popup.is_some() => {
                     self.traceroute_popup = None;
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Traceroutes, KeyCode::Char('r')) if modifiers.is_empty() => {
-                    emit(NodeInfoWidgetEvent::TracerouteRequested)?;
-                    return Ok(true);
+                    emit(NodeInfoWidgetEvent::TracerouteRequested);
+                    return true;
                 }
                 (NodeInfoTab::Position, KeyCode::Enter) if modifiers.is_empty() => {
                     if let Some(item) = self.position_list_state.selected.and_then(|i| context.position.get(i)) {
@@ -239,26 +239,26 @@ impl NodeInfoWidgetState {
                         self.position_popup_state.scroll_to_top();
                     }
 
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Position, KeyCode::Up) if modifiers.is_empty() && self.position_popup.is_some() => {
                     self.position_popup_state.scroll_up();
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Position, KeyCode::Down) if modifiers.is_empty() && self.position_popup.is_some() => {
                     self.position_popup_state.scroll_down();
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Position, KeyCode::Esc) if modifiers.is_empty() && self.position_popup.is_some() => {
                     self.position_popup = None;
-                    return Ok(true);
+                    return true;
                 }
                 (NodeInfoTab::Position, KeyCode::Char('c'))
                     if modifiers.is_empty() && self.position_popup.is_none() =>
                 {
                     if let Some(item) = self.position_list_state.selected.and_then(|i| context.position.get(i)) {
-                        emit(NodeInfoWidgetEvent::CopyToClipboardRequested(item.coordinates_as_str()))?;
-                        return Ok(true);
+                        emit(NodeInfoWidgetEvent::CopyToClipboardRequested(item.coordinates_as_str()));
+                        return true;
                     }
                 }
                 (NodeInfoTab::Position, KeyCode::Char('c'))
@@ -267,8 +267,8 @@ impl NodeInfoWidgetState {
                     if let Some(item) = self.position_popup.as_ref() {
                         emit(NodeInfoWidgetEvent::CopyToClipboardRequested(
                             serde_json::to_string_pretty(item).unwrap_or("serialize failed".to_owned()),
-                        ))?;
-                        return Ok(true);
+                        ));
+                        return true;
                     }
                 }
                 (NodeInfoTab::Telemetry, KeyCode::Char('c')) if modifiers.is_empty() => {
@@ -279,20 +279,20 @@ impl NodeInfoWidgetState {
                     {
                         match item {
                             TelemetryItem::Group { json, .. } => {
-                                emit(NodeInfoWidgetEvent::CopyToClipboardRequested(json.to_owned()))?;
+                                emit(NodeInfoWidgetEvent::CopyToClipboardRequested(json.to_owned()));
                             }
                             TelemetryItem::Item { value: Some(v), .. } => {
-                                emit(NodeInfoWidgetEvent::CopyToClipboardRequested(v.to_owned()))?;
+                                emit(NodeInfoWidgetEvent::CopyToClipboardRequested(v.to_owned()));
                             }
                             _ => {}
                         };
 
-                        return Ok(true);
+                        return true;
                     }
                 }
                 (_, KeyCode::Esc) if modifiers.is_empty() => {
-                    emit(NodeInfoWidgetEvent::CloseRequested)?;
-                    return Ok(true);
+                    emit(NodeInfoWidgetEvent::CloseRequested);
+                    return true;
                 }
                 _ => {}
             },
@@ -301,32 +301,32 @@ impl NodeInfoWidgetState {
                     if self.active_tab == NodeInfoTab::Traceroutes && self.traceroute_popup.is_some() =>
                 {
                     self.traceroute_popup_state.scroll_up();
-                    return Ok(true);
+                    return true;
                 }
                 MouseEventKind::ScrollDown
                     if self.active_tab == NodeInfoTab::Traceroutes && self.traceroute_popup.is_some() =>
                 {
                     self.traceroute_popup_state.scroll_down();
-                    return Ok(true);
+                    return true;
                 }
                 MouseEventKind::ScrollUp
                     if self.active_tab == NodeInfoTab::Position && self.position_popup.is_some() =>
                 {
                     self.position_popup_state.scroll_up();
-                    return Ok(true);
+                    return true;
                 }
                 MouseEventKind::ScrollDown
                     if self.active_tab == NodeInfoTab::Position && self.position_popup.is_some() =>
                 {
                     self.position_popup_state.scroll_down();
-                    return Ok(true);
+                    return true;
                 }
                 _ => {}
             },
             _ => {}
         }
 
-        Ok(false)
+        false
     }
 
     pub fn get_hotkeys(&self, is_my_node: bool) -> Vec<Hotkey> {
