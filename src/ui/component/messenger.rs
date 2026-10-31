@@ -315,7 +315,7 @@ impl<'a> Component for Messenger<'a> {
                         .and_then(|i| messages.get(i))
                         .map(|message| message.from)
                     {
-                        emit(UiEvent::NodeInfoPopupOpenRequested(node_key));
+                        emit(UiEvent::NodeInfoPopupOpenRequested { node_key });
                     }
 
                     return true;

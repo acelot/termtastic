@@ -80,14 +80,22 @@ pub enum UiEvent {
     DeviceSelected(Device),
     DeviceShutdownRequested,
     DeviceSubmitted(Device),
-    DirectChatRequested(u32),
+    DirectChatRequested {
+        node_key: u32,
+    },
     DisconnectionRequested,
     InitializationRequested,
-    NodeDeleteRequested(u32),
+    NodeDeleteRequested {
+        node_key: u32,
+    },
     NodeInfoBroadcastRequested,
     NodeInfoPopupCloseRequested,
-    NodeInfoPopupOpenRequested(u32),
-    NodesFilterChanged(String),
+    NodeInfoPopupOpenRequested {
+        node_key: u32,
+    },
+    NodesFilterChanged {
+        query: String,
+    },
     NodesSortByNextRequested,
     NodesSortByPrevRequested,
     SettingsFormCancelRequested,
@@ -98,7 +106,9 @@ pub enum UiEvent {
     SplashLogoRequested,
     TabNextRequested,
     TabPreviousRequested,
-    TracerouteRequested(u32),
+    TracerouteRequested {
+        node_key: u32,
+    },
     TryingToQuit,
     QuitRequested,
 }

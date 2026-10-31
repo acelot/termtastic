@@ -69,14 +69,14 @@ impl MeshtasticService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.event_rx.recv() => self.handle_meshtastic_event(event).await?,
+                event = self.event_rx.recv() => self.handle_meshtastic_event(event).await,
                 Some((radio_rx, stream_api)) = self.connection_rx.recv() => {
-                    self.handle_connection_event(radio_rx, stream_api, subsys)?;
+                    self.handle_connection_event(radio_rx, stream_api, subsys);
                 },
-                Some(cmd) = self.command_rx.recv() => self.handle_command(cmd).await?,
+                Some(cmd) = self.command_rx.recv() => self.handle_command(cmd).await,
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
-                    self.disconnect().await?;
+                    self.disconnect().await;
                     let _ = self.event_tx.send(MeshtasticEvent::Disconnected);
 
                     break;
@@ -87,28 +87,23 @@ impl MeshtasticService {
         Ok(())
     }
 
-    async fn handle_meshtastic_event(
-        &mut self,
-        event: Result<MeshtasticEvent, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    async fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(MeshtasticEvent::RadioStopped) => {
-                self.disconnect().await?;
+                self.disconnect().await;
 
-                self.event_tx.send(MeshtasticEvent::ConnectionError(
+                let _ = self.event_tx.send(MeshtasticEvent::ConnectionError(
                     "connection channel was closed unexpectedly".to_owned(),
-                ))?;
+                ));
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 tracing::warn!("broadcast receiver lagged by {} events", n);
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    async fn handle_command(&mut self, cmd: CommandToMeshtastic) -> anyhow::Result<()> {
+    async fn handle_command(&mut self, cmd: CommandToMeshtastic) {
         let connection_tx_clone = self.connection_tx.clone();
         let event_tx_clone = self.event_tx.clone();
 
@@ -180,16 +175,26 @@ impl MeshtasticService {
                 }));
             }
             CommandToMeshtastic::Disconnect => {
-                self.disconnect().await?;
+                self.disconnect().await;
                 let _ = self.event_tx.send(MeshtasticEvent::Disconnected);
             }
             CommandToMeshtastic::Reboot { secs, my_node_num } => {
-                self.send_admin_message(my_node_num, admin_message::PayloadVariant::RebootSeconds(secs))
-                    .await?;
+                if let Err(e) = self
+                    .send_admin_message(my_node_num, admin_message::PayloadVariant::RebootSeconds(secs))
+                    .await
+                {
+                    tracing::error!("RebootSeconds send failed: {}", e);
+                    let _ = self.event_tx.send(MeshtasticEvent::RebootFailed);
+                }
             }
             CommandToMeshtastic::Shutdown { secs, my_node_num } => {
-                self.send_admin_message(my_node_num, admin_message::PayloadVariant::ShutdownSeconds(secs))
-                    .await?;
+                if let Err(e) = self
+                    .send_admin_message(my_node_num, admin_message::PayloadVariant::ShutdownSeconds(secs))
+                    .await
+                {
+                    tracing::error!("ShutdownSeconds send failed: {}", e);
+                    let _ = self.event_tx.send(MeshtasticEvent::ShutdownFailed);
+                }
             }
             CommandToMeshtastic::ResumeRadio => {
                 if let Some(radio_resume_tx) = &self.radio_resume_tx {
@@ -197,18 +202,28 @@ impl MeshtasticService {
                 }
             }
             CommandToMeshtastic::LoadCannedMessages { my_node_num } => {
-                self.send_admin_message(
-                    my_node_num,
-                    admin_message::PayloadVariant::GetCannedMessageModuleMessagesRequest(true),
-                )
-                .await?;
+                if let Err(e) = self
+                    .send_admin_message(
+                        my_node_num,
+                        admin_message::PayloadVariant::GetCannedMessageModuleMessagesRequest(true),
+                    )
+                    .await
+                {
+                    tracing::error!("GetCannedMessageModuleMessagesRequest send failed: {}", e);
+                    let _ = self.event_tx.send(MeshtasticEvent::CannedMessagesLoadFailed);
+                }
             }
             CommandToMeshtastic::SaveCannedMessages { messages, my_node_num } => {
-                self.send_admin_message(
-                    my_node_num,
-                    admin_message::PayloadVariant::SetCannedMessageModuleMessages(messages),
-                )
-                .await?;
+                if let Err(e) = self
+                    .send_admin_message(
+                        my_node_num,
+                        admin_message::PayloadVariant::SetCannedMessageModuleMessages(messages),
+                    )
+                    .await
+                {
+                    tracing::error!("SetCannedMessageModuleMessages send failed: {}", e);
+                    let _ = self.event_tx.send(MeshtasticEvent::CannedMessagesSaveFailed);
+                }
             }
             CommandToMeshtastic::SendBroadcastTextMessage {
                 channel_id,
@@ -242,8 +257,12 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self.event_tx.send(MeshtasticEvent::MessageAccepted)?,
-                    Err(e) => self.event_tx.send(MeshtasticEvent::MessageRejected(e.to_string()))?,
+                    Ok(()) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::MessageAccepted);
+                    }
+                    Err(e) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::MessageRejected(e.to_string()));
+                    }
                 };
             }
             CommandToMeshtastic::SendDirectTextMessage {
@@ -278,8 +297,12 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self.event_tx.send(MeshtasticEvent::MessageAccepted)?,
-                    Err(e) => self.event_tx.send(MeshtasticEvent::MessageRejected(e.to_string()))?,
+                    Ok(()) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::MessageAccepted);
+                    }
+                    Err(e) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::MessageRejected(e.to_string()));
+                    }
                 };
             }
             CommandToMeshtastic::SaveConfig {
@@ -432,10 +455,14 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self.event_tx.send(MeshtasticEvent::NodeInfoBroadcastSent)?,
-                    Err(e) => self
-                        .event_tx
-                        .send(MeshtasticEvent::NodeInfoBroadcastFailed(e.to_string()))?,
+                    Ok(()) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::NodeInfoBroadcastSent);
+                    }
+                    Err(e) => {
+                        let _ = self
+                            .event_tx
+                            .send(MeshtasticEvent::NodeInfoBroadcastFailed(e.to_string()));
+                    }
                 };
             }
             CommandToMeshtastic::SaveChannelsConfig {
@@ -488,8 +515,12 @@ impl MeshtasticService {
                     .send_admin_message(my_node_num, admin_message::PayloadVariant::RemoveByNodenum(node_num))
                     .await
                 {
-                    Ok(()) => self.event_tx.send(MeshtasticEvent::NodeRemoveAccepted)?,
-                    Err(e) => self.event_tx.send(MeshtasticEvent::NodeRemoveFailed(e.to_string()))?,
+                    Ok(()) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::NodeRemoveAccepted);
+                    }
+                    Err(e) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::NodeRemoveFailed(e.to_string()));
+                    }
                 };
             }
             CommandToMeshtastic::RunTraceroute { node_num, my_node_num } => {
@@ -507,7 +538,7 @@ impl MeshtasticService {
                         EncodedMeshPacketData::new(RouteDiscovery::default().encode_to_vec()),
                         PortNum::TracerouteApp,
                         PacketDestination::Node(NodeId::new(node_num)),
-                        MeshChannel::new(0)?,
+                        MeshChannel::from(0),
                         false, // want_ack
                         true,  // want_response
                         true,  // echo_response
@@ -516,13 +547,15 @@ impl MeshtasticService {
                     )
                     .await
                 {
-                    Ok(()) => self.event_tx.send(MeshtasticEvent::TracerouteStarted)?,
-                    Err(e) => self.event_tx.send(MeshtasticEvent::TracerouteFailed(e.to_string()))?,
+                    Ok(()) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::TracerouteStarted);
+                    }
+                    Err(e) => {
+                        let _ = self.event_tx.send(MeshtasticEvent::TracerouteFailed(e.to_string()));
+                    }
                 };
             }
         };
-
-        Ok(())
     }
 
     fn handle_connection_event(
@@ -530,7 +563,7 @@ impl MeshtasticService {
         radio_rx: mpsc::UnboundedReceiver<FromRadio>,
         stream_api: ConnectedStreamApi,
         subsys: &mut SubsystemHandle,
-    ) -> anyhow::Result<()> {
+    ) {
         self.stream_api = Some(stream_api);
 
         let event_tx_clone = self.event_tx.clone();
@@ -547,11 +580,9 @@ impl MeshtasticService {
                 .on_failure(ErrorAction::CatchAndLocalShutdown),
             ),
         );
-
-        Ok(())
     }
 
-    async fn disconnect(&mut self) -> anyhow::Result<()> {
+    async fn disconnect(&mut self) {
         if let Some(handle) = self.connection_join_handle.take() {
             handle.abort();
         }
@@ -562,7 +593,10 @@ impl MeshtasticService {
             && !subsys.is_finished()
         {
             subsys.initiate_shutdown();
-            subsys.join().await?;
+
+            if let Err(e) = subsys.join().await {
+                tracing::error!("radio subsystem shutdown failed: {}", e);
+            }
         }
 
         if let Some(stream_api) = self.stream_api.take() {
@@ -571,8 +605,6 @@ impl MeshtasticService {
                 .await
                 .inspect_err(|e| tracing::error!("stream api disconnect error: {}", e));
         }
-
-        Ok(())
     }
 
     async fn send_admin_message(
@@ -598,7 +630,7 @@ impl MeshtasticService {
                 EncodedMeshPacketData::new(packet.encode_to_vec()),
                 PortNum::AdminApp,
                 PacketDestination::Local,
-                MeshChannel::new(0)?,
+                MeshChannel::from(0),
                 false, // want_ack
                 true,  // want_response
                 true,  // echo_response

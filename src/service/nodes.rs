@@ -77,8 +77,8 @@ impl NodesService {
 
         match event {
             Ok(app_event) => match app_event {
-                UiEvent::DirectChatRequested(node_key) => {
-                    let _ = self.state_action_tx.send(StateAction::DirectChatStart(node_key));
+                UiEvent::DirectChatRequested { node_key } => {
+                    let _ = self.state_action_tx.send(StateAction::DirectChatStart { node_key });
                 }
                 UiEvent::NodesSortByPrevRequested => {
                     let _ = self
@@ -90,8 +90,8 @@ impl NodesService {
                         .state_action_tx
                         .send(StateAction::NodesSortBySet(state.nodes_sort_by.next()));
                 }
-                UiEvent::NodesFilterChanged(filter) => {
-                    let _ = self.state_action_tx.send(StateAction::NodesFilterSet(filter));
+                UiEvent::NodesFilterChanged { query } => {
+                    let _ = self.state_action_tx.send(StateAction::NodesFilterSet { query });
                 }
                 UiEvent::NodeInfoBroadcastRequested => {
                     let my_node = state.get_my_node().expect("should be Some");
@@ -113,13 +113,13 @@ impl NodesService {
                         .meshtastic_command_tx
                         .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user });
                 }
-                UiEvent::NodeInfoPopupOpenRequested(node_key) => {
-                    let _ = self.state_action_tx.send(StateAction::NodeInfoKeySet(node_key));
+                UiEvent::NodeInfoPopupOpenRequested { node_key } => {
+                    let _ = self.state_action_tx.send(StateAction::NodeInfoKeySet { node_key });
                 }
                 UiEvent::NodeInfoPopupCloseRequested => {
                     let _ = self.state_action_tx.send(StateAction::NodeInfoKeyUnset);
                 }
-                UiEvent::NodeDeleteRequested(node_key) => {
+                UiEvent::NodeDeleteRequested { node_key } => {
                     let my_node_num = state.my_node_key.expect("should be Some");
 
                     let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::DeleteNode {
@@ -231,8 +231,8 @@ impl NodesService {
                                 Some(admin_message::PayloadVariant::SetOwner(user)) => {
                                     let _ = self.state_action_tx.send(StateAction::NodeOwnerSet((&user).into()));
                                 }
-                                Some(admin_message::PayloadVariant::RemoveByNodenum(node_num)) => {
-                                    let _ = self.state_action_tx.send(StateAction::NodeDelete(node_num));
+                                Some(admin_message::PayloadVariant::RemoveByNodenum(node_key)) => {
+                                    let _ = self.state_action_tx.send(StateAction::NodeDelete { node_key });
                                 }
                                 _ => {}
                             },
@@ -322,7 +322,7 @@ impl NodesService {
             counter
         });
 
-        let _ = self.state_action_tx.send(StateAction::NodesOnlineSet(count));
+        let _ = self.state_action_tx.send(StateAction::NodesOnlineSet { count });
     }
 }
 

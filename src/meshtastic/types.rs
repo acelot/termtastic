@@ -16,6 +16,8 @@ pub enum MeshtasticEvent {
     ConfigSaveFailed(FormId),
     ChannelsSaved(FormId),
     ChannelsSaveFailed(FormId),
+    CannedMessagesLoadFailed,
+    CannedMessagesSaveFailed,
     UserSaved(FormId),
     UserSaveFailed(FormId),
     NodeInfoBroadcastSent,
@@ -24,6 +26,8 @@ pub enum MeshtasticEvent {
     NodeRemoveFailed(String),
     TracerouteStarted,
     TracerouteFailed(String),
+    RebootFailed,
+    ShutdownFailed,
 }
 
 #[derive(Debug, Clone)]

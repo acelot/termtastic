@@ -170,7 +170,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::NodeDelete(node_key) if !is_db_loaded => {
+            StateAction::NodeDelete { node_key } if !is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -223,7 +223,7 @@ impl PersistenceService {
                     }
                 };
             }
-            StateAction::NodeInfoKeySet(node_key) if !is_db_loaded => {
+            StateAction::NodeInfoKeySet { node_key } if !is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };

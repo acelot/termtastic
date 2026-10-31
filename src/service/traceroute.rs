@@ -104,7 +104,7 @@ impl TracerouteService {
     fn handle_ui_event(&self, event: Result<UiEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
-                UiEvent::TracerouteRequested(node_key) => {
+                UiEvent::TracerouteRequested { node_key } => {
                     let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
 
                     if node_key == my_node_key {

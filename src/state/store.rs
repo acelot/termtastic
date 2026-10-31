@@ -131,7 +131,7 @@ impl Store {
 
                 true
             }
-            StateAction::ConnectionFail(error) => {
+            StateAction::ConnectionFail { error } => {
                 self.state_tx.send_modify(|state| {
                     state.connection_state = ConnectionState::ProblemDetected {
                         since: Instant::now(),
@@ -463,7 +463,7 @@ impl Store {
 
                 true
             }
-            StateAction::DeviceCannedMessagesSet(messages) => {
+            StateAction::DeviceCannedMessagesSet { messages } => {
                 self.state_tx.send_modify(|state| {
                     state.device_canned_messages = Some(messages);
                 });
@@ -478,7 +478,7 @@ impl Store {
                 true
             }
             StateAction::NodeInit(node) => self.state_tx.send_if_modified(|state| node_init(node, state)),
-            StateAction::NodeInfoKeySet(node_key) => {
+            StateAction::NodeInfoKeySet { node_key } => {
                 self.state_tx.send_modify(|state| {
                     state.nodeinfo_key = Some(node_key);
 
@@ -543,7 +543,7 @@ impl Store {
 
                 true
             }),
-            StateAction::NodeDelete(node_key) => self.state_tx.send_if_modified(|state| {
+            StateAction::NodeDelete { node_key } => self.state_tx.send_if_modified(|state| {
                 if state.nodes.remove(&node_key).is_none() {
                     return false;
                 }
@@ -595,7 +595,7 @@ impl Store {
 
                 true
             }
-            StateAction::ChannelSet(key, channel) => {
+            StateAction::ChannelSet { key, channel } => {
                 self.state_tx.send_modify(|state| {
                     let chat = Chat::Channel(key);
 
@@ -695,15 +695,15 @@ impl Store {
 
                 true
             }
-            StateAction::NodesFilterSet(filter) => {
+            StateAction::NodesFilterSet { query } => {
                 self.state_tx.send_modify(|state| {
-                    state.nodes_filter = filter.to_lowercase();
+                    state.nodes_filter = query.to_lowercase();
                     update_nodes_view(state);
                 });
 
                 true
             }
-            StateAction::NodesOnlineSet(count) => self.state_tx.send_if_modified(|state| {
+            StateAction::NodesOnlineSet { count } => self.state_tx.send_if_modified(|state| {
                 if state.online_nodes == count {
                     return false;
                 }
@@ -722,7 +722,7 @@ impl Store {
 
                 true
             }
-            StateAction::DirectChatStart(node_key) => {
+            StateAction::DirectChatStart { node_key } => {
                 self.state_tx.send_modify(|state| {
                     let chat = Chat::Direct(node_key);
 

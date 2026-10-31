@@ -141,8 +141,8 @@ impl ConnectionService {
     fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::ConnectionError(e) => {
-                    let _ = self.state_action_tx.send(StateAction::ConnectionFail(e));
+                MeshtasticEvent::ConnectionError(error) => {
+                    let _ = self.state_action_tx.send(StateAction::ConnectionFail { error });
                 }
                 MeshtasticEvent::Disconnected => {
                     tracing::info!("disconnected");
@@ -171,9 +171,10 @@ impl ConnectionService {
                                 .send(StateAction::DeviceMetadataSet(metadata.clone()));
                         }
                         from_radio::PayloadVariant::Channel(ch) => {
-                            let _ = self
-                                .state_action_tx
-                                .send(StateAction::ChannelSet(ch.index as u32, Channel::from(ch)));
+                            let _ = self.state_action_tx.send(StateAction::ChannelSet {
+                                key: ch.index as u32,
+                                channel: Channel::from(ch),
+                            });
                         }
                         from_radio::PayloadVariant::ConfigCompleteId(_) => {
                             let _ = self.state_action_tx.send(StateAction::ConnectionSuccess);
@@ -210,6 +211,26 @@ impl ConnectionService {
                     if !matches!(packet, from_radio::PayloadVariant::Packet(_)) {
                         tracing::debug!("PACKET {:?}", packet);
                     }
+                }
+                MeshtasticEvent::RebootFailed => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("reboot failed")));
+                }
+                MeshtasticEvent::ShutdownFailed => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("shutdown failed")));
+                }
+                MeshtasticEvent::CannedMessagesLoadFailed => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("canned messages load failed")));
+                }
+                MeshtasticEvent::CannedMessagesSaveFailed => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("canned messages save failed")));
                 }
                 _ => {}
             },

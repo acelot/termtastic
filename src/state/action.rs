@@ -14,9 +14,14 @@ pub enum StateAction {
     AppConfigApply(AppConfig),
     ActiveChatSet(Chat),
     ActiveChatUnset,
-    ChannelSet(u32, Channel),
+    ChannelSet {
+        key: u32,
+        channel: Channel,
+    },
     ChatPurge(Chat),
-    ConnectionFail(String),
+    ConnectionFail {
+        error: String,
+    },
     ConnectionStart,
     ConnectionStop,
     ConnectionLoadDbData,
@@ -41,10 +46,14 @@ pub enum StateAction {
     DeviceConfigSet(config::PayloadVariant),
     DeviceModuleConfigSet(module_config::PayloadVariant),
     DeviceMetadataSet(meshtastic::protobufs::DeviceMetadata),
-    DeviceCannedMessagesSet(String),
+    DeviceCannedMessagesSet {
+        messages: String,
+    },
     #[strum(props(rebroadcast = false))]
     LogRecordAdd(LogRecord),
-    DirectChatStart(u32),
+    DirectChatStart {
+        node_key: u32,
+    },
     MessageAdd(Message),
     MessageErrorSet {
         message_id: u32,
@@ -58,7 +67,9 @@ pub enum StateAction {
     #[strum(props(rebroadcast = false))]
     NodesLoaderIncrement,
     NodeInit(Node),
-    NodeInfoKeySet(u32),
+    NodeInfoKeySet {
+        node_key: u32,
+    },
     NodeInfoKeyUnset,
     NodeInfoPositionSet(Vec<NodePosition>),
     NodeUpdate(Node),
@@ -68,13 +79,19 @@ pub enum StateAction {
         snr: f32,
         rssi: i32,
     },
-    NodeDelete(u32),
+    NodeDelete {
+        node_key: u32,
+    },
     NodeOwnerSet(NodeUser),
     NodeLastTelemetrySet(NodeTelemetry),
     NodeLastPositionSet(NodePosition),
     NodesSortBySet(NodesSortBy),
-    NodesFilterSet(String),
-    NodesOnlineSet(u32),
+    NodesFilterSet {
+        query: String,
+    },
+    NodesOnlineSet {
+        count: u32,
+    },
     #[strum(props(rebroadcast = false))]
     RxIndicatorTrigger,
     #[strum(props(rebroadcast = false))]

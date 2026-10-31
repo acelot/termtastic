@@ -83,13 +83,13 @@ impl<'a> Component for Layout<'a> {
                         emit(UiEvent::CopyToClipboardRequested(s));
                     }
                     NodeInfoWidgetEvent::DirectChatRequested(node_key) => {
-                        emit(UiEvent::DirectChatRequested(node_key));
+                        emit(UiEvent::DirectChatRequested { node_key });
                     }
                     NodeInfoWidgetEvent::NodeDeleteRequested => {
-                        emit(UiEvent::NodeDeleteRequested(node_key));
+                        emit(UiEvent::NodeDeleteRequested { node_key });
                     }
                     NodeInfoWidgetEvent::TracerouteRequested => {
-                        emit(UiEvent::TracerouteRequested(node_key));
+                        emit(UiEvent::TracerouteRequested { node_key });
                     }
                 },
             ) {

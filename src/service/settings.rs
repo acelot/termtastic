@@ -96,7 +96,7 @@ impl SettingsService {
             {
                 self.start_config_loading(&FormId::DeviceUser);
             }
-            Ok(StateAction::DeviceCannedMessagesSet(_))
+            Ok(StateAction::DeviceCannedMessagesSet { .. })
                 if matches!(
                     state.settings_form_state,
                     SettingsFormState::Saving {
@@ -230,9 +230,10 @@ impl SettingsService {
                                 let _ = self.state_action_tx.send(StateAction::DeviceModuleConfigSet(variant));
                             }
                             Some(admin_message::PayloadVariant::SetChannel(channel)) => {
-                                let _ = self
-                                    .state_action_tx
-                                    .send(StateAction::ChannelSet(channel.index as u32, (&channel).into()));
+                                let _ = self.state_action_tx.send(StateAction::ChannelSet {
+                                    key: channel.index as u32,
+                                    channel: (&channel).into(),
+                                });
                             }
                             Some(admin_message::PayloadVariant::RebootSeconds(secs)) => {
                                 let _ = self.state_action_tx.send(StateAction::Toast(Toast::warning(format!(
@@ -249,7 +250,7 @@ impl SettingsService {
                             Some(admin_message::PayloadVariant::GetCannedMessageModuleMessagesResponse(messages)) => {
                                 let _ = self
                                     .state_action_tx
-                                    .send(StateAction::DeviceCannedMessagesSet(messages));
+                                    .send(StateAction::DeviceCannedMessagesSet { messages });
                             }
                             _ => {}
                         },
