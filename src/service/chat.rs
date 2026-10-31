@@ -49,8 +49,8 @@ impl ChatService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event)?,
-                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
+                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -61,7 +61,7 @@ impl ChatService {
         Ok(())
     }
 
-    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) {
         let state = self.state_rx.borrow();
 
         match event {
@@ -93,22 +93,24 @@ impl ChatService {
                 }
                 AppEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
-                        self.meshtastic_command_tx
+                        let _ = self
+                            .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendBroadcastTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_message_id,
                                 text: TextMessage::Text(text),
-                            })?;
+                            });
                     }
                     Some(Chat::Direct(node_num)) => {
-                        self.meshtastic_command_tx
+                        let _ = self
+                            .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendDirectTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_message_id,
                                 text: TextMessage::Text(text),
-                            })?;
+                            });
                     }
                     _ => {}
                 },
@@ -117,22 +119,24 @@ impl ChatService {
                     reply_message_id,
                 } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
-                        self.meshtastic_command_tx
+                        let _ = self
+                            .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendBroadcastTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_message_id,
                                 text: TextMessage::Emoji(emoji),
-                            })?;
+                            });
                     }
                     Some(Chat::Direct(node_num)) => {
-                        self.meshtastic_command_tx
+                        let _ = self
+                            .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendDirectTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_message_id,
                                 text: TextMessage::Emoji(emoji),
-                            })?;
+                            });
                     }
                     _ => {}
                 },
@@ -143,17 +147,14 @@ impl ChatService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_event(
-        &mut self,
-        event: Result<MeshtasticEvent, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
+                MeshtasticEvent::IncomingPacket(packet) => {
+                    self.handle_meshtastic_packet(*packet);
+                }
                 MeshtasticEvent::MessageRejected(e) => {
                     tracing::error!("message rejected: {}", e);
 
@@ -168,11 +169,9 @@ impl ChatService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, payload_variant: PayloadVariant) -> anyhow::Result<()> {
+    fn handle_meshtastic_packet(&mut self, payload_variant: PayloadVariant) {
         match payload_variant {
             PayloadVariant::Packet(packet) => match &packet.payload_variant {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
@@ -184,11 +183,13 @@ impl ChatService {
 
                             if Some(packet.to) == my_node_key {
                                 match routing::Error::try_from(e) {
-                                    Ok(error) => self.state_action_tx.send(StateAction::MessageErrorSet {
-                                        message_id: data.request_id,
-                                        error: Some(error),
-                                        datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
-                                    })?,
+                                    Ok(error) => {
+                                        let _ = self.state_action_tx.send(StateAction::MessageErrorSet {
+                                            message_id: data.request_id,
+                                            error: Some(error),
+                                            datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                        });
+                                    }
                                     Err(_) => {
                                         tracing::warn!(
                                             message_id = data.request_id,
@@ -206,7 +207,9 @@ impl ChatService {
                     },
                     PortNum::TextMessageApp | PortNum::ReplyApp => {
                         match Message::try_from((&packet, data)) {
-                            Ok(message) => self.state_action_tx.send(StateAction::MessageAdd(message))?,
+                            Ok(message) => {
+                                let _ = self.state_action_tx.send(StateAction::MessageAdd(message));
+                            }
                             Err(e) => tracing::warn!(
                                 packet_id = packet.id,
                                 node_from = packet.from,
@@ -243,7 +246,5 @@ impl ChatService {
             },
             _ => {}
         }
-
-        Ok(())
     }
 }

@@ -56,10 +56,10 @@ impl ConnectionService {
 
         loop {
             tokio::select! {
-                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
-                event = self.app_event_rx.recv() => self.handle_app_event(event).await?,
-                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
-                _ = connection_check_interval.tick() => self.check_connection()?,
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event),
+                event = self.app_event_rx.recv() => self.handle_app_event(event).await,
+                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
+                _ = connection_check_interval.tick() => self.check_connection(),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -70,7 +70,7 @@ impl ConnectionService {
         Ok(())
     }
 
-    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) {
         match event {
             Ok(StateAction::DbLoadSuccess | StateAction::DbLoadFail) => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio);
@@ -85,11 +85,9 @@ impl ConnectionService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    async fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    async fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::DeviceSelected(hardware) => {
@@ -100,7 +98,7 @@ impl ConnectionService {
                 }
                 AppEvent::DeviceRediscoverRequested => {
                     if self.state_rx.borrow().device_discovering_state.is_scanning() {
-                        return Ok(());
+                        return;
                     }
 
                     let _ = self.state_action_tx.send(StateAction::DeviceDiscoveringStart);
@@ -138,14 +136,9 @@ impl ConnectionService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_event(
-        &mut self,
-        event: Result<MeshtasticEvent, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::ConnectionError(e) => {
@@ -186,10 +179,11 @@ impl ConnectionService {
                             let _ = self.state_action_tx.send(StateAction::ConnectionSuccess);
 
                             if let Some(my_node_key) = self.my_node_key.take() {
-                                self.meshtastic_command_tx
+                                let _ = self
+                                    .meshtastic_command_tx
                                     .send(CommandToMeshtastic::LoadCannedMessages {
                                         my_node_num: my_node_key,
-                                    })?;
+                                    });
                             }
 
                             let _ = self
@@ -224,11 +218,9 @@ impl ConnectionService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn check_connection(&self) -> anyhow::Result<()> {
+    fn check_connection(&self) {
         let state = self.state_rx.borrow();
 
         match (&state.active_device, &state.connection_state) {
@@ -246,32 +238,28 @@ impl ConnectionService {
                     .send(StateAction::ReconnectionBackoffSet(time_left));
 
                 if time_left.is_zero() {
-                    self.connect(device)?;
+                    self.connect(device);
                 }
             }
-            (Some(device), ConnectionState::NotConnected) => self.connect(device)?,
+            (Some(device), ConnectionState::NotConnected) => self.connect(device),
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn connect(&self, device: &Device) -> anyhow::Result<()> {
+    fn connect(&self, device: &Device) {
         let _ = self.state_action_tx.send(StateAction::ConnectionStart);
 
-        match device {
+        let _ = match device {
             Device::Tcp { address, .. } => self
                 .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaTcp(address.clone()))?,
+                .send(CommandToMeshtastic::ConnectViaTcp(address.clone())),
             Device::Ble { address, id, .. } => self
                 .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaBle(*address, id.clone()))?,
+                .send(CommandToMeshtastic::ConnectViaBle(*address, id.clone())),
             Device::Serial { address, .. } => self
                 .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned()))?,
+                .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned())),
         };
-
-        Ok(())
     }
 
     fn discover_devices(&self) {

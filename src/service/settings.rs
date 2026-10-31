@@ -59,9 +59,9 @@ impl SettingsService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
-                event = self.app_event_rx.recv() => self.handle_app_event(event)?,
-                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event),
+                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -72,7 +72,7 @@ impl SettingsService {
         Ok(())
     }
 
-    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) {
         let state = self.state_rx.borrow();
 
         match event {
@@ -86,7 +86,7 @@ impl SettingsService {
                     .state_action_tx
                     .send(StateAction::Toast(Toast::success("setting saved")));
 
-                self.start_config_loading(&FormId::AppUi)?;
+                self.start_config_loading(&FormId::AppUi);
             }
             Ok(StateAction::NodeOwnerSet(_))
                 if matches!(
@@ -94,7 +94,7 @@ impl SettingsService {
                     SettingsFormState::Saving { id: FormId::DeviceUser }
                 ) =>
             {
-                self.start_config_loading(&FormId::DeviceUser)?;
+                self.start_config_loading(&FormId::DeviceUser);
             }
             Ok(StateAction::DeviceCannedMessagesSet(_))
                 if matches!(
@@ -104,22 +104,20 @@ impl SettingsService {
                     }
                 ) =>
             {
-                self.start_config_loading(&FormId::ModuleCannedMessage)?;
+                self.start_config_loading(&FormId::ModuleCannedMessage);
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 tracing::warn!("broadcast receiver lagged by {} events", n);
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::SettingsFormSelected(id) => {
-                    self.start_config_loading(&id)?;
+                    self.start_config_loading(&id);
                 }
                 AppEvent::SettingsFormCancelRequested => {
                     let _ = self.state_action_tx.send(StateAction::SettingsFormClose);
@@ -161,18 +159,13 @@ impl SettingsService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_event(
-        &mut self,
-        event: Result<MeshtasticEvent, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::IncomingPacket(packet) => {
-                    self.handle_meshtastic_packet(*packet)?;
+                    self.handle_meshtastic_packet(*packet);
                 }
                 MeshtasticEvent::ConfigSaveFailed(form_id)
                 | MeshtasticEvent::ChannelsSaveFailed(form_id)
@@ -190,7 +183,7 @@ impl SettingsService {
                         .state_action_tx
                         .send(StateAction::Toast(Toast::success("setting saved")));
 
-                    self.start_config_loading(&form_id)?;
+                    self.start_config_loading(&form_id);
                 }
                 MeshtasticEvent::ChannelsSaved(form_id) => {
                     let _ = self.state_action_tx.send(StateAction::ActiveChatUnset);
@@ -199,7 +192,7 @@ impl SettingsService {
                         .state_action_tx
                         .send(StateAction::Toast(Toast::success("channels saved")));
 
-                    self.start_config_loading(&form_id)?;
+                    self.start_config_loading(&form_id);
                 }
                 _ => {}
             },
@@ -208,11 +201,9 @@ impl SettingsService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) -> anyhow::Result<()> {
+    fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) {
         match packet {
             from_radio::PayloadVariant::Config(Config {
                 payload_variant: Some(variant),
@@ -272,11 +263,9 @@ impl SettingsService {
             },
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn start_config_loading(&self, id: &FormId) -> anyhow::Result<()> {
+    fn start_config_loading(&self, id: &FormId) {
         let _ = self
             .state_action_tx
             .send(StateAction::SettingsFormLoadingStart { id: id.clone() });
@@ -294,8 +283,6 @@ impl SettingsService {
                 });
             }
         }
-
-        Ok(())
     }
 
     fn load_config(&self, id: &FormId) -> anyhow::Result<FormData> {

@@ -59,9 +59,9 @@ impl NodesService {
 
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event)?,
-                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
-                _ = online_nodes_interval.tick() => self.update_online_nodes()?,
+                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
+                _ = online_nodes_interval.tick() => self.update_online_nodes(),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -72,7 +72,7 @@ impl NodesService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) {
         let state = &self.state_rx.borrow();
 
         match event {
@@ -105,7 +105,7 @@ impl NodesService {
                                 .state_action_tx
                                 .send(StateAction::Toast(Toast::error("NodeInfo broadcast failed")));
 
-                            return Ok(());
+                            return;
                         }
                     };
 
@@ -134,17 +134,12 @@ impl NodesService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_event(
-        &mut self,
-        event: Result<MeshtasticEvent, broadcast::error::RecvError>,
-    ) -> anyhow::Result<()> {
+    fn handle_meshtastic_event(&mut self, event: Result<MeshtasticEvent, broadcast::error::RecvError>) {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet)?,
+                MeshtasticEvent::IncomingPacket(packet) => self.handle_meshtastic_packet(*packet),
                 MeshtasticEvent::NodeInfoBroadcastSent => {
                     let _ = self
                         .state_action_tx
@@ -176,11 +171,9 @@ impl NodesService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) -> anyhow::Result<()> {
+    fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) {
         match packet {
             from_radio::PayloadVariant::NodeInfo(node_info) => {
                 let _ = self.state_action_tx.send(StateAction::NodesLoaderIncrement);
@@ -290,7 +283,7 @@ impl NodesService {
                     _ => {}
                 }
 
-                self.send_node_update_last_heard(&mesh_packet)?;
+                self.send_node_update_last_heard(&mesh_packet);
             }
             from_radio::PayloadVariant::ClientNotification(notification) => {
                 let _ = self
@@ -303,11 +296,9 @@ impl NodesService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 
-    fn send_node_update_last_heard(&self, packet: &MeshPacket) -> anyhow::Result<()> {
+    fn send_node_update_last_heard(&self, packet: &MeshPacket) {
         let _ = self.state_action_tx.send(StateAction::NodeUpdateLastHeard {
             node_key: packet.from,
             hops: packet.hop_start.saturating_sub(packet.hop_limit),
@@ -315,12 +306,10 @@ impl NodesService {
             rssi: packet.rx_rssi,
         });
 
-        self.update_online_nodes()?;
-
-        Ok(())
+        self.update_online_nodes();
     }
 
-    fn update_online_nodes(&self) -> anyhow::Result<()> {
+    fn update_online_nodes(&self) {
         let now = Utc::now();
 
         let count = self.state_rx.borrow().nodes.iter().fold(0, |mut counter, (_, node)| {
@@ -334,8 +323,6 @@ impl NodesService {
         });
 
         let _ = self.state_action_tx.send(StateAction::NodesOnlineSet(count));
-
-        Ok(())
     }
 }
 

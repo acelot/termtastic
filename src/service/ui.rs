@@ -25,7 +25,7 @@ impl UiService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event, subsys)?,
+                event = self.app_event_rx.recv() => self.handle_app_event(event, subsys),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     break;
@@ -36,11 +36,7 @@ impl UiService {
         Ok(())
     }
 
-    fn handle_app_event(
-        &mut self,
-        event: Result<AppEvent, broadcast::error::RecvError>,
-        subsys: &mut SubsystemHandle,
-    ) -> anyhow::Result<()> {
+    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>, subsys: &mut SubsystemHandle) {
         match event {
             Ok(app_event) => match app_event {
                 AppEvent::InitializationRequested | AppEvent::SplashLogoRequested => {
@@ -53,7 +49,9 @@ impl UiService {
                     let _ = self.state_action_tx.send(StateAction::TabSwitchToPrevious);
                 }
                 AppEvent::CopyToClipboardRequested(text) => match copy_to_clipboard(text) {
-                    Ok(_) => self.state_action_tx.send(StateAction::Toast(Toast::normal("copied")))?,
+                    Ok(_) => {
+                        let _ = self.state_action_tx.send(StateAction::Toast(Toast::normal("copied")));
+                    }
                     Err(e) => {
                         let _ = self
                             .state_action_tx
@@ -77,8 +75,6 @@ impl UiService {
             }
             _ => {}
         }
-
-        Ok(())
     }
 }
 
