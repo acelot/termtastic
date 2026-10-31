@@ -13,14 +13,14 @@ use crate::types::{Chat, UNKNOWN_NODE};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent, TextMessage},
     state::StateAction,
-    types::{AppEvent, Message, Toast},
+    types::{Message, Toast, UiEvent},
 };
 use crate::{state::State, ui::helpers::DateTimeExt};
 
 const CHAT_TOP_DEBOUNCE_DELAY_MILLIS: u128 = 1000;
 
 pub struct ChatService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
@@ -30,14 +30,14 @@ pub struct ChatService {
 
 impl ChatService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             meshtastic_command_tx,
@@ -49,7 +49,7 @@ impl ChatService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event),
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
@@ -61,25 +61,25 @@ impl ChatService {
         Ok(())
     }
 
-    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    fn handle_ui_event(&mut self, event: Result<UiEvent, broadcast::error::RecvError>) {
         let state = self.state_rx.borrow();
 
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::ChatSelected(chat) => {
+                UiEvent::ChatSelected(chat) => {
                     let _ = self.state_action_tx.send(StateAction::ActiveChatSet(chat));
                 }
-                AppEvent::ChatPurgeRequested(chat) => {
+                UiEvent::ChatPurgeRequested(chat) => {
                     let _ = self.state_action_tx.send(StateAction::ChatPurge(chat));
 
                     let _ = self
                         .state_action_tx
                         .send(StateAction::Toast(Toast::success("chat is purged")));
                 }
-                AppEvent::ChatSwitchRequested => {
+                UiEvent::ChatSwitchRequested => {
                     let _ = self.state_action_tx.send(StateAction::ActiveChatUnset);
                 }
-                AppEvent::ChatTopReached => {
+                UiEvent::ChatTopReached => {
                     if self.last_chat_top_t.elapsed().as_millis() > CHAT_TOP_DEBOUNCE_DELAY_MILLIS {
                         let _ = self.state_action_tx.send(StateAction::Toast(Toast::normal(
                             "press <Shift+Up> to load previous messages",
@@ -88,10 +88,10 @@ impl ChatService {
 
                     self.last_chat_top_t = Instant::now();
                 }
-                AppEvent::ChatPreviousMessagesLoadRequested => {
+                UiEvent::ChatPreviousMessagesLoadRequested => {
                     //let _ = self.state_action_tx.send(StateAction::);
                 }
-                AppEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
+                UiEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
                         let _ = self
                             .meshtastic_command_tx
@@ -114,7 +114,7 @@ impl ChatService {
                     }
                     _ => {}
                 },
-                AppEvent::ChatReactionSubmitted {
+                UiEvent::ChatReactionSubmitted {
                     emoji,
                     reply_message_id,
                 } => match state.active_chat {

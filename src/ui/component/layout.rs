@@ -59,7 +59,7 @@ impl<'a> Component for Layout<'a> {
         }
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         if let Event::Key(KeyEvent {
             code: KeyCode::Char('c'),
             modifiers,
@@ -67,7 +67,7 @@ impl<'a> Component for Layout<'a> {
         }) = event
             && modifiers.contains(KeyModifiers::CONTROL)
         {
-            emit(AppEvent::QuitRequested);
+            emit(UiEvent::QuitRequested);
             return true;
         }
 
@@ -77,19 +77,19 @@ impl<'a> Component for Layout<'a> {
                 event.clone(),
                 &mut |ev| match ev {
                     NodeInfoWidgetEvent::CloseRequested => {
-                        emit(AppEvent::NodeInfoPopupCloseRequested);
+                        emit(UiEvent::NodeInfoPopupCloseRequested);
                     }
                     NodeInfoWidgetEvent::CopyToClipboardRequested(s) => {
-                        emit(AppEvent::CopyToClipboardRequested(s));
+                        emit(UiEvent::CopyToClipboardRequested(s));
                     }
                     NodeInfoWidgetEvent::DirectChatRequested(node_key) => {
-                        emit(AppEvent::DirectChatRequested(node_key));
+                        emit(UiEvent::DirectChatRequested(node_key));
                     }
                     NodeInfoWidgetEvent::NodeDeleteRequested => {
-                        emit(AppEvent::NodeDeleteRequested(node_key));
+                        emit(UiEvent::NodeDeleteRequested(node_key));
                     }
                     NodeInfoWidgetEvent::TracerouteRequested => {
-                        emit(AppEvent::TracerouteRequested(node_key));
+                        emit(UiEvent::TracerouteRequested(node_key));
                     }
                 },
             ) {
@@ -123,22 +123,22 @@ impl<'a> Component for Layout<'a> {
                 ..
             }) => match code {
                 KeyCode::Tab if modifiers.is_empty() => {
-                    emit(AppEvent::TabNextRequested);
+                    emit(UiEvent::TabNextRequested);
                     return true;
                 }
                 KeyCode::BackTab => {
-                    emit(AppEvent::TabPreviousRequested);
+                    emit(UiEvent::TabPreviousRequested);
                     return true;
                 }
                 KeyCode::F(12) if modifiers.is_empty() => {
-                    emit(AppEvent::SplashLogoRequested);
+                    emit(UiEvent::SplashLogoRequested);
                     return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
                     if self.last_esc_t.elapsed() < Duration::from_millis(300) {
-                        emit(AppEvent::QuitRequested);
+                        emit(UiEvent::QuitRequested);
                     } else {
-                        emit(AppEvent::TryingToQuit);
+                        emit(UiEvent::TryingToQuit);
                     }
 
                     self.last_esc_t = Instant::now();

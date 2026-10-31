@@ -59,7 +59,7 @@ pub struct UiConfig {
 }
 
 #[derive(Debug, Clone)]
-pub enum AppEvent {
+pub enum UiEvent {
     ChatPurgeRequested(Chat),
     ChatSelected(Chat),
     ChatSwitchRequested,
@@ -1365,7 +1365,7 @@ pub enum FormItemKind {
     BitMask(Vec<FormBitMaskVariant>),
     Switch,
     Button(fn(&FormValue) -> FormValue),
-    Action(AppEvent),
+    Action(UiEvent),
 }
 
 #[derive(Debug, Clone)]

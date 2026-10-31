@@ -22,7 +22,7 @@ use crate::types::{NodePosition, NodeTelemetry, NodesSortBy, Toast};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
-    types::{AppEvent, Node},
+    types::{Node, UiEvent},
 };
 use crate::{state::State, ui::helpers::DateTimeExt};
 
@@ -30,7 +30,7 @@ pub const ONLINE_NODE_THRESHOLD_SECS: i64 = 7200;
 const UPDATE_ONLINE_NODES_INTERVAL_SECS: u64 = 2;
 
 pub struct NodesService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
@@ -39,14 +39,14 @@ pub struct NodesService {
 
 impl NodesService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             meshtastic_command_tx,
@@ -59,7 +59,7 @@ impl NodesService {
 
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event),
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = online_nodes_interval.tick() => self.update_online_nodes(),
                 _ = subsys.on_shutdown_requested() => {
@@ -72,28 +72,28 @@ impl NodesService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    fn handle_ui_event(&self, event: Result<UiEvent, broadcast::error::RecvError>) {
         let state = &self.state_rx.borrow();
 
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::DirectChatRequested(node_key) => {
+                UiEvent::DirectChatRequested(node_key) => {
                     let _ = self.state_action_tx.send(StateAction::DirectChatStart(node_key));
                 }
-                AppEvent::NodesSortByPrevRequested => {
+                UiEvent::NodesSortByPrevRequested => {
                     let _ = self
                         .state_action_tx
                         .send(StateAction::NodesSortBySet(state.nodes_sort_by.prev()));
                 }
-                AppEvent::NodesSortByNextRequested => {
+                UiEvent::NodesSortByNextRequested => {
                     let _ = self
                         .state_action_tx
                         .send(StateAction::NodesSortBySet(state.nodes_sort_by.next()));
                 }
-                AppEvent::NodesFilterChanged(filter) => {
+                UiEvent::NodesFilterChanged(filter) => {
                     let _ = self.state_action_tx.send(StateAction::NodesFilterSet(filter));
                 }
-                AppEvent::NodeInfoBroadcastRequested => {
+                UiEvent::NodeInfoBroadcastRequested => {
                     let my_node = state.get_my_node().expect("should be Some");
 
                     let user = match my_node.try_into() {
@@ -113,13 +113,13 @@ impl NodesService {
                         .meshtastic_command_tx
                         .send(CommandToMeshtastic::BroadcastNodeInfo { channel_id: 0, user });
                 }
-                AppEvent::NodeInfoPopupOpenRequested(node_key) => {
+                UiEvent::NodeInfoPopupOpenRequested(node_key) => {
                     let _ = self.state_action_tx.send(StateAction::NodeInfoKeySet(node_key));
                 }
-                AppEvent::NodeInfoPopupCloseRequested => {
+                UiEvent::NodeInfoPopupCloseRequested => {
                     let _ = self.state_action_tx.send(StateAction::NodeInfoKeyUnset);
                 }
-                AppEvent::NodeDeleteRequested(node_key) => {
+                UiEvent::NodeDeleteRequested(node_key) => {
                     let my_node_num = state.my_node_key.expect("should be Some");
 
                     let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::DeleteNode {

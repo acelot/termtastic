@@ -6,11 +6,11 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use crate::state::State;
 use crate::{
     state::StateAction,
-    types::{AppConfig, AppEvent, Toast},
+    types::{AppConfig, Toast, UiEvent},
 };
 
 pub struct ConfigService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     stored_action_rx: broadcast::Receiver<StateAction>,
@@ -21,14 +21,14 @@ pub struct ConfigService {
 
 impl ConfigService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         stored_action_rx: broadcast::Receiver<StateAction>,
         config_dir: PathBuf,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             stored_action_rx,
@@ -41,7 +41,7 @@ impl ConfigService {
     pub async fn run(mut self, subsys: &mut SubsystemHandle) -> anyhow::Result<()> {
         loop {
             tokio::select! {
-                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event),
                 event = self.stored_action_rx.recv() => self.handle_stored_action(event),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
@@ -53,9 +53,9 @@ impl ConfigService {
         Ok(())
     }
 
-    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    fn handle_ui_event(&mut self, event: Result<UiEvent, broadcast::error::RecvError>) {
         match event {
-            Ok(AppEvent::InitializationRequested) => match confy::load_path::<AppConfig>(self.config_path.as_path()) {
+            Ok(UiEvent::InitializationRequested) => match confy::load_path::<AppConfig>(self.config_path.as_path()) {
                 Ok(app_config) => {
                     let _ = self.state_action_tx.send(StateAction::AppConfigApply(app_config));
                 }

@@ -12,7 +12,7 @@ use crate::{
     meshtastic::MeshtasticService,
     service::{ChatService, ConfigService, ConnectionService, NodesService, SettingsService, UiService},
     state::{State, Store},
-    types::AppEvent,
+    types::UiEvent,
     ui::Ui,
 };
 
@@ -40,7 +40,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     tracing::info!("data dir: {}", data_dir.display());
     tracing::info!("config dir: {}", config_dir.display());
 
-    let (app_event_tx, app_event_rx) = broadcast::channel::<AppEvent>(2000);
+    let (ui_event_tx, ui_event_rx) = broadcast::channel::<UiEvent>(2000);
 
     let persistence_service = PersistenceService::new(
         state_rx.clone(),
@@ -52,17 +52,17 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let (meshtastic_service, meshtastic_command_tx, meshtastic_event_rx) = MeshtasticService::new();
 
     let config_service = ConfigService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
         config_dir,
     );
 
-    let ui_service = UiService::new(app_event_rx.resubscribe(), state_action_tx.clone());
+    let ui_service = UiService::new(ui_event_rx.resubscribe(), state_action_tx.clone());
 
     let nodes_service = NodesService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         meshtastic_command_tx.clone(),
@@ -70,7 +70,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     );
 
     let traceroute_service = TracerouteService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
@@ -79,7 +79,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     );
 
     let connection_service = ConnectionService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
@@ -88,7 +88,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     );
 
     let chat_service = ChatService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         meshtastic_command_tx.clone(),
@@ -96,7 +96,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     );
 
     let settings_service = SettingsService::new(
-        app_event_rx.resubscribe(),
+        ui_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
@@ -104,8 +104,8 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         meshtastic_event_rx.resubscribe(),
     );
 
-    app_event_tx
-        .send(AppEvent::InitializationRequested)
+    ui_event_tx
+        .send(UiEvent::InitializationRequested)
         .expect_or_log("InitializationRequested event should be sent");
 
     Toplevel::new(async |s: &mut SubsystemHandle| {
@@ -160,7 +160,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
 
         s.start(SubsystemBuilder::new(
             "UI",
-            async move |subsys: &mut SubsystemHandle| Ui::new(app_event_tx, state_rx).run(subsys).await,
+            async move |subsys: &mut SubsystemHandle| Ui::new(ui_event_tx, state_rx).run(subsys).await,
         ));
     })
     .catch_signals()

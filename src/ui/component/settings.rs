@@ -114,7 +114,7 @@ impl<'a> Settings<'a> {
         }
     }
 
-    fn handle_form_item_edit(&mut self, form_item: &'static FormItem, value: &FormValue, emit: &impl Fn(AppEvent)) {
+    fn handle_form_item_edit(&mut self, form_item: &'static FormItem, value: &FormValue, emit: &impl Fn(UiEvent)) {
         match &form_item.kind {
             FormItemKind::ReadOnly => {}
             FormItemKind::InputOfString
@@ -152,7 +152,7 @@ impl<'a> Settings<'a> {
                 ));
             }
             FormItemKind::Switch => {
-                emit(AppEvent::SettingsFormItemSubmitted(
+                emit(UiEvent::SettingsFormItemSubmitted(
                     form_item,
                     match value {
                         FormValue::Bool(v) => FormValue::Bool(!v),
@@ -165,7 +165,7 @@ impl<'a> Settings<'a> {
                 ));
             }
             FormItemKind::Button(handler) => {
-                emit(AppEvent::SettingsFormItemSubmitted(form_item, handler(value)));
+                emit(UiEvent::SettingsFormItemSubmitted(form_item, handler(value)));
             }
             FormItemKind::Action(event) => {
                 emit(event.clone());
@@ -211,7 +211,7 @@ impl<'a> Component for Settings<'a> {
         .collect()
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         // confirm popup
         if self.is_exit_confirm_visible {
             match event {
@@ -222,7 +222,7 @@ impl<'a> Component for Settings<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::SettingsFormCancelRequested);
+                        emit(UiEvent::SettingsFormCancelRequested);
                         self.is_exit_confirm_visible = false;
                     }
                     KeyCode::Esc => {
@@ -250,7 +250,7 @@ impl<'a> Component for Settings<'a> {
                     KeyCode::Enter => {
                         match handle_popup_input_submit(form_item, popup_input_state) {
                             Ok(value) => {
-                                emit(AppEvent::SettingsFormItemSubmitted(form_item, value));
+                                emit(UiEvent::SettingsFormItemSubmitted(form_item, value));
                                 self.active_form_item = None;
                                 self.popup_input_state = None;
                             }
@@ -294,7 +294,7 @@ impl<'a> Component for Settings<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::SettingsFormItemSubmitted(form_item, value.clone()));
+                        emit(UiEvent::SettingsFormItemSubmitted(form_item, value.clone()));
 
                         self.active_form_item = None;
                         self.popup_dropdown_state = None;
@@ -329,7 +329,7 @@ impl<'a> Component for Settings<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::SettingsFormItemSubmitted(
+                        emit(UiEvent::SettingsFormItemSubmitted(
                             form_item,
                             FormValue::UnsignedInt32(popup_dropdown_bitmask_state.get_value()),
                         ));
@@ -383,19 +383,19 @@ impl<'a> Component for Settings<'a> {
                     if let Some(index) = self.settings_list_state.selected
                         && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
                     {
-                        emit(AppEvent::SettingsFormSelected(id.clone()));
+                        emit(UiEvent::SettingsFormSelected(id.clone()));
                         return true;
                     }
                 }
                 (KeyCode::Esc, SettingsFormState::Loading { .. } | SettingsFormState::LoadingFailed { .. })
                     if modifiers.is_empty() =>
                 {
-                    emit(AppEvent::SettingsFormCancelRequested);
+                    emit(UiEvent::SettingsFormCancelRequested);
                     return true;
                 }
                 (KeyCode::Enter, SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
                     if self.is_exit_confirm_visible {
-                        emit(AppEvent::SettingsFormCancelRequested);
+                        emit(UiEvent::SettingsFormCancelRequested);
                         self.is_exit_confirm_visible = false;
 
                         return true;
@@ -422,7 +422,7 @@ impl<'a> Component for Settings<'a> {
                     if state.settings_form_is_changed {
                         self.is_exit_confirm_visible = true;
                     } else {
-                        emit(AppEvent::SettingsFormCancelRequested);
+                        emit(UiEvent::SettingsFormCancelRequested);
                         self.form_list_state = ListState::default();
                     }
 
@@ -431,13 +431,13 @@ impl<'a> Component for Settings<'a> {
                 (KeyCode::Char('r'), SettingsFormState::Loaded { .. })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
-                    emit(AppEvent::SettingsFormResetRequested);
+                    emit(UiEvent::SettingsFormResetRequested);
                     return true;
                 }
                 (KeyCode::Char('s'), SettingsFormState::Loaded { id })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
-                    emit(AppEvent::SettingsFormSaveRequested(id.clone()));
+                    emit(UiEvent::SettingsFormSaveRequested(id.clone()));
                     return true;
                 }
                 (KeyCode::Char('c'), SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
@@ -451,7 +451,7 @@ impl<'a> Component for Settings<'a> {
                     };
 
                     if let Some(v) = form_value {
-                        emit(AppEvent::CopyToClipboardRequested((form_item.formatter)(&v)));
+                        emit(UiEvent::CopyToClipboardRequested((form_item.formatter)(&v)));
                         return true;
                     }
                 }

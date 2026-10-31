@@ -13,7 +13,7 @@ impl Component for Header {
         Vec::default()
     }
 
-    fn handle_event(&mut self, _state: &State, _event: &Event, _emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, _state: &State, _event: &Event, _emit: &impl Fn(UiEvent)) -> bool {
         false
     }
 

@@ -1,5 +1,5 @@
 use crate::state::State;
-use crate::types::AppEvent;
+use crate::types::UiEvent;
 use crate::ui::component::{Component, Layout};
 use crossterm::event::{
     DisableBracketedPaste, EnableBracketedPaste, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
@@ -21,16 +21,16 @@ use tokio::sync::{broadcast, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 pub struct Ui<'a> {
-    app_event_tx: broadcast::Sender<AppEvent>,
+    ui_event_tx: broadcast::Sender<UiEvent>,
     state_rx: watch::Receiver<State>,
     crossterm_events: EventStream,
     layout: Layout<'a>,
 }
 
 impl<'a> Ui<'a> {
-    pub fn new(app_event_tx: broadcast::Sender<AppEvent>, state_rx: watch::Receiver<State>) -> Self {
+    pub fn new(ui_event_tx: broadcast::Sender<UiEvent>, state_rx: watch::Receiver<State>) -> Self {
         Self {
-            app_event_tx,
+            ui_event_tx,
             state_rx,
             crossterm_events: EventStream::new(),
             layout: Layout::new(),
@@ -72,7 +72,7 @@ impl<'a> Ui<'a> {
         match maybe_event {
             Some(Ok(event)) => {
                 self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
-                    let _ = self.app_event_tx.send(ev);
+                    let _ = self.ui_event_tx.send(ev);
                 });
 
                 self.redraw(terminal)?;

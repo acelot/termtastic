@@ -19,7 +19,7 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
 use crate::types::{
-    AppEvent, Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig,
+    Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig, UiEvent,
 };
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -29,7 +29,7 @@ use crate::{
 pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(build_settings);
 
 pub struct SettingsService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     stored_action_rx: broadcast::Receiver<StateAction>,
@@ -39,7 +39,7 @@ pub struct SettingsService {
 
 impl SettingsService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         stored_action_rx: broadcast::Receiver<StateAction>,
@@ -47,7 +47,7 @@ impl SettingsService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             stored_action_rx,
@@ -60,7 +60,7 @@ impl SettingsService {
         loop {
             tokio::select! {
                 event = self.stored_action_rx.recv() => self.handle_stored_action(event),
-                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event),
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
@@ -113,23 +113,23 @@ impl SettingsService {
         }
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    fn handle_ui_event(&self, event: Result<UiEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::SettingsFormSelected(id) => {
+                UiEvent::SettingsFormSelected(id) => {
                     self.start_config_loading(&id);
                 }
-                AppEvent::SettingsFormCancelRequested => {
+                UiEvent::SettingsFormCancelRequested => {
                     let _ = self.state_action_tx.send(StateAction::SettingsFormClose);
                 }
-                AppEvent::SettingsFormResetRequested => {
+                UiEvent::SettingsFormResetRequested => {
                     let _ = self.state_action_tx.send(StateAction::SettingsFormReset);
 
                     let _ = self
                         .state_action_tx
                         .send(StateAction::Toast(Toast::normal("the data was reset")));
                 }
-                AppEvent::SettingsFormSaveRequested(form_id) => {
+                UiEvent::SettingsFormSaveRequested(form_id) => {
                     let _ = self
                         .state_action_tx
                         .send(StateAction::Toast(Toast::normal("saving...")));
@@ -146,7 +146,7 @@ impl SettingsService {
                             .send(StateAction::SettingsFormSavingFailed { id: form_id });
                     }
                 }
-                AppEvent::SettingsFormItemSubmitted(form_item, value) => {
+                UiEvent::SettingsFormItemSubmitted(form_item, value) => {
                     let _ = self.state_action_tx.send(StateAction::SettingsFormValueSet {
                         key: form_item.key.clone(),
                         value,

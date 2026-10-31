@@ -30,7 +30,7 @@ impl<'a> Component for Chat<'a> {
         ]
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         if state.active_chat.is_some() {
             return self.messenger_component.handle_event(state, event, emit);
         }
@@ -44,7 +44,7 @@ impl<'a> Component for Chat<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::ChatPurgeRequested(self.chat_purge.take().unwrap()));
+                        emit(UiEvent::ChatPurgeRequested(self.chat_purge.take().unwrap()));
                     }
                     KeyCode::Esc => {
                         self.chat_purge = None;
@@ -70,7 +70,7 @@ impl<'a> Component for Chat<'a> {
             }) => match code {
                 KeyCode::Enter if modifiers.is_empty() => {
                     if let Some((chat, _)) = self.list_state.selected.and_then(|i| state.chats.get_index(i)) {
-                        emit(AppEvent::ChatSelected(chat.clone()));
+                        emit(UiEvent::ChatSelected(chat.clone()));
                     }
 
                     return true;

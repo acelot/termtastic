@@ -53,7 +53,7 @@ impl Component for Logs {
         ]
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         self.sync_selection(state);
 
         if let Some(record) = &self.popup_record {
@@ -73,7 +73,7 @@ impl Component for Logs {
                         return true;
                     }
                     KeyCode::Char('c') => {
-                        emit(AppEvent::CopyToClipboardRequested(record.clone().into()));
+                        emit(UiEvent::CopyToClipboardRequested(record.clone().into()));
                         return true;
                     }
                     KeyCode::Esc => {
@@ -127,7 +127,7 @@ impl Component for Logs {
                     if modifiers.is_empty()
                         && let Some(i) = self.list_state.selected =>
                 {
-                    emit(AppEvent::CopyToClipboardRequested(state.logs[i].clone().into()));
+                    emit(UiEvent::CopyToClipboardRequested(state.logs[i].clone().into()));
                     return true;
                 }
                 _ => {}

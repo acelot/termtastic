@@ -7,7 +7,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::state::State;
-use crate::types::{AppEvent, Channel, ConnectionState, Device, Toast};
+use crate::types::{Channel, ConnectionState, Device, Toast, UiEvent};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
@@ -21,7 +21,7 @@ const MDNS_DISCOVERY_TIMEOUT_SECS: u64 = 5;
 const MDNS_MESHTASTIC_DOMAIN: &str = "_meshtastic._tcp.local.";
 
 pub struct ConnectionService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     stored_action_rx: broadcast::Receiver<StateAction>,
@@ -32,7 +32,7 @@ pub struct ConnectionService {
 
 impl ConnectionService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         stored_action_rx: broadcast::Receiver<StateAction>,
@@ -40,7 +40,7 @@ impl ConnectionService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             stored_action_rx,
@@ -57,7 +57,7 @@ impl ConnectionService {
         loop {
             tokio::select! {
                 event = self.stored_action_rx.recv() => self.handle_stored_action(event),
-                event = self.app_event_rx.recv() => self.handle_app_event(event).await,
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event).await,
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = connection_check_interval.tick() => self.check_connection(),
                 _ = subsys.on_shutdown_requested() => {
@@ -87,16 +87,16 @@ impl ConnectionService {
         }
     }
 
-    async fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    async fn handle_ui_event(&mut self, event: Result<UiEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::DeviceSelected(hardware) => {
+                UiEvent::DeviceSelected(hardware) => {
                     let _ = self.state_action_tx.send(StateAction::DeviceActiveSet(hardware));
                 }
-                AppEvent::DisconnectionRequested => {
+                UiEvent::DisconnectionRequested => {
                     let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::Disconnect);
                 }
-                AppEvent::DeviceRediscoverRequested => {
+                UiEvent::DeviceRediscoverRequested => {
                     if self.state_rx.borrow().device_discovering_state.is_scanning() {
                         return;
                     }
@@ -109,24 +109,24 @@ impl ConnectionService {
 
                     self.discover_devices();
                 }
-                AppEvent::DeviceRebootRequested => {
+                UiEvent::DeviceRebootRequested => {
                     let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
                     let _ = self
                         .meshtastic_command_tx
                         .send(CommandToMeshtastic::Reboot { my_node_num, secs: 3 });
                 }
-                AppEvent::DeviceShutdownRequested => {
+                UiEvent::DeviceShutdownRequested => {
                     let my_node_num = self.state_rx.borrow().my_node_key.expect("should be Some");
 
                     let _ = self
                         .meshtastic_command_tx
                         .send(CommandToMeshtastic::Shutdown { my_node_num, secs: 3 });
                 }
-                AppEvent::DeviceSubmitted(device) => {
+                UiEvent::DeviceSubmitted(device) => {
                     let _ = self.state_action_tx.send(StateAction::DevicesAdd(device));
                 }
-                AppEvent::DeviceRemoveRequested(device) => {
+                UiEvent::DeviceRemoveRequested(device) => {
                     let _ = self.state_action_tx.send(StateAction::DevicesRemove(device));
                 }
                 _ => {}

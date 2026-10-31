@@ -112,7 +112,7 @@ impl<'a> Component for Messenger<'a> {
         .collect()
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
 
         let list_state = self.list_states.entry(active_chat.clone()).or_default();
@@ -216,13 +216,13 @@ impl<'a> Component for Messenger<'a> {
 
                             match input_widget.get_single_emoji() {
                                 Some(emoji) => {
-                                    emit(AppEvent::ChatReactionSubmitted {
+                                    emit(UiEvent::ChatReactionSubmitted {
                                         emoji,
                                         reply_message_id: Some(message_id),
                                     });
                                 }
                                 None => {
-                                    emit(AppEvent::ChatMessageSubmitted {
+                                    emit(UiEvent::ChatMessageSubmitted {
                                         text: input_widget.trimmed_lines().join("\n"),
                                         reply_message_id: Some(message_id),
                                     });
@@ -251,7 +251,7 @@ impl<'a> Component for Messenger<'a> {
         if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
             if let Some(index) = list_state.selected {
                 if matches!(event, Event::Key(KeyEvent { code: KeyCode::Up, .. })) && index == 0 {
-                    emit(AppEvent::ChatTopReached);
+                    emit(UiEvent::ChatTopReached);
                 }
 
                 self.follow_chat
@@ -276,7 +276,7 @@ impl<'a> Component for Messenger<'a> {
                     if VALID_INPUT_LENGTH.contains(&input_widget.trimmed_len()) {
                         self.follow_chat.insert(active_chat.clone(), true);
 
-                        emit(AppEvent::ChatMessageSubmitted {
+                        emit(UiEvent::ChatMessageSubmitted {
                             text: input_widget.trimmed_lines().join("\n"),
                             reply_message_id: None,
                         });
@@ -288,14 +288,14 @@ impl<'a> Component for Messenger<'a> {
                 }
                 KeyCode::Up if modifiers.contains(KeyModifiers::SHIFT) => {
                     if Some(0) == list_state.selected {
-                        emit(AppEvent::ChatPreviousMessagesLoadRequested);
+                        emit(UiEvent::ChatPreviousMessagesLoadRequested);
                     }
 
                     return true;
                 }
                 KeyCode::Char('c') if modifiers.is_empty() => {
                     if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
-                        emit(AppEvent::CopyToClipboardRequested(message.text.clone()));
+                        emit(UiEvent::CopyToClipboardRequested(message.text.clone()));
                     }
 
                     return true;
@@ -315,7 +315,7 @@ impl<'a> Component for Messenger<'a> {
                         .and_then(|i| messages.get(i))
                         .map(|message| message.from)
                     {
-                        emit(AppEvent::NodeInfoPopupOpenRequested(node_key));
+                        emit(UiEvent::NodeInfoPopupOpenRequested(node_key));
                     }
 
                     return true;
@@ -333,7 +333,7 @@ impl<'a> Component for Messenger<'a> {
                     return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
-                    emit(AppEvent::ChatSwitchRequested);
+                    emit(UiEvent::ChatSwitchRequested);
                     return true;
                 }
                 KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc => {

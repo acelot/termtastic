@@ -28,7 +28,7 @@ use strum::IntoEnumIterator;
 
 use crate::serde::to_formdata;
 use crate::types::{
-    AppEvent, Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem, FormItemKey, FormItemKind,
+    UiEvent, Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem, FormItemKey, FormItemKind,
     FormValue, UiConfig,
 };
 use nameof::name_of;
@@ -783,7 +783,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKey::None,
                 "Broadcast my NodeInfo",
                 None,
-                FormItemKind::Action(AppEvent::NodeInfoBroadcastRequested),
+                FormItemKind::Action(UiEvent::NodeInfoBroadcastRequested),
                 |_| "<Send>".to_owned(),
                 |_| Ok(()),
             ),
@@ -1757,7 +1757,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKey::None,
                 "Reboot Device",
                 None,
-                FormItemKind::Action(AppEvent::DeviceRebootRequested),
+                FormItemKind::Action(UiEvent::DeviceRebootRequested),
                 |_| "<REBOOT>".to_owned(),
                 |_| Ok(()),
             ),
@@ -1765,7 +1765,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKey::None,
                 "Shutdown Device",
                 None,
-                FormItemKind::Action(AppEvent::DeviceShutdownRequested),
+                FormItemKind::Action(UiEvent::DeviceShutdownRequested),
                 |_| "<SHUTDOWN>".to_owned(),
                 |_| Ok(()),
             ),

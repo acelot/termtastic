@@ -19,7 +19,7 @@ use crate::types::{Toast, TracerouteItem};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
-    types::{AppEvent, UNKNOWN_NODE},
+    types::{UNKNOWN_NODE, UiEvent},
 };
 use crate::{state::State, types::TracerouteState};
 
@@ -28,7 +28,7 @@ const TRACEROUTE_TIMEOUT_SECS: i64 = 60;
 const TRACEROUTE_SNR_MULTIPLIER: f32 = 4.0;
 
 pub struct TracerouteService {
-    app_event_rx: broadcast::Receiver<AppEvent>,
+    ui_event_rx: broadcast::Receiver<UiEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     stored_action_rx: broadcast::Receiver<StateAction>,
@@ -38,7 +38,7 @@ pub struct TracerouteService {
 
 impl TracerouteService {
     pub fn new(
-        app_event_rx: broadcast::Receiver<AppEvent>,
+        ui_event_rx: broadcast::Receiver<UiEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
         stored_action_rx: broadcast::Receiver<StateAction>,
@@ -46,7 +46,7 @@ impl TracerouteService {
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_rx,
+            ui_event_rx,
             state_rx,
             state_action_tx,
             stored_action_rx,
@@ -61,7 +61,7 @@ impl TracerouteService {
         loop {
             tokio::select! {
                 event = self.stored_action_rx.recv() => self.handle_stored_action(event),
-                event = self.app_event_rx.recv() => self.handle_app_event(event),
+                event = self.ui_event_rx.recv() => self.handle_ui_event(event),
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event),
                 _ = check_traceroutes_interval.tick() => self.check_traceroutes(),
                 _ = subsys.on_shutdown_requested() => {
@@ -101,10 +101,10 @@ impl TracerouteService {
         }
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) {
+    fn handle_ui_event(&self, event: Result<UiEvent, broadcast::error::RecvError>) {
         match event {
             Ok(app_event) => match app_event {
-                AppEvent::TracerouteRequested(node_key) => {
+                UiEvent::TracerouteRequested(node_key) => {
                     let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
 
                     if node_key == my_node_key {

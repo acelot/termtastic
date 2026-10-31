@@ -110,7 +110,7 @@ impl<'a> Component for Connection<'a> {
         .collect()
     }
 
-    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(AppEvent)) -> bool {
+    fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         if let Some(removing_device) = self.removing_device.as_ref() {
             match event {
                 Event::Key(KeyEvent {
@@ -120,7 +120,7 @@ impl<'a> Component for Connection<'a> {
                     ..
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => {
-                        emit(AppEvent::DeviceRemoveRequested(removing_device.clone()));
+                        emit(UiEvent::DeviceRemoveRequested(removing_device.clone()));
                         self.removing_device = None;
                     }
                     KeyCode::Esc => {
@@ -155,7 +155,7 @@ impl<'a> Component for Connection<'a> {
                             .selected
                             .and_then(|i| state.devices_discovered.iter().nth(i))
                         {
-                            emit(AppEvent::DeviceSubmitted(device.clone()));
+                            emit(UiEvent::DeviceSubmitted(device.clone()));
                         }
 
                         self.is_discovery_popup_visible = false;
@@ -184,7 +184,7 @@ impl<'a> Component for Connection<'a> {
                 }) if modifiers.is_empty() => match code {
                     KeyCode::Enter => match self.popup_input_state.get_value().parse::<HostAddr<String>>() {
                         Ok(address) => {
-                            emit(AppEvent::DeviceSubmitted(Device::Tcp { address, name: None }));
+                            emit(UiEvent::DeviceSubmitted(Device::Tcp { address, name: None }));
                             self.is_tcp_form_visible = false;
                         }
                         Err(e) => {
@@ -224,9 +224,9 @@ impl<'a> Component for Connection<'a> {
                         }
 
                         if value.is_empty() {
-                            emit(AppEvent::DeviceSubmitted(device.without_name()));
+                            emit(UiEvent::DeviceSubmitted(device.without_name()));
                         } else {
-                            emit(AppEvent::DeviceSubmitted(device.with_name(value.to_owned())));
+                            emit(UiEvent::DeviceSubmitted(device.with_name(value.to_owned())));
                         }
 
                         self.renaming_device = None;
@@ -256,7 +256,7 @@ impl<'a> Component for Connection<'a> {
                     ..
                 }) => match code {
                     KeyCode::Esc if modifiers.is_empty() => {
-                        emit(AppEvent::DisconnectionRequested);
+                        emit(UiEvent::DisconnectionRequested);
                         return true;
                     }
                     KeyCode::Tab | KeyCode::BackTab => {
@@ -286,7 +286,7 @@ impl<'a> Component for Connection<'a> {
             }) => match code {
                 KeyCode::Char('d') if modifiers.is_empty() => {
                     self.is_discovery_popup_visible = true;
-                    emit(AppEvent::DeviceRediscoverRequested);
+                    emit(UiEvent::DeviceRediscoverRequested);
 
                     return true;
                 }
@@ -312,7 +312,7 @@ impl<'a> Component for Connection<'a> {
                 }
                 KeyCode::Enter if modifiers.is_empty() => {
                     if let Some(device) = self.list_state.selected.and_then(|i| state.devices.iter().nth(i)) {
-                        emit(AppEvent::DeviceSelected(device.clone()))
+                        emit(UiEvent::DeviceSelected(device.clone()))
                     }
                     return true;
                 }
