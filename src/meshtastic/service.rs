@@ -548,8 +548,6 @@ impl MeshtasticService {
             ),
         );
 
-        let _ = self.event_tx.send(MeshtasticEvent::Connected);
-
         Ok(())
     }
 
@@ -558,7 +556,7 @@ impl MeshtasticService {
             handle.abort();
         }
 
-        self.radio_resume_tx.take();
+        self.radio_resume_tx = None;
 
         if let Some(subsys) = self.radio_subsys.take()
             && !subsys.is_finished()

@@ -29,6 +29,47 @@ impl Component for Header {
             h[0],
         );
 
+        let db_indicator = match state.db_load_state {
+            DbLoadState::Failed => Span::from("DB_FAIL").red(),
+            DbLoadState::Loaded => Span::from("DB")
+                .fg(if state.db_indicator {
+                    Color::Red
+                } else {
+                    Color::DarkGray
+                })
+                .add_modifier(if state.db_indicator {
+                    Modifier::empty()
+                } else {
+                    Modifier::DIM
+                }),
+            _ => Span::from(""),
+        };
+
+        let tr_indicator = Span::from("TR")
+            .fg(match state.traceroute_indicator {
+                TracerouteIndicatorState::Off => Color::DarkGray,
+                TracerouteIndicatorState::Running => Color::Yellow,
+                TracerouteIndicatorState::Success => Color::Green,
+                TracerouteIndicatorState::Error => Color::Red,
+            })
+            .add_modifier(if state.traceroute_indicator == TracerouteIndicatorState::Off {
+                Modifier::DIM
+            } else {
+                Modifier::empty()
+            });
+
+        let rx_indicator = Span::from("RX")
+            .fg(if state.rx_indicator {
+                Color::Green
+            } else {
+                Color::DarkGray
+            })
+            .add_modifier(if state.rx_indicator {
+                Modifier::empty()
+            } else {
+                Modifier::DIM
+            });
+
         match &state.connection_state {
             ConnectionState::NotConnected => {
                 Line::from(vec![Span::from("not connected").dark_gray()])
@@ -54,26 +95,23 @@ impl Component for Header {
                     .right_aligned()
                     .render(h[1], frame.buffer_mut());
             }
-            ConnectionState::LoadingConfig => {
+            ConnectionState::LoadingDbData => {
+                Line::from(vec![Span::from("loading DB...").yellow()])
+                    .right_aligned()
+                    .render(h[1], frame.buffer_mut());
+            }
+            ConnectionState::LoadingNodeConfig => {
                 Line::from(vec![
                     Span::from("loading nodes ").yellow(),
                     Span::from(state.nodes_loader_current.to_string()).yellow(),
                     Span::from("/").yellow().dim(),
                     Span::from(state.nodes_loader_total.to_string()).yellow(),
                     Span::from("  "),
-                    Span::from("DB TR").dark_gray().dim(),
+                    db_indicator,
                     Span::from(" "),
-                    Span::from("RX")
-                        .fg(if state.rx_indicator {
-                            Color::Green
-                        } else {
-                            Color::DarkGray
-                        })
-                        .add_modifier(if state.rx_indicator {
-                            Modifier::empty()
-                        } else {
-                            Modifier::DIM
-                        }),
+                    Span::from("TR").dark_gray().dim(),
+                    Span::from(" "),
+                    rx_indicator,
                 ])
                 .right_aligned()
                 .render(h[1], frame.buffer_mut());
@@ -85,42 +123,11 @@ impl Component for Header {
                     Span::from("/").green().dim(),
                     Span::from(state.nodes.len().to_string()).green(),
                     Span::from("  "),
-                    Span::from("DB")
-                        .fg(if state.db_indicator {
-                            Color::Red
-                        } else {
-                            Color::DarkGray
-                        })
-                        .add_modifier(if state.db_indicator {
-                            Modifier::empty()
-                        } else {
-                            Modifier::DIM
-                        }),
+                    db_indicator,
                     Span::from(" "),
-                    Span::from("TR")
-                        .fg(match state.traceroute_indicator {
-                            TracerouteIndicatorState::Off => Color::DarkGray,
-                            TracerouteIndicatorState::Running => Color::Yellow,
-                            TracerouteIndicatorState::Success => Color::Green,
-                            TracerouteIndicatorState::Error => Color::Red,
-                        })
-                        .add_modifier(if state.traceroute_indicator == TracerouteIndicatorState::Off {
-                            Modifier::DIM
-                        } else {
-                            Modifier::empty()
-                        }),
+                    tr_indicator,
                     Span::from(" "),
-                    Span::from("RX")
-                        .fg(if state.rx_indicator {
-                            Color::Green
-                        } else {
-                            Color::DarkGray
-                        })
-                        .add_modifier(if state.rx_indicator {
-                            Modifier::empty()
-                        } else {
-                            Modifier::DIM
-                        }),
+                    rx_indicator,
                 ]);
 
                 let h1_h = Layout::horizontal([

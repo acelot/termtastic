@@ -35,7 +35,6 @@ pub struct NodesService {
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
-    local_my_node_num: Option<u32>,
 }
 
 impl NodesService {
@@ -52,7 +51,6 @@ impl NodesService {
             state_action_tx,
             meshtastic_command_tx,
             meshtastic_event_rx,
-            local_my_node_num: None,
         }
     }
 
@@ -184,13 +182,6 @@ impl NodesService {
 
     fn handle_meshtastic_packet(&mut self, packet: from_radio::PayloadVariant) -> anyhow::Result<()> {
         match packet {
-            from_radio::PayloadVariant::MyInfo(my_info) => {
-                self.local_my_node_num = Some(my_info.my_node_num);
-
-                let _ = self
-                    .state_action_tx
-                    .send(StateAction::MyNodeKeySet(my_info.my_node_num));
-            }
             from_radio::PayloadVariant::NodeInfo(node_info) => {
                 let _ = self.state_action_tx.send(StateAction::NodesLoaderIncrement);
 

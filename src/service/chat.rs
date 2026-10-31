@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use chrono::Utc;
 use meshtastic::{
     Message as _,
@@ -15,12 +17,15 @@ use crate::{
 };
 use crate::{state::State, ui::helpers::DateTimeExt};
 
+const CHAT_TOP_DEBOUNCE_DELAY_MILLIS: u128 = 1000;
+
 pub struct ChatService {
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
+    last_chat_top_t: Instant,
 }
 
 impl ChatService {
@@ -37,6 +42,7 @@ impl ChatService {
             state_action_tx,
             meshtastic_command_tx,
             meshtastic_event_rx,
+            last_chat_top_t: Instant::now(),
         }
     }
 
@@ -55,7 +61,7 @@ impl ChatService {
         Ok(())
     }
 
-    fn handle_app_event(&self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
+    fn handle_app_event(&mut self, event: Result<AppEvent, broadcast::error::RecvError>) -> anyhow::Result<()> {
         let state = self.state_rx.borrow();
 
         match event {
@@ -72,6 +78,18 @@ impl ChatService {
                 }
                 AppEvent::ChatSwitchRequested => {
                     let _ = self.state_action_tx.send(StateAction::ActiveChatUnset);
+                }
+                AppEvent::ChatTopReached => {
+                    if self.last_chat_top_t.elapsed().as_millis() > CHAT_TOP_DEBOUNCE_DELAY_MILLIS {
+                        let _ = self.state_action_tx.send(StateAction::Toast(Toast::normal(
+                            "press <Shift+Up> to load previous messages",
+                        )));
+                    }
+
+                    self.last_chat_top_t = Instant::now();
+                }
+                AppEvent::ChatPreviousMessagesLoadRequested => {
+                    //let _ = self.state_action_tx.send(StateAction::);
                 }
                 AppEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {

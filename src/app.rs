@@ -43,8 +43,6 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     let (app_event_tx, app_event_rx) = broadcast::channel::<AppEvent>(2000);
 
     let persistence_service = PersistenceService::new(
-        app_event_tx.clone(),
-        app_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
@@ -81,10 +79,10 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
     );
 
     let connection_service = ConnectionService::new(
-        app_event_tx.clone(),
         app_event_rx.resubscribe(),
         state_rx.clone(),
         state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
         meshtastic_command_tx.clone(),
         meshtastic_event_rx.resubscribe(),
     );

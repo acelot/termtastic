@@ -102,6 +102,7 @@ impl<'a> Component for Messenger<'a> {
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F4", "info")),
             Some(Hotkey::new("F5", "emoji")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F7", "reactions")),
+            (is_message_selected && !input_has_something).then_some(Hotkey::new("c", "copy")),
             input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
             input_has_valid_value.then_some(Hotkey::new("enter", "send")),
             Some(Hotkey::new("esc", "channel")),
@@ -249,6 +250,10 @@ impl<'a> Component for Messenger<'a> {
 
         if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
             if let Some(index) = list_state.selected {
+                if matches!(event, Event::Key(KeyEvent { code: KeyCode::Up, .. })) && index == 0 {
+                    emit(AppEvent::ChatTopReached);
+                }
+
                 self.follow_chat
                     .insert(active_chat.clone(), index == messages.len() - 1);
             }
@@ -268,7 +273,7 @@ impl<'a> Component for Messenger<'a> {
                     return true;
                 }
                 KeyCode::Enter if modifiers.is_empty() => {
-                    if input_widget.trimmed_len() <= INPUT_VALUE_MAX_LENGTH {
+                    if VALID_INPUT_LENGTH.contains(&input_widget.trimmed_len()) {
                         self.follow_chat.insert(active_chat.clone(), true);
 
                         emit(AppEvent::ChatMessageSubmitted {
@@ -277,6 +282,20 @@ impl<'a> Component for Messenger<'a> {
                         });
 
                         input_widget.clear();
+                    }
+
+                    return true;
+                }
+                KeyCode::Up if modifiers.contains(KeyModifiers::SHIFT) => {
+                    if Some(0) == list_state.selected {
+                        emit(AppEvent::ChatPreviousMessagesLoadRequested);
+                    }
+
+                    return true;
+                }
+                KeyCode::Char('c') if modifiers.is_empty() => {
+                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
+                        emit(AppEvent::CopyToClipboardRequested(message.text.clone()));
                     }
 
                     return true;

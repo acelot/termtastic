@@ -11,8 +11,8 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::{update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
-    Chat, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem, NodeTelemetry, Traceroute, TracerouteIndicatorState,
-    TracerouteItem, TracerouteState,
+    Chat, DbLoadState, DeviceConfig, DeviceModuleConfig, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem,
+    NodeTelemetry, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -158,9 +158,10 @@ impl Store {
                     state.channels = State::default_channels();
                     state.chats.clear();
                     state.connection_attempt = 0;
-                    state.connection_state = Default::default();
-                    state.device_config = Default::default();
-                    state.device_module_config = Default::default();
+                    state.connection_state = ConnectionState::default();
+                    state.db_load_state = DbLoadState::default();
+                    state.device_config = DeviceConfig::default();
+                    state.device_module_config = DeviceModuleConfig::default();
                     state.messages.clear();
                     state.my_node_key = None;
                     state.nodeinfo_key = None;
@@ -174,7 +175,7 @@ impl Store {
                     state.settings_form_data = None;
                     state.settings_form_is_changed = false;
                     state.settings_form_original_data = None;
-                    state.settings_form_state = Default::default();
+                    state.settings_form_state = SettingsFormState::default();
                     state.traceroutes.clear();
 
                     update_nodes_view(state);
@@ -182,9 +183,16 @@ impl Store {
 
                 true
             }
-            StateAction::ConnectionLoadConfig => {
+            StateAction::ConnectionLoadDbData => {
                 self.state_tx.send_modify(|state| {
-                    state.connection_state = ConnectionState::LoadingConfig;
+                    state.connection_state = ConnectionState::LoadingDbData;
+                });
+
+                true
+            }
+            StateAction::ConnectionLoadNodeConfig => {
+                self.state_tx.send_modify(|state| {
+                    state.connection_state = ConnectionState::LoadingNodeConfig;
                 });
 
                 true
@@ -194,6 +202,74 @@ impl Store {
                     state.connection_state = ConnectionState::Connected;
                     state.connection_attempt = 0;
                     state.reconnection_backoff = None;
+                });
+
+                true
+            }
+            StateAction::DbLoadFail => {
+                self.state_tx.send_modify(|state| {
+                    state.db_load_transaction_nodes = None;
+                    state.db_load_transaction_nodes_last_telemetry = None;
+                    state.db_load_transaction_nodes_last_position = None;
+                    state.db_load_transaction_messages = None;
+                    state.db_load_transaction_traceroutes = None;
+                    state.db_load_state = DbLoadState::Failed;
+                });
+
+                true
+            }
+            StateAction::DbLoadSuccess => {
+                self.state_tx.send_modify(|state| {
+                    // nodes
+                    if let Some(nodes) = state.db_load_transaction_nodes.take() {
+                        for node in nodes {
+                            if state.is_my_node(node.key) {
+                                continue;
+                            }
+
+                            match state.nodes.entry(node.key) {
+                                Entry::Vacant(entry) => {
+                                    entry.insert(node);
+                                }
+                                Entry::Occupied(mut entry) => {
+                                    if node.last_heard > entry.get().last_heard {
+                                        entry.insert(node);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // nodes last telemetry
+                    if let Some(last_telemetry) = state.db_load_transaction_nodes_last_telemetry.take() {
+                        for telemetry in last_telemetry {
+                            set_last_telemetry(telemetry, state);
+                        }
+                    }
+
+                    // nodes last position
+                    if let Some(last_position) = state.db_load_transaction_nodes_last_position.take() {
+                        state.nodes_last_position = last_position;
+                    }
+
+                    // messages
+                    if let Some(messages) = state.db_load_transaction_messages.take() {
+                        for message in messages {
+                            add_message(message, state);
+                        }
+                    }
+
+                    // traceroutes
+                    if let Some(traceroutes) = state.db_load_transaction_traceroutes.take() {
+                        for t in traceroutes {
+                            add_node_traceroute(t.node_key, t.message_id, state);
+                            state.traceroutes.insert(t.message_id, t);
+                        }
+                    }
+
+                    update_nodes_view(state);
+
+                    state.db_load_state = DbLoadState::Loaded;
                 });
 
                 true
@@ -208,65 +284,35 @@ impl Store {
             }
             StateAction::DbNodesLoad(nodes) => {
                 self.state_tx.send_modify(|state| {
-                    for node in nodes {
-                        if state.is_my_node(node.key) {
-                            continue;
-                        }
-
-                        match state.nodes.entry(node.key) {
-                            Entry::Vacant(entry) => {
-                                entry.insert(node);
-                            }
-                            Entry::Occupied(mut entry) => {
-                                if node.last_heard > entry.get().last_heard {
-                                    entry.insert(node);
-                                }
-                            }
-                        }
-                    }
-
-                    update_nodes_view(state);
+                    state.db_load_transaction_nodes = Some(nodes);
                 });
 
                 true
             }
             StateAction::DbNodesLastTelemetryLoad(last_telemetry) => {
                 self.state_tx.send_modify(|state| {
-                    for telemetry in last_telemetry {
-                        set_last_telemetry(telemetry, state);
-                    }
-
-                    update_nodes_view(state);
+                    state.db_load_transaction_nodes_last_telemetry = Some(last_telemetry);
                 });
 
                 true
             }
             StateAction::DbNodesLastPositionLoad(position) => {
                 self.state_tx.send_modify(|state| {
-                    state.nodes_last_position = position;
-                    update_nodes_view(state);
+                    state.db_load_transaction_nodes_last_position = Some(position);
                 });
 
                 true
             }
             StateAction::DbMessagesLoad(messages) => {
                 self.state_tx.send_modify(|state| {
-                    for message in messages {
-                        add_message(message, state);
-                    }
+                    state.db_load_transaction_messages = Some(messages);
                 });
 
                 true
             }
             StateAction::DbTracerouteLoad(traceroutes) => {
                 self.state_tx.send_modify(|state| {
-                    for t in traceroutes {
-                        add_node_traceroute(t.node_key, t.message_id, state);
-
-                        state.traceroutes.insert(t.message_id, t);
-                    }
-
-                    update_nodes_view(state);
+                    state.db_load_transaction_traceroutes = Some(traceroutes);
                 });
 
                 true
@@ -427,13 +473,6 @@ impl Store {
             StateAction::NodesLoaderIncrement => {
                 self.state_tx.send_modify(|state| {
                     state.nodes_loader_current += 1;
-                });
-
-                true
-            }
-            StateAction::NodesLoaderTotalSet(cap) => {
-                self.state_tx.send_modify(|state| {
-                    state.nodes_loader_total = cap;
                 });
 
                 true
@@ -673,9 +712,11 @@ impl Store {
 
                 true
             }),
-            StateAction::MyNodeKeySet(number) => {
+            StateAction::MyNodeInfoSet { node_key, nodes_count } => {
                 self.state_tx.send_modify(|state| {
-                    state.my_node_key = Some(number);
+                    state.my_node_key = Some(node_key);
+                    state.nodes_loader_total = nodes_count;
+
                     update_nodes_view(state);
                 });
 

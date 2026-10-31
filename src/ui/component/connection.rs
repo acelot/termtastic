@@ -417,7 +417,10 @@ impl<'a> Component for Connection<'a> {
                 ConnectionState::Connecting => {
                     vec![Line::from(Span::from("connecting...").yellow())]
                 }
-                ConnectionState::LoadingConfig => {
+                ConnectionState::LoadingDbData => {
+                    vec![Line::from(Span::from("loading data from DB...").yellow())]
+                }
+                ConnectionState::LoadingNodeConfig => {
                     vec![Line::from(
                         Span::from(format!(
                             "loading nodes {}/{}...",

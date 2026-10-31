@@ -21,10 +21,10 @@ const MDNS_DISCOVERY_TIMEOUT_SECS: u64 = 5;
 const MDNS_MESHTASTIC_DOMAIN: &str = "_meshtastic._tcp.local.";
 
 pub struct ConnectionService {
-    app_event_tx: broadcast::Sender<AppEvent>,
     app_event_rx: broadcast::Receiver<AppEvent>,
     state_rx: watch::Receiver<State>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
+    stored_action_rx: broadcast::Receiver<StateAction>,
     meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
     meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     my_node_key: Option<u32>,
@@ -32,18 +32,18 @@ pub struct ConnectionService {
 
 impl ConnectionService {
     pub fn new(
-        app_event_tx: broadcast::Sender<AppEvent>,
         app_event_rx: broadcast::Receiver<AppEvent>,
         state_rx: watch::Receiver<State>,
         state_action_tx: mpsc::UnboundedSender<StateAction>,
+        stored_action_rx: broadcast::Receiver<StateAction>,
         meshtastic_command_tx: mpsc::UnboundedSender<CommandToMeshtastic>,
         meshtastic_event_rx: broadcast::Receiver<MeshtasticEvent>,
     ) -> Self {
         Self {
-            app_event_tx,
             app_event_rx,
             state_rx,
             state_action_tx,
+            stored_action_rx,
             meshtastic_command_tx,
             meshtastic_event_rx,
             my_node_key: None,
@@ -56,6 +56,7 @@ impl ConnectionService {
 
         loop {
             tokio::select! {
+                event = self.stored_action_rx.recv() => self.handle_stored_action(event)?,
                 event = self.app_event_rx.recv() => self.handle_app_event(event).await?,
                 event = self.meshtastic_event_rx.recv() => self.handle_meshtastic_event(event)?,
                 _ = connection_check_interval.tick() => self.check_connection()?,
@@ -64,6 +65,25 @@ impl ConnectionService {
                     break;
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) -> anyhow::Result<()> {
+        match event {
+            Ok(StateAction::DbLoadSuccess | StateAction::DbLoadFail) => {
+                let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio);
+                let _ = self.state_action_tx.send(StateAction::ConnectionLoadNodeConfig);
+
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::normal("loading node config...")));
+            }
+            Err(broadcast::error::RecvError::Lagged(n)) => {
+                tracing::warn!("broadcast receiver lagged by {} events", n);
+            }
+            _ => {}
         }
 
         Ok(())
@@ -105,9 +125,6 @@ impl ConnectionService {
                         .meshtastic_command_tx
                         .send(CommandToMeshtastic::Shutdown { my_node_num, secs: 3 });
                 }
-                AppEvent::DbLoadFinished => {
-                    let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio);
-                }
                 AppEvent::DeviceSubmitted(device) => {
                     let _ = self.state_action_tx.send(StateAction::DevicesAdd(device));
                 }
@@ -131,15 +148,6 @@ impl ConnectionService {
     ) -> anyhow::Result<()> {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
-                MeshtasticEvent::Connected => {
-                    tracing::info!("connection established");
-
-                    let _ = self.state_action_tx.send(StateAction::ConnectionLoadConfig);
-
-                    let _ = self
-                        .state_action_tx
-                        .send(StateAction::Toast(Toast::normal("loading data...")));
-                }
                 MeshtasticEvent::ConnectionError(e) => {
                     let _ = self.state_action_tx.send(StateAction::ConnectionFail(e));
                 }
@@ -159,15 +167,10 @@ impl ConnectionService {
                         from_radio::PayloadVariant::MyInfo(my_info) => {
                             self.my_node_key = Some(my_info.my_node_num);
 
-                            let _ = self
-                                .state_action_tx
-                                .send(StateAction::MyNodeKeySet(my_info.my_node_num));
-
-                            let _ = self
-                                .state_action_tx
-                                .send(StateAction::NodesLoaderTotalSet(my_info.nodedb_count));
-
-                            let _ = self.app_event_tx.send(AppEvent::DbLoadRequested(my_info.my_node_num));
+                            let _ = self.state_action_tx.send(StateAction::MyNodeInfoSet {
+                                node_key: my_info.my_node_num,
+                                nodes_count: my_info.nodedb_count,
+                            });
                         }
                         from_radio::PayloadVariant::Metadata(metadata) => {
                             let _ = self

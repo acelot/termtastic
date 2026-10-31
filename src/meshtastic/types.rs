@@ -6,7 +6,6 @@ use meshtastic::protobufs::{config, from_radio, module_config};
 
 #[derive(Debug, Clone)]
 pub enum MeshtasticEvent {
-    Connected,
     ConnectionError(String),
     Disconnected,
     IncomingPacket(Box<from_radio::PayloadVariant>),

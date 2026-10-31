@@ -63,6 +63,8 @@ pub enum AppEvent {
     ChatPurgeRequested(Chat),
     ChatSelected(Chat),
     ChatSwitchRequested,
+    ChatTopReached,
+    ChatPreviousMessagesLoadRequested,
     ChatMessageSubmitted {
         text: String,
         reply_message_id: Option<u32>,
@@ -72,8 +74,6 @@ pub enum AppEvent {
         reply_message_id: Option<u32>,
     },
     CopyToClipboardRequested(String),
-    DbLoadRequested(u32),
-    DbLoadFinished,
     DeviceRebootRequested,
     DeviceRediscoverRequested,
     DeviceRemoveRequested(Device),
@@ -216,6 +216,14 @@ impl DeviceDiscoveringState {
 }
 
 #[derive(Debug, Clone, Default)]
+pub enum DbLoadState {
+    #[default]
+    NotLoaded,
+    Failed,
+    Loaded,
+}
+
+#[derive(Debug, Clone, Default)]
 pub enum ConnectionState {
     #[default]
     NotConnected,
@@ -224,7 +232,8 @@ pub enum ConnectionState {
         error: String,
     },
     Connecting,
-    LoadingConfig,
+    LoadingDbData,
+    LoadingNodeConfig,
     Connected,
 }
 

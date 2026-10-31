@@ -19,9 +19,12 @@ pub enum StateAction {
     ConnectionFail(String),
     ConnectionStart,
     ConnectionStop,
-    ConnectionLoadConfig,
+    ConnectionLoadDbData,
+    ConnectionLoadNodeConfig,
     ConnectionSuccess,
     ReconnectionBackoffSet(Duration),
+    DbLoadFail,
+    DbLoadSuccess,
     #[strum(props(rebroadcast = false))]
     DbIndicatorTrigger,
     DbNodesLoad(Vec<Node>),
@@ -48,11 +51,12 @@ pub enum StateAction {
         error: Option<routing::Error>,
         datetime: DateTime<Utc>,
     },
-    MyNodeKeySet(u32),
+    MyNodeInfoSet {
+        node_key: u32,
+        nodes_count: u32,
+    },
     #[strum(props(rebroadcast = false))]
     NodesLoaderIncrement,
-    #[strum(props(rebroadcast = false))]
-    NodesLoaderTotalSet(u32),
     NodeInit(Node),
     NodeInfoKeySet(u32),
     NodeInfoKeyUnset,

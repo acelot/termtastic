@@ -18,10 +18,10 @@ impl TryFrom<crate::types::Traceroute> for Traceroute {
     }
 }
 
-impl TryFrom<Traceroute> for crate::types::Traceroute {
+impl TryFrom<&Traceroute> for crate::types::Traceroute {
     type Error = anyhow::Error;
 
-    fn try_from(value: Traceroute) -> Result<Self, Self::Error> {
+    fn try_from(value: &Traceroute) -> Result<Self, Self::Error> {
         Ok(Self {
             message_id: value.message_id,
             node_key: value.node_key,
