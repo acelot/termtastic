@@ -1,4 +1,5 @@
 mod emoji_selector;
+mod header;
 mod hotkeys;
 mod info;
 mod nodeinfo;
@@ -18,6 +19,7 @@ mod traceroute;
 mod traceroute_popup;
 
 pub use emoji_selector::*;
+pub use header::*;
 pub use hotkeys::*;
 pub use info::*;
 pub use nodeinfo::*;

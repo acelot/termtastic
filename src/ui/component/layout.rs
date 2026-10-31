@@ -1,5 +1,5 @@
 use crate::ui::{
-    component::{Chat, Connection, Header, Logs, Nodes, Settings},
+    component::{Chat, Connection, Logs, Nodes, Settings},
     logo::APP_LOGO_TEXT,
     prelude::*,
 };
@@ -13,7 +13,6 @@ use strum::IntoEnumIterator;
 const MIN_TERMINAL_SIZE: (u16, u16) = (70, 20);
 
 pub struct Layout<'a> {
-    header_component: Header,
     chat_component: Chat<'a>,
     nodes_component: Nodes<'a>,
     settings_component: Settings<'a>,
@@ -28,7 +27,6 @@ pub struct Layout<'a> {
 impl<'a> Layout<'a> {
     pub fn new() -> Self {
         Self {
-            header_component: Header::new(),
             chat_component: Chat::new(),
             nodes_component: Nodes::new(),
             settings_component: Settings::new(),
@@ -111,10 +109,6 @@ impl<'a> Component for Layout<'a> {
             return true;
         }
 
-        if self.header_component.handle_event(state, event, emit) {
-            return true;
-        }
-
         match event {
             Event::Key(KeyEvent {
                 code,
@@ -176,7 +170,7 @@ impl<'a> Component for Layout<'a> {
         ])
         .split(area);
 
-        self.header_component.render(state, frame, v[0]);
+        HeaderWidget::new(HeaderContext::from(state)).render(v[0], frame.buffer_mut());
 
         TabsWidget::new(
             Tab::iter().map(|t| (t as usize, t.to_string())).collect(),

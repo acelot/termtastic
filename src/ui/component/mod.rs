@@ -1,7 +1,6 @@
 mod chat;
 mod component;
 mod connection;
-mod header;
 mod layout;
 mod logs;
 mod messenger;
@@ -11,7 +10,6 @@ mod settings;
 pub use chat::*;
 pub use component::*;
 pub use connection::*;
-pub use header::*;
 pub use layout::*;
 pub use logs::*;
 pub use messenger::*;
