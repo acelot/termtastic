@@ -1,6 +1,6 @@
 use crate::state::State;
 use crate::types::UiEvent;
-use crate::ui::component::{Component, Layout};
+use crate::ui::screen::{Layout, Screen};
 use crossterm::event::{
     DisableBracketedPaste, EnableBracketedPaste, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
     PushKeyboardEnhancementFlags,

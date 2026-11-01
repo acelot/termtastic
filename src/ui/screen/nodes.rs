@@ -124,7 +124,7 @@ impl<'a> Nodes<'a> {
     }
 }
 
-impl<'a> Component for Nodes<'a> {
+impl<'a> Screen for Nodes<'a> {
     fn get_hotkeys(&self, _state: &State) -> Vec<Hotkey> {
         if self.is_emoji_selector_visible {
             return vec![

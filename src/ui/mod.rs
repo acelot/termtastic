@@ -1,6 +1,6 @@
-pub mod component;
 pub mod helpers;
 pub mod logo;
+pub mod screen;
 pub mod widget;
 
 mod ui;
@@ -10,8 +10,8 @@ pub use ui::*;
 pub mod prelude {
     pub use crate::state::State;
     pub use crate::types::*;
-    pub use crate::ui::component::Component;
     pub use crate::ui::helpers::*;
+    pub use crate::ui::screen::Screen;
     pub use crate::ui::widget::*;
     pub use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
     pub use ratatui::layout::Flex;

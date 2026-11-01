@@ -34,7 +34,7 @@ impl Logs {
     }
 }
 
-impl Component for Logs {
+impl Screen for Logs {
     fn get_hotkeys(&self, _state: &State) -> Vec<Hotkey> {
         if self.popup_record.is_some() {
             return vec![

@@ -77,7 +77,7 @@ impl<'a> Connection<'a> {
     }
 }
 
-impl<'a> Component for Connection<'a> {
+impl<'a> Screen for Connection<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if state.active_device.is_some() {
             return vec![Hotkey::new("esc", "disconnect")];

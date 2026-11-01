@@ -174,7 +174,7 @@ impl<'a> Settings<'a> {
     }
 }
 
-impl<'a> Component for Settings<'a> {
+impl<'a> Screen for Settings<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         match &state.settings_form_state {
             SettingsFormState::Inactive => vec![Some(Hotkey::new("↑↓", "scroll")), Some(Hotkey::new("enter", "open"))],

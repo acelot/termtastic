@@ -1,5 +1,5 @@
-use crate::ui::component::Messenger;
 use crate::ui::prelude::*;
+use crate::ui::screen::Messenger;
 
 pub struct Chat<'a> {
     messenger_component: Messenger<'a>,
@@ -17,7 +17,7 @@ impl<'a> Chat<'a> {
     }
 }
 
-impl<'a> Component for Chat<'a> {
+impl<'a> Screen for Chat<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if state.active_chat.is_some() {
             return self.messenger_component.get_hotkeys(state);

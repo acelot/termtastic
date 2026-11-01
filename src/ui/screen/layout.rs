@@ -1,7 +1,7 @@
 use crate::ui::{
-    component::{Chat, Connection, Logs, Nodes, Settings},
     logo::APP_LOGO_TEXT,
     prelude::*,
+    screen::{Chat, Connection, Logs, Nodes, Settings},
 };
 use crossterm::event::KeyModifiers;
 use itertools::Itertools;
@@ -40,7 +40,7 @@ impl<'a> Layout<'a> {
     }
 }
 
-impl<'a> Component for Layout<'a> {
+impl<'a> Screen for Layout<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if let Some(node_key) = state.nodeinfo_key {
             return self

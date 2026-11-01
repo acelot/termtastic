@@ -43,7 +43,7 @@ impl<'a> Messenger<'a> {
     }
 }
 
-impl<'a> Component for Messenger<'a> {
+impl<'a> Screen for Messenger<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if self.is_reaction_viewer_visible {
             return vec![Hotkey::new("↑↓", "scroll"), Hotkey::new("esc", "close")];
