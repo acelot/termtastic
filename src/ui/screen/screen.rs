@@ -1,5 +1,3 @@
-use crossterm::event::Event;
-
 use crate::ui::prelude::*;
 
 pub trait Screen {

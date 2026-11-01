@@ -1,4 +1,3 @@
-use crossterm::event::KeyModifiers;
 use itertools::Itertools;
 use ordermap::OrderMap;
 use std::{

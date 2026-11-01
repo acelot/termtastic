@@ -3,7 +3,6 @@ use crate::ui::{
     prelude::*,
     screen::{Chat, Connection, Logs, Nodes, Settings},
 };
-use crossterm::event::KeyModifiers;
 use itertools::Itertools;
 use ratatui::layout::Layout as RatatuiLayout;
 use std::ops::Sub;

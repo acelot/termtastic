@@ -13,7 +13,7 @@ pub mod prelude {
     pub use crate::ui::helpers::*;
     pub use crate::ui::screen::Screen;
     pub use crate::ui::widget::*;
-    pub use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
+    pub use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind};
     pub use ratatui::layout::Flex;
     pub use ratatui::prelude::*;
     pub use ratatui::text::{Text, ToSpan};

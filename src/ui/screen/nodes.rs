@@ -1,5 +1,4 @@
 use crate::ui::prelude::*;
-use crossterm::event::KeyModifiers;
 
 pub struct Nodes<'a> {
     list_state: ListState,
