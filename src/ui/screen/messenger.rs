@@ -100,8 +100,8 @@ impl<'a> Screen for Messenger<'a> {
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F2", "reply")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F4", "info")),
             Some(Hotkey::new("F5", "emoji")),
+            (is_message_selected && !input_has_something).then_some(Hotkey::new("F6", "copy")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F7", "reactions")),
-            (is_message_selected && !input_has_something).then_some(Hotkey::new("c", "copy")),
             input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
             input_has_valid_value.then_some(Hotkey::new("enter", "send")),
             Some(Hotkey::new("esc", "channel")),
@@ -170,15 +170,15 @@ impl<'a> Screen for Messenger<'a> {
                     kind: KeyEventKind::Press,
                     modifiers,
                     ..
-                }) if modifiers.is_empty() => match code {
-                    KeyCode::Enter => {
+                }) => match code {
+                    KeyCode::Enter if modifiers.is_empty() => {
                         if let Some(emoji) = self.emoji_selector_state.get_value() {
                             input_widget.insert_str(emoji.as_str());
                             self.is_emoji_selector_visible = false;
                             return true;
                         }
                     }
-                    KeyCode::Esc => {
+                    KeyCode::Esc if modifiers.is_empty() => {
                         self.is_emoji_selector_visible = false;
                         self.emoji_selector_state.reset();
                         return true;
@@ -198,8 +198,8 @@ impl<'a> Screen for Messenger<'a> {
                     kind: KeyEventKind::Press,
                     modifiers,
                     ..
-                }) if modifiers.is_empty() => match code {
-                    KeyCode::F(5) => {
+                }) => match code {
+                    KeyCode::F(5) if modifiers.is_empty() => {
                         self.is_emoji_selector_visible = true;
                         return true;
                     }
@@ -207,7 +207,7 @@ impl<'a> Screen for Messenger<'a> {
                         input_widget.insert_newline();
                         return true;
                     }
-                    KeyCode::Enter => {
+                    KeyCode::Enter if modifiers.is_empty() => {
                         if input_widget.trimmed_len() <= INPUT_VALUE_MAX_LENGTH
                             && let Some((_, message_id)) = self.replying_to.remove(active_chat)
                         {
@@ -233,7 +233,7 @@ impl<'a> Screen for Messenger<'a> {
                             return true;
                         }
                     }
-                    KeyCode::Esc => {
+                    KeyCode::Esc if modifiers.is_empty() => {
                         self.replying_to.remove(active_chat);
                         return true;
                     }
@@ -292,13 +292,6 @@ impl<'a> Screen for Messenger<'a> {
 
                     return true;
                 }
-                KeyCode::Char('c') if modifiers.is_empty() => {
-                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
-                        emit(UiEvent::CopyToClipboardRequested(message.text.clone()));
-                    }
-
-                    return true;
-                }
                 KeyCode::F(2) if modifiers.is_empty() => {
                     if let Some(message) = list_state.selected.and_then(|i| messages.get(i))
                         && let Some(node) = state.nodes.get(&message.from)
@@ -321,6 +314,13 @@ impl<'a> Screen for Messenger<'a> {
                 }
                 KeyCode::F(5) if modifiers.is_empty() => {
                     self.is_emoji_selector_visible = true;
+                    return true;
+                }
+                KeyCode::F(6) if modifiers.is_empty() => {
+                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
+                        emit(UiEvent::CopyToClipboardRequested(message.text.clone()));
+                    }
+
                     return true;
                 }
                 KeyCode::F(7) if modifiers.is_empty() => {
