@@ -9,7 +9,7 @@ use ratatui::{
 use ratatui_textarea::TextArea;
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
-use crate::ui::helpers::{ListStateExt, default_scrollbar};
+use crate::ui::helpers::{ListStateExt, TextAreaExt, default_scrollbar};
 
 const MAX_EMOJIS_LIMIT: usize = 100;
 
@@ -50,7 +50,15 @@ impl<'a> EmojiSelectorState<'a> {
             return true;
         }
 
-        self.input_widget.input(event);
+        match event {
+            Event::Paste(text) => {
+                self.input_widget.insert_as_lines(&text);
+            }
+            _ => {
+                self.input_widget.input(event);
+            }
+        }
+
         self.emojis = emojis::iter()
             .filter(|e| {
                 e.name()

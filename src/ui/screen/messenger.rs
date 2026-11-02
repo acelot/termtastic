@@ -239,6 +239,9 @@ impl<'a> Screen for Messenger<'a> {
                     }
                     _ => {}
                 },
+                Event::Paste(text) => {
+                    input_widget.insert_as_lines(text);
+                }
                 _ => {}
             };
 
