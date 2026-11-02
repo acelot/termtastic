@@ -61,37 +61,21 @@ jobs:
             archive_ext: .tar.gz
             binary_name: termtastic
 
+          - target: arm-unknown-linux-gnueabihf
+            os: ubuntu-24.04
+            archive_ext: .tar.gz
+            binary_name: termtastic
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-
-      - name: Install system dependencies for Linux (musl)
-        if: endsWith(matrix.target, '-linux-musl')
-        run: |
-          sudo apt-get update && \
-          sudo apt-get install -y \
-            musl-tools
-
-      - name: Cache cargo registry
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
-            ${{ runner.os }}-cargo-
-
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }}
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          target: ${{ matrix.target }}
+          command: build
+          args: --release
 
       - name: Prepare binary (Windows)
         if: matrix.os == 'windows-latest'
