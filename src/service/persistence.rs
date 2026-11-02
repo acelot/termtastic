@@ -148,7 +148,7 @@ impl PersistenceService {
             StateAction::NodeInit(Node { key, .. })
             | StateAction::NodeUpdate(Node { key, .. })
             | StateAction::NodeUpdateLastHeard { node_key: key, .. }
-                if !is_db_loaded =>
+                if is_db_loaded =>
             {
                 let Some(repository) = &self.repository else {
                     return;
@@ -170,7 +170,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::NodeDelete { node_key } if !is_db_loaded => {
+            StateAction::NodeDelete { node_key } if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -183,7 +183,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::NodeLastTelemetrySet(node_telemetry) if !is_db_loaded => {
+            StateAction::NodeLastTelemetrySet(node_telemetry) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -203,7 +203,7 @@ impl PersistenceService {
                     }
                 };
             }
-            StateAction::NodeLastPositionSet(node_position) if !is_db_loaded => {
+            StateAction::NodeLastPositionSet(node_position) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -223,7 +223,7 @@ impl PersistenceService {
                     }
                 };
             }
-            StateAction::NodeInfoKeySet { node_key } if !is_db_loaded => {
+            StateAction::NodeInfoKeySet { node_key } if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -265,7 +265,7 @@ impl PersistenceService {
                 }
             }
             StateAction::TracerouteFinish { message_id, .. } | StateAction::TracerouteTimeout { message_id }
-                if !is_db_loaded =>
+                if is_db_loaded =>
             {
                 let Some(repository) = &self.repository else {
                     return;
@@ -291,7 +291,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::MessageAdd(message) if !is_db_loaded => {
+            StateAction::MessageAdd(message) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -304,7 +304,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::MessageErrorSet { message_id, error, .. } if !is_db_loaded => {
+            StateAction::MessageErrorSet { message_id, error, .. } if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -320,7 +320,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::ChatPurge(chat) if !is_db_loaded => {
+            StateAction::ChatPurge(chat) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
