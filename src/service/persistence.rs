@@ -14,8 +14,8 @@ use crate::state::State;
 use crate::types::{DbLoadState, Message, Node, NodePosition, NodeTelemetry, Traceroute};
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
-const DATA_LOAD_TIMEOUT_SECS: u64 = 5;
-const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 100;
+const DATA_LOAD_TIMEOUT_SECS: u64 = 10;
+const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 500;
 const NODEINFO_POSITION_LOAD_TIMEOUT_SECS: u64 = 2;
 const NODEINFO_POSITION_LOAD_LIMIT: u32 = 100;
 
