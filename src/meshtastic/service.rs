@@ -77,7 +77,6 @@ impl MeshtasticService {
                 _ = subsys.on_shutdown_requested() => {
                     tracing::info!("shutdown");
                     self.disconnect().await;
-                    let _ = self.event_tx.send(MeshtasticEvent::Disconnected);
 
                     break;
                 }

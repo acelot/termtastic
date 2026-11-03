@@ -139,6 +139,6 @@ impl State {
     }
 
     pub fn default_channels() -> HashMap<u32, Channel> {
-        (0..8).map(|i| (i, Channel::disabled(i))).collect()
+        (0..=7).map(|i| (i, Channel::disabled(i))).collect()
     }
 }

@@ -85,10 +85,6 @@ impl ConfigService {
                         .send(StateAction::Toast(Toast::normal("config loaded")));
                 }
 
-                if matches!(action, StateAction::ConnectionStop) {
-                    return;
-                }
-
                 if !self.is_config_applied {
                     return;
                 }
