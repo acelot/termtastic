@@ -410,21 +410,15 @@ pub fn hops_to_spans<'a>(provider: &impl HopsSnrRssiAware, my: bool) -> Vec<Span
             Span::from("/").dim(),
             Span::from(format!("{}dbm", rssi)).fg(rssi.rssi_to_color()),
         ],
-        (Some(1), _) => vec![Span::from("❱").green()],
-        (Some(2), _) => vec![Span::from("❱❱").green()],
-        (Some(3), _) => vec![Span::from("❱❱❱").green()],
-        (Some(4), _) => vec![Span::from("❱❱❱").green(), Span::from("❱").yellow()],
-        (Some(5), _) => vec![Span::from("❱❱❱").green(), Span::from("❱❱").yellow()],
-        (Some(6), _) => vec![
-            Span::from("❱❱❱").green(),
-            Span::from("❱❱").yellow(),
-            Span::from("❱").red(),
-        ],
-        (Some(7), _) => vec![
-            Span::from("❱❱❱").green(),
-            Span::from("❱❱").yellow(),
-            Span::from("❱❱").red(),
-        ],
+        (Some(h), _) => (1..=7)
+            .map(|i| match h {
+                1..=3 if i <= h => Span::from("❱").green(),
+                4..=5 if i <= h => Span::from("❱").yellow(),
+                6..=7 if i <= h => Span::from("❱").red(),
+                _ => Span::from("❱").dark_gray().dim(),
+            })
+            .chain([Span::from(" "), Span::from(h.to_string()).dark_gray()])
+            .collect(),
         _ => vec![Span::from("unknown").dark_gray()],
     }
 }
