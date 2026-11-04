@@ -80,6 +80,23 @@ impl ConnectionService {
                     .state_action_tx
                     .send(StateAction::Toast(Toast::normal("loading node config...")));
             }
+            Ok(StateAction::ConnectionStart) => {
+                let Some(device) = self.state_rx.borrow().active_device.clone() else {
+                    return;
+                };
+
+                let _ = match device {
+                    Device::Tcp { address, .. } => self
+                        .meshtastic_command_tx
+                        .send(CommandToMeshtastic::ConnectViaTcp(address.clone())),
+                    Device::Ble { address, id, .. } => self
+                        .meshtastic_command_tx
+                        .send(CommandToMeshtastic::ConnectViaBle(address, id.clone())),
+                    Device::Serial { address, .. } => self
+                        .meshtastic_command_tx
+                        .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned())),
+                };
+            }
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 tracing::warn!("broadcast receiver lagged by {} events", n);
             }
@@ -244,8 +261,8 @@ impl ConnectionService {
     fn check_connection(&self) {
         let state = self.state_rx.borrow();
 
-        match (&state.active_device, &state.connection_state) {
-            (Some(device), ConnectionState::ProblemDetected { since, .. }) => {
+        match (&state.active_device.is_some(), &state.connection_state) {
+            (true, ConnectionState::ProblemDetected { since, .. }) => {
                 let backoff_duration = Duration::from_millis(
                     RECONNECTION_BACKOFF_BASE_MILLIS
                         .saturating_mul(2_u64.saturating_pow(state.connection_attempt))
@@ -259,28 +276,14 @@ impl ConnectionService {
                     .send(StateAction::ReconnectionBackoffSet(time_left));
 
                 if time_left.is_zero() {
-                    self.connect(device);
+                    let _ = self.state_action_tx.send(StateAction::ConnectionStart);
                 }
             }
-            (Some(device), ConnectionState::NotConnected) => self.connect(device),
+            (true, ConnectionState::NotConnected) => {
+                let _ = self.state_action_tx.send(StateAction::ConnectionStart);
+            }
             _ => {}
         }
-    }
-
-    fn connect(&self, device: &Device) {
-        let _ = self.state_action_tx.send(StateAction::ConnectionStart);
-
-        let _ = match device {
-            Device::Tcp { address, .. } => self
-                .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaTcp(address.clone())),
-            Device::Ble { address, id, .. } => self
-                .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaBle(*address, id.clone())),
-            Device::Serial { address, .. } => self
-                .meshtastic_command_tx
-                .send(CommandToMeshtastic::ConnectViaSerial(address.to_owned())),
-        };
     }
 
     fn discover_devices(&self) {

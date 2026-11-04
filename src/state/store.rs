@@ -1,5 +1,6 @@
 use chrono::Utc;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
+use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
@@ -255,7 +256,7 @@ impl Store {
                     // messages
                     if let Some(messages) = state.db_load_transaction_messages.take() {
                         for message in messages {
-                            add_message(message, state);
+                            add_message(message, true, state);
                         }
                     }
 
@@ -738,7 +739,7 @@ impl Store {
                 true
             }
             StateAction::MessageAdd(message) => {
-                self.state_tx.send_modify(|state| add_message(message, state));
+                self.state_tx.send_modify(|state| add_message(message, true, state));
 
                 true
             }
@@ -770,6 +771,32 @@ impl Store {
 
                 false
             }),
+            StateAction::PreviousMessagesLoadPending(_) => self.state_tx.send_if_modified(|state| {
+                if state.messages_is_loading {
+                    return false;
+                }
+
+                state.messages_is_loading = true;
+                true
+            }),
+            StateAction::PreviousMessagesLoadFailed => {
+                self.state_tx.send_modify(|state| {
+                    state.messages_is_loading = false;
+                });
+
+                true
+            }
+            StateAction::PreviousMessagesLoadFinished(messages) => {
+                self.state_tx.send_modify(|state| {
+                    for message in messages {
+                        add_message(message, false, state);
+                    }
+
+                    state.messages_is_loading = false;
+                });
+
+                true
+            }
             StateAction::Toast(toast) => {
                 tracing::info!("TOAST kind=\"{:?}\" text=\"{}\"", toast.kind, toast.text);
 
@@ -1186,7 +1213,7 @@ fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMa
         .collect()
 }
 
-fn add_message(message: Message, state: &mut State) {
+fn add_message(message: Message, push_back: bool, state: &mut State) {
     if state.messages.contains_key(&message.id) {
         return;
     }
@@ -1208,11 +1235,18 @@ fn add_message(message: Message, state: &mut State) {
 
     let chat = Chat::from((&message, my_node_key));
 
-    if let Some(chat_messages) = state.chats.get_mut(&chat) {
-        chat_messages.push_back(message.id);
-    } else {
-        state.chats.insert_sorted(chat, VecDeque::from([message.id]));
-    }
+    match state.chats.entry(chat) {
+        Occupied(mut ids) => {
+            if push_back {
+                ids.get_mut().push_back(message.id);
+            } else {
+                ids.get_mut().push_front(message.id);
+            }
+        }
+        Vacant(entry) => {
+            entry.insert_sorted(VecDeque::from([message.id]));
+        }
+    };
 
     state.messages.insert(message.id, message);
 }

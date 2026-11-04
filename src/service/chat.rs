@@ -89,7 +89,11 @@ impl ChatService {
                     self.last_chat_top_t = Instant::now();
                 }
                 UiEvent::ChatPreviousMessagesLoadRequested => {
-                    //let _ = self.state_action_tx.send(StateAction::);
+                    if let Some(active_chat) = state.active_chat.as_ref().cloned() {
+                        let _ = self
+                            .state_action_tx
+                            .send(StateAction::PreviousMessagesLoadPending(active_chat));
+                    }
                 }
                 UiEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {

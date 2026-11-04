@@ -14,7 +14,7 @@ use crate::state::State;
 use crate::types::{DbLoadState, Message, Node, NodePosition, NodeTelemetry, Traceroute};
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
-const DATA_LOAD_TIMEOUT_SECS: u64 = 10;
+const DATA_LOAD_TIMEOUT_SECS: u64 = 5;
 const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 500;
 const NODEINFO_POSITION_LOAD_TIMEOUT_SECS: u64 = 2;
 const NODEINFO_POSITION_LOAD_LIMIT: u32 = 100;
@@ -29,6 +29,7 @@ pub struct PersistenceService {
     repository: Option<Arc<Repository>>,
     data_load_handle: Option<JoinHandle<()>>,
     nodeinfo_position_load_handle: Option<JoinHandle<()>>,
+    previous_messages_load_handle: Option<JoinHandle<()>>,
 }
 
 impl PersistenceService {
@@ -50,6 +51,7 @@ impl PersistenceService {
             repository: None,
             data_load_handle: None,
             nodeinfo_position_load_handle: None,
+            previous_messages_load_handle: None,
         }
     }
 
@@ -320,6 +322,73 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
+            StateAction::PreviousMessagesLoadPending(chat) if is_db_loaded => {
+                let Some(repository) = &self.repository else {
+                    return;
+                };
+
+                let repository_clone = repository.clone();
+                let state_action_tx = self.state_action_tx.clone();
+                let state = self.state_rx.borrow();
+
+                let Some(oldest_message) = state
+                    .chats
+                    .get(&chat)
+                    .as_ref()
+                    .and_then(|ids| ids.front())
+                    .and_then(|id| state.messages.get(id).cloned())
+                else {
+                    return;
+                };
+
+                self.previous_messages_load_handle = Some(tokio::spawn(async move {
+                    match timeout(
+                        Duration::from_secs(DATA_LOAD_TIMEOUT_SECS),
+                        repository_clone.message_find_before_datetime_for_chat(
+                            &chat,
+                            oldest_message.datetime,
+                            oldest_message.id,
+                            RECENT_MESSAGES_PER_CHAT_LIMIT,
+                        ),
+                    )
+                    .await
+                    {
+                        Ok(Ok(messages)) => {
+                            tracing::info!("DB loading completed");
+
+                            let count = messages.len();
+
+                            let _ = state_action_tx.send(StateAction::PreviousMessagesLoadFinished(
+                                messages.into_iter().map_into().collect(),
+                            ));
+
+                            let _ = state_action_tx.send(StateAction::Toast(Toast::normal(if count > 0 {
+                                format!("loaded {} messages", count)
+                            } else {
+                                "no more messages to load".to_owned()
+                            })));
+                        }
+                        Ok(Err(e)) => {
+                            tracing::error!("previous messages loading failed: {}", e);
+
+                            let _ = StateAction::PreviousMessagesLoadFailed;
+
+                            let _ = state_action_tx.send(StateAction::Toast(Toast::error(
+                                "An error occurred while loading DB data",
+                            )));
+                        }
+                        Err(e) => {
+                            tracing::error!("previous messages loading timed out: {}", e);
+
+                            let _ = StateAction::PreviousMessagesLoadFailed;
+
+                            let _ = state_action_tx.send(StateAction::Toast(Toast::error(
+                                "An error occurred while loading DB data",
+                            )));
+                        }
+                    };
+                }));
+            }
             StateAction::ChatPurge(chat) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
@@ -336,6 +405,10 @@ impl PersistenceService {
                 }
             }
             StateAction::DbLoadFail | StateAction::ConnectionStop => {
+                if let Some(handle) = self.previous_messages_load_handle.take() {
+                    handle.abort();
+                }
+
                 if let Some(handle) = self.nodeinfo_position_load_handle.take() {
                     handle.abort();
                 }

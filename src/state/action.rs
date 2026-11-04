@@ -60,6 +60,9 @@ pub enum StateAction {
         error: Option<routing::Error>,
         datetime: DateTime<Utc>,
     },
+    PreviousMessagesLoadPending(Chat),
+    PreviousMessagesLoadFailed,
+    PreviousMessagesLoadFinished(Vec<Message>),
     MyNodeInfoSet {
         node_key: u32,
         nodes_count: u32,

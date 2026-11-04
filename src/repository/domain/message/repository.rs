@@ -36,7 +36,7 @@ impl Repository {
                     FROM r
                     JOIN messages AS e ON e.reply_message_id = r.id AND e.is_emoji = 1
                     
-                    ORDER BY datetime, id;
+                    ORDER BY chat_id, datetime, id;
                     "#,
                 )?;
 
@@ -50,11 +50,11 @@ impl Repository {
         Ok(result)
     }
 
-    #[allow(dead_code)]
     pub async fn message_find_before_datetime_for_chat(
         &self,
         chat: &Chat,
         before_datetime: DateTime<Utc>,
+        last_message_id: u32,
         limit: u32,
     ) -> Result<Vec<Message>, RepositoryError> {
         let chat_id = match chat {
@@ -70,7 +70,7 @@ impl Repository {
                     WITH chunk AS (
                         SELECT id 
                         FROM messages
-                        WHERE chat_id = :chat_id AND datetime < :before_datetime AND is_emoji = 0
+                        WHERE chat_id = :chat_id AND datetime <= :before_datetime AND id != :last_message_id AND is_emoji = 0
                         ORDER BY datetime DESC, id DESC
                         LIMIT :limit
                     )
@@ -90,7 +90,8 @@ impl Repository {
 
                 let result: Result<_, _> = from_rows::<Message>(statement.query(named_params! {
                     ":chat_id": chat_id,
-                    ":before_datetime": before_datetime.timestamp(),
+                    ":before_datetime": before_datetime,
+                    ":last_message_id": last_message_id,
                     ":limit": limit
                 })?)
                 .collect();
