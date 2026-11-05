@@ -36,9 +36,7 @@ impl<'a> Settings<'a> {
         area: Rect,
         buf: &mut Buffer,
     ) {
-        if self.form_list_state.selected.is_none() {
-            self.form_list_state.select(Some(0));
-        }
+        self.form_list_state.fix_selection(items.len());
 
         let description_paragraph = self
             .form_list_state
