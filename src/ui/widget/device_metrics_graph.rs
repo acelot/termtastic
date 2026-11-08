@@ -12,7 +12,9 @@ use ratatui::{
     widgets::{Axis, Block, BorderType, Borders, Chart, Dataset, GraphType, Padding},
 };
 
-use crate::{state::State, types::NodeTelemetryTyped, ui::widget::PlaceholderWidget};
+use crate::{
+    service::DEVICE_METRICS_TIME_LIMIT_HOURS, state::State, types::NodeTelemetryTyped, ui::widget::PlaceholderWidget,
+};
 
 pub struct DeviceMetricsGraphWidget<'a> {
     data: DeviceMetricsGraphWidgetData<'a>,
@@ -50,7 +52,10 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             return;
         }
 
-        let (datetime_min, datetime_max) = (Utc::now().sub(Duration::from_hours(24)), Utc::now());
+        let (datetime_min, datetime_max) = (
+            Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS)),
+            Utc::now(),
+        );
 
         let (ch_util, air_util_tx, max): (Vec<(f64, f64)>, Vec<(f64, f64)>, f64) = self.data.iter().fold(
             (Vec::new(), Vec::new(), 0.0),
@@ -87,27 +92,23 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             .style(Color::Yellow)
             .data(air_util_tx.as_slice());
 
+        let x_axis_parts = if block_area.width < 100 {
+            4
+        } else if block_area.width < 120 {
+            6
+        } else {
+            8
+        };
+
         let x_axis = Axis::default()
             .bounds([datetime_min.timestamp() as f64, datetime_max.timestamp() as f64])
-            .labels([
-                datetime_min.with_timezone(&Local).format("%H:%M").to_string(),
+            .labels((0..=x_axis_parts).map(|i| {
                 datetime_min
-                    .add(Duration::from_hours(6))
+                    .add(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS * i / x_axis_parts))
                     .with_timezone(&Local)
                     .format("%H:%M")
-                    .to_string(),
-                datetime_min
-                    .add(Duration::from_hours(12))
-                    .with_timezone(&Local)
-                    .format("%H:%M")
-                    .to_string(),
-                datetime_min
-                    .add(Duration::from_hours(18))
-                    .with_timezone(&Local)
-                    .format("%H:%M")
-                    .to_string(),
-                datetime_max.with_timezone(&Local).format("%H:%M").to_string(),
-            ]);
+                    .to_string()
+            }));
 
         let mut y_axis = Axis::default().title("%".blue());
 

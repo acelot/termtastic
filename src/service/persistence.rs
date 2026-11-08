@@ -19,6 +19,7 @@ use crate::types::{
 };
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
+pub const DEVICE_METRICS_TIME_LIMIT_HOURS: u64 = 24;
 const DATA_LOAD_TIMEOUT_SECS: u64 = 5;
 const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 500;
 const NODEINFO_POSITION_LOAD_TIMEOUT_SECS: u64 = 2;
@@ -516,7 +517,7 @@ async fn load_data(
         .telemetry_find_by_node_key_and_kind(
             node_key,
             TelemetryKind::DeviceMetrics,
-            Utc::now().sub(Duration::from_hours(24)),
+            Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS)),
         )
         .await?
         .iter()

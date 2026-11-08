@@ -4,6 +4,7 @@ use meshtastic::protobufs::{config, module_config, routing, telemetry};
 use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
+use std::ops::Sub;
 use std::time::{Duration, Instant};
 use tokio::{
     sync::{broadcast, mpsc, watch},
@@ -11,7 +12,7 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::service::{update_nodeinfo_telemetry, update_nodes_view};
+use crate::service::{DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
     Chat, DbLoadState, DeviceConfig, DeviceModuleConfig, Message, Node, NodeLastTelemetry, NodeTelemetry,
     NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
@@ -599,12 +600,23 @@ impl Store {
                     if let DeviceMetrics(data) = node_telemetry.variant
                         && Some(node_telemetry.node_key) == state.my_node_key
                     {
-                        state.my_node_device_metrics.pop_front();
-
                         state.my_node_device_metrics.push_back(NodeTelemetryTyped {
                             datetime: node_telemetry.datetime,
                             data,
                         });
+
+                        // remove old records
+                        let old = Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS));
+
+                        loop {
+                            if let Some(oldest) = state.my_node_device_metrics.front()
+                                && oldest.datetime < old
+                            {
+                                state.my_node_device_metrics.pop_front();
+                            } else {
+                                break;
+                            }
+                        }
                     }
 
                     set_last_telemetry(node_telemetry, state);
