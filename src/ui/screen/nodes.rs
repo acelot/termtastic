@@ -304,9 +304,7 @@ impl<'a> Screen for Nodes<'a> {
             self.is_filter_input_dirty = true;
         }
 
-        if !state.nodes_view.is_empty() && self.list_state.selected.is_none() {
-            self.list_state.select(Some(0));
-        }
+        self.list_state.fix_selection(state.nodes_view.len());
 
         let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(3)]).split(area);
         let is_popup_visible =

@@ -96,58 +96,51 @@ impl<'a> Screen for Chat<'a> {
             return;
         }
 
-        if !state.chats.is_empty() {
-            if let Some(selected) = self.list_state.selected
-                && selected > state.chats.len() - 1
-            {
-                self.list_state.select(None);
-            }
+        self.list_state.fix_selection(state.chats.len());
 
-            if self.list_state.selected.is_none() && !state.chats.is_empty() {
-                self.list_state.select(Some(0));
-            }
-
-            let list_builder = ListBuilder::new(|context| {
-                let (chat, message_ids) = state.chats.get_index(context.index).unwrap();
-                let last_message = message_ids.iter().last().and_then(|id| state.messages.get(id));
-                let last_message_node = last_message.and_then(|message| state.nodes.get(&message.from));
-
-                let chat_type = match chat {
-                    crate::types::Chat::Channel(channel_key) => {
-                        let channel = state.channels.get(channel_key).expect("should be Some");
-
-                        match channel.role {
-                            ChannelRole::Primary => "PRIMARY",
-                            ChannelRole::Secondary => "SECONDARY",
-                            ChannelRole::Disabled => "DISABLED",
-                        }
-                    }
-                    crate::types::Chat::Direct(_) => "DIRECT",
-                };
-
-                let item = ChannelWidget {
-                    chat,
-                    chat_type,
-                    chat_name_spans: chat_to_spans(chat, state),
-                    last_message,
-                    last_message_node,
-                    is_last_message_node_my: last_message_node
-                        .map(|node| state.is_my_node(node.key))
-                        .unwrap_or(false),
-                    is_selected: context.is_selected,
-                };
-
-                (item, 4)
-            });
-
-            let list = ListView::new(list_builder, state.chats.len())
-                .infinite_scrolling(false)
-                .scrollbar(default_scrollbar());
-
-            list.render(area, frame.buffer_mut(), &mut self.list_state);
-        } else {
+        if state.chats.is_empty() {
             PlaceholderWidget::dark_gray("no channels").render(area, frame.buffer_mut());
+            return;
         }
+
+        let list_builder = ListBuilder::new(|context| {
+            let (chat, message_ids) = state.chats.get_index(context.index).unwrap();
+            let last_message = message_ids.iter().last().and_then(|id| state.messages.get(id));
+            let last_message_node = last_message.and_then(|message| state.nodes.get(&message.from));
+
+            let chat_type = match chat {
+                crate::types::Chat::Channel(channel_key) => {
+                    let channel = state.channels.get(channel_key).expect("should be Some");
+
+                    match channel.role {
+                        ChannelRole::Primary => "PRIMARY",
+                        ChannelRole::Secondary => "SECONDARY",
+                        ChannelRole::Disabled => "DISABLED",
+                    }
+                }
+                crate::types::Chat::Direct(_) => "DIRECT",
+            };
+
+            let item = ChannelWidget {
+                chat,
+                chat_type,
+                chat_name_spans: chat_to_spans(chat, state),
+                last_message,
+                last_message_node,
+                is_last_message_node_my: last_message_node
+                    .map(|node| state.is_my_node(node.key))
+                    .unwrap_or(false),
+                is_selected: context.is_selected,
+            };
+
+            (item, 4)
+        });
+
+        let list = ListView::new(list_builder, state.chats.len())
+            .infinite_scrolling(false)
+            .scrollbar(default_scrollbar());
+
+        list.render(area, frame.buffer_mut(), &mut self.list_state);
 
         if let Some(chat_purge) = &self.chat_purge {
             PopupConfirmWidget::new(

@@ -71,9 +71,7 @@ impl<'a> StatefulWidget for ReactionViewerWidget<'a> {
             state.list_state.select(None);
         }
 
-        if state.list_state.selected.is_none() && !self.reactions.is_empty() {
-            state.list_state.select(Some(0));
-        }
+        state.list_state.fix_selection(self.reactions.len());
 
         const ITEM_HEIGHT: usize = 3;
         let is_scrollable = self.reactions.len() * ITEM_HEIGHT > block_area.height as usize;

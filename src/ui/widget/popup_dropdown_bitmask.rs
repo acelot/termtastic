@@ -100,9 +100,7 @@ impl<'a> StatefulWidget for PopupDropdownBitmaskWidget<'a> {
         Clear.render(popup_area.outer(Margin::new(1, 0)), buf);
         popup_block.render(popup_area, buf);
 
-        if state.list_state.selected.is_none() && !state.variants.is_empty() {
-            state.list_state.select(Some(0));
-        }
+        state.list_state.fix_selection(state.variants.len());
 
         let list_builder = ListBuilder::new(|context| {
             let variant = state.variants.get(context.index).unwrap();
