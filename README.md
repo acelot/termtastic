@@ -56,6 +56,9 @@
     <td><img width="774" height="548" alt="device_discovery" src="https://github.com/user-attachments/assets/cb138dd9-ee56-4ce3-b3c5-26fa6f6613dc" /></td>
   </tr>
   <tr>
+    <td colspan="2"><img width="885" height="677" alt="dashboard" src="https://github.com/user-attachments/assets/52e9ba9d-3334-4acf-a393-07028d3dcc6f" /></td>
+  </tr>
+  <tr>
     <td><img width="774" height="548" alt="logs" src="https://github.com/user-attachments/assets/6a806f9b-be6b-4d34-ac29-48a4210305c8" /></td>
     <td><img width="774" height="548" alt="log_expanded" src="https://github.com/user-attachments/assets/cbd68ef7-4eca-4d13-9f80-ed8333f1e5b8" /></td>
   </tr>
@@ -103,7 +106,6 @@
 - [ ] Import configuration from a link
 - [ ] Set fixed GPS position
 - [ ] Set time from host
-- [ ] Lazy loading of messages
 
 ## Stack
 
