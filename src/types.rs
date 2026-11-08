@@ -1,3 +1,4 @@
+use crate::service::ONLINE_NODE_THRESHOLD_SECS;
 use crate::state::State;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
@@ -12,9 +13,10 @@ use std::sync::LazyLock;
 use std::{
     collections::{BTreeSet, HashMap},
     fmt::Debug,
+    str::FromStr,
     time::Instant,
 };
-use strum::{Display, EnumCount, EnumIter, FromRepr};
+use strum::{AsRefStr, Display, EnumCount, EnumIter, EnumString, FromRepr};
 use tracing::Level;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
@@ -281,6 +283,8 @@ pub enum Tab {
     Settings,
     #[strum(to_string = "connection")]
     Connection,
+    #[strum(to_string = "dashboard")]
+    Dashboard,
     #[strum(to_string = "logs")]
     Logs,
 }
@@ -586,6 +590,12 @@ impl Node {
         .filter(|s| !s.is_empty())
         .collect::<Vec<String>>()
         .join(" ");
+    }
+
+    pub fn is_online(&self) -> bool {
+        self.last_heard
+            .map(|last_heard| (Utc::now() - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
+            .unwrap_or(false)
     }
 }
 
@@ -994,18 +1004,18 @@ pub enum TracerouteItem {
 
 #[derive(Debug, Clone, Default)]
 pub struct NodeLastTelemetry {
-    pub device_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::DeviceMetrics>>,
-    pub environment_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::EnvironmentMetrics>>,
-    pub air_quality_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::AirQualityMetrics>>,
-    pub power_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::PowerMetrics>>,
-    pub local_stats: Option<NodeLastTelemetryItem<meshtastic::protobufs::LocalStats>>,
-    pub health_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::HealthMetrics>>,
-    pub host_metrics: Option<NodeLastTelemetryItem<meshtastic::protobufs::HostMetrics>>,
-    pub traffic_management_stats: Option<NodeLastTelemetryItem<meshtastic::protobufs::TrafficManagementStats>>,
+    pub device_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::DeviceMetrics>>,
+    pub environment_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::EnvironmentMetrics>>,
+    pub air_quality_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::AirQualityMetrics>>,
+    pub power_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::PowerMetrics>>,
+    pub local_stats: Option<NodeTelemetryTyped<meshtastic::protobufs::LocalStats>>,
+    pub health_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::HealthMetrics>>,
+    pub host_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::HostMetrics>>,
+    pub traffic_management_stats: Option<NodeTelemetryTyped<meshtastic::protobufs::TrafficManagementStats>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct NodeLastTelemetryItem<T: Sized> {
+pub struct NodeTelemetryTyped<T: Sized> {
     pub datetime: DateTime<Utc>,
     pub data: T,
 }
@@ -1015,6 +1025,39 @@ pub struct NodeTelemetry {
     pub node_key: u32,
     pub datetime: DateTime<Utc>,
     pub variant: meshtastic::protobufs::telemetry::Variant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, AsRefStr, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TelemetryKind {
+    DeviceMetrics,
+    EnvironmentMetrics,
+    AirQualityMetrics,
+    PowerMetrics,
+    LocalStats,
+    HealthMetrics,
+    HostMetrics,
+    TrafficManagementStats,
+}
+
+impl rusqlite::types::ToSql for TelemetryKind {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        Ok(rusqlite::types::ToSqlOutput::from(self.as_ref()))
+    }
+}
+
+impl rusqlite::types::FromSql for TelemetryKind {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let s = value.as_str()?;
+
+        Self::from_str(s).map_err(|_| {
+            rusqlite::types::FromSqlError::Other(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Unknown variant: {}", s),
+            )))
+        })
+    }
 }
 
 #[derive(Debug, Clone)]

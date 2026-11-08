@@ -1,5 +1,8 @@
+use chrono::Utc;
 use itertools::Itertools;
+use meshtastic::protobufs::DeviceMetrics;
 use std::collections::HashMap;
+use std::ops::Sub;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,7 +14,9 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
-use crate::types::{DbLoadState, Message, Node, NodePosition, NodeTelemetry, Traceroute};
+use crate::types::{
+    DbLoadState, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped, TelemetryKind, Traceroute,
+};
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
 const DATA_LOAD_TIMEOUT_SECS: u64 = 5;
@@ -117,7 +122,7 @@ impl PersistenceService {
                 self.data_load_handle = Some(tokio::spawn(async move {
                     match timeout(
                         Duration::from_secs(DATA_LOAD_TIMEOUT_SECS),
-                        load_data(repository_clone, &state_action_tx),
+                        load_data(node_key, repository_clone, &state_action_tx),
                     )
                     .await
                     {
@@ -430,7 +435,11 @@ impl PersistenceService {
     }
 }
 
-async fn load_data(repository: Arc<Repository>, state_action_tx: &UnboundedSender<StateAction>) -> anyhow::Result<()> {
+async fn load_data(
+    node_key: u32,
+    repository: Arc<Repository>,
+    state_action_tx: &UnboundedSender<StateAction>,
+) -> anyhow::Result<()> {
     // nodes
     let nodes: Vec<Node> = repository.node_find_all().await?.into_iter().map_into().collect();
 
@@ -501,6 +510,43 @@ async fn load_data(repository: Arc<Repository>, state_action_tx: &UnboundedSende
     tracing::info!("telemetry data loaded from DB: {}", last_telemetry.len());
 
     let _ = state_action_tx.send(StateAction::DbNodesLastTelemetryLoad(last_telemetry));
+
+    // my node device metrics
+    let my_node_device_metrics: Vec<NodeTelemetryTyped<DeviceMetrics>> = repository
+        .telemetry_find_by_node_key_and_kind(
+            node_key,
+            TelemetryKind::DeviceMetrics,
+            Utc::now().sub(Duration::from_hours(24)),
+        )
+        .await?
+        .iter()
+        .map(|entity| match NodeTelemetry::try_from(entity) {
+            Ok(NodeTelemetry {
+                datetime,
+                variant: meshtastic::protobufs::telemetry::Variant::DeviceMetrics(data),
+                ..
+            }) => Some(NodeTelemetryTyped::<DeviceMetrics> { datetime, data }),
+            Ok(NodeTelemetry { .. }) => unreachable!(),
+            Err(e) => {
+                tracing::error!(
+                    "can't convert DB entity to NodeTelemetry, id: {:?}, node_key: {}, kind: {}, error: {}",
+                    entity.id,
+                    entity.node_key,
+                    entity.kind,
+                    e
+                );
+                None
+            }
+        })
+        .flatten()
+        .collect();
+
+    tracing::info!(
+        "my node device metrics data loaded from DB: {}",
+        my_node_device_metrics.len()
+    );
+
+    let _ = state_action_tx.send(StateAction::DbMyNodeDeviceMetricsLoad(my_node_device_metrics));
 
     // position
     let last_position: HashMap<u32, NodePosition> = repository

@@ -1,6 +1,5 @@
 use crate::ui::prelude::*;
 use hostaddr::HostAddr;
-use itertools::Itertools;
 use meshtastic::protobufs::HardwareModel;
 
 pub struct Connection<'a> {
@@ -52,11 +51,7 @@ impl<'a> Connection<'a> {
             let list_builder = ListBuilder::new(|context| {
                 let device = state.devices_discovered.iter().nth(context.index).unwrap();
 
-                let item = DeviceWidget {
-                    device,
-                    is_selected: context.is_selected,
-                    centered: false,
-                };
+                let item = DeviceWidget::new(device, context.is_selected, false);
 
                 (item, 1)
             });
@@ -341,11 +336,7 @@ impl<'a> Screen for Connection<'a> {
             let list_builder = ListBuilder::new(|context| {
                 let device = state.devices.iter().nth(context.index).unwrap();
 
-                let item = DeviceWidget {
-                    device,
-                    is_selected: context.is_selected,
-                    centered: false,
-                };
+                let item = DeviceWidget::new(device, context.is_selected, false);
 
                 (item, 1)
             });
@@ -459,11 +450,7 @@ impl<'a> Screen for Connection<'a> {
             ])
             .split(popup_block_area);
 
-            let device_widget = DeviceWidget {
-                device: active_device,
-                is_selected: false,
-                centered: true,
-            };
+            let device_widget = DeviceWidget::new(active_device, false, true);
 
             device_widget.render(block_v[1], frame.buffer_mut());
 
@@ -474,59 +461,5 @@ impl<'a> Screen for Connection<'a> {
                 block_v[3],
             );
         }
-    }
-}
-
-struct DeviceWidget<'a> {
-    device: &'a Device,
-    is_selected: bool,
-    centered: bool,
-}
-
-impl<'a> Widget for DeviceWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
-        let modifier = if self.is_selected {
-            Modifier::REVERSED
-        } else {
-            Modifier::empty()
-        };
-
-        let spans = match self.device {
-            Device::Ble { name, address, id } => vec![
-                Span::from(" BLE ").black().on_blue(),
-                Span::from(format!(
-                    " {} ",
-                    [name, id, &Some(address.to_string())].into_iter().flatten().join(" – ")
-                ))
-                .add_modifier(modifier),
-            ],
-            Device::Tcp { name, address } => vec![
-                Span::from(" TCP ").black().on_green(),
-                Span::from(format!(
-                    " {} ",
-                    [name, &Some(address.to_string())].into_iter().flatten().join(" – ")
-                ))
-                .add_modifier(modifier),
-            ],
-            Device::Serial { name, address } => vec![
-                Span::from(" COM ").black().on_magenta(),
-                Span::from(format!(
-                    " {} ",
-                    [name, &Some(address.to_string())].into_iter().flatten().join(" – ")
-                ))
-                .add_modifier(modifier),
-            ],
-        };
-
-        let mut line = Line::from(spans);
-
-        if self.centered {
-            line = line.centered();
-        }
-
-        line.render(area, buf);
     }
 }

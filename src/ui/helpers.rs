@@ -29,6 +29,13 @@ static LINK_REGEX: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
+pub const DEFAULT_SCROLLBAR_SET: ScrollbarSet = ScrollbarSet {
+    begin: "┬",
+    thumb: "█",
+    track: "│",
+    end: "┴",
+};
+
 pub trait BatteryLevelColorExt {
     fn battery_level_to_color(&self) -> Color;
 }
@@ -295,12 +302,7 @@ pub fn chat_to_spans<'a>(chat: &'a Chat, state: &'a State) -> Vec<Span<'a>> {
 
 pub fn default_scrollbar() -> Scrollbar<'static> {
     Scrollbar::new(ScrollbarOrientation::VerticalRight)
-        .symbols(ScrollbarSet {
-            begin: "┬",
-            thumb: "█",
-            track: "│",
-            end: "┴",
-        })
+        .symbols(DEFAULT_SCROLLBAR_SET)
         .style(Style::new().dark_gray())
 }
 

@@ -1,45 +1,34 @@
 use crate::repository::domain::telemetry::Telemetry;
 use crate::repository::{Repository, RepositoryError};
+use crate::types::TelemetryKind;
+use chrono::{DateTime, Utc};
 use rusqlite::params;
 use serde_rusqlite::{from_rows, to_params_named};
 use std::collections::HashMap;
 
 impl Repository {
-    #[allow(dead_code)]
-    pub async fn telemetry_find_all(&self) -> Result<Vec<Telemetry>, RepositoryError> {
-        let result: Vec<Telemetry> = self
-            .conn
-            .call(|conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare("SELECT * FROM telemetry")?;
-                let result: Result<_, _> = from_rows::<Telemetry>(statement.query([])?).collect();
-
-                result.map_err(Into::into)
-            })
-            .await?;
-
-        Ok(result)
-    }
-
-    #[allow(dead_code)]
-    pub async fn telemetry_find_last_by_node_key(&self, node_key: u32) -> Result<Vec<Telemetry>, RepositoryError> {
+    pub async fn telemetry_find_by_node_key_and_kind(
+        &self,
+        node_key: u32,
+        kind: TelemetryKind,
+        after_datetime: DateTime<Utc>,
+    ) -> Result<Vec<Telemetry>, RepositoryError> {
         let result: Vec<Telemetry> = self
             .conn
             .call(move |conn| -> Result<_, RepositoryError> {
                 let mut statement = conn.prepare(
                     r#"
                     SELECT *
-                    FROM (
-                        SELECT t.*, ROW_NUMBER() OVER (
-                            PARTITION BY node_key, kind
-                            ORDER BY datetime DESC
-                        ) AS rn
-                        FROM telemetry AS t WHERE t.node_key = :node_key
-                    )
-                    WHERE rn = 1;
+                    FROM telemetry
+                    WHERE node_key = :node_key 
+                      AND kind = :kind
+                      AND datetime > :after_datetime
+                    ORDER BY datetime ASC;
                     "#,
                 )?;
 
-                let result: Result<_, _> = from_rows::<Telemetry>(statement.query(params![node_key])?).collect();
+                let result: Result<_, _> =
+                    from_rows::<Telemetry>(statement.query(params![node_key, kind, after_datetime])?).collect();
 
                 result.map_err(Into::into)
             })

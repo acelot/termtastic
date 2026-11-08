@@ -1,5 +1,6 @@
 mod chat;
 mod connection;
+mod dashboard;
 mod layout;
 mod logs;
 mod messenger;
@@ -9,6 +10,7 @@ mod settings;
 
 pub use chat::*;
 pub use connection::*;
+pub use dashboard::*;
 pub use layout::*;
 pub use logs::*;
 pub use messenger::*;

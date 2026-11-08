@@ -310,12 +310,8 @@ impl NodesService {
     }
 
     fn update_online_nodes(&self) {
-        let now = Utc::now();
-
         let count = self.state_rx.borrow().nodes.iter().fold(0, |mut counter, (_, node)| {
-            if let Some(last_heard) = node.last_heard
-                && (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS
-            {
+            if node.is_online() {
                 counter += 1;
             }
 
@@ -334,8 +330,6 @@ pub fn update_nodes_view(state: &mut State) {
         .filter(|s| !s.is_empty())
         .collect();
 
-    let now = Utc::now();
-
     state.nodes_view = state
         .nodes
         .values()
@@ -344,15 +338,7 @@ pub fn update_nodes_view(state: &mut State) {
                 return true;
             }
 
-            let online_token = if node
-                .last_heard
-                .map(|last_heard| (now - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
-                .unwrap_or(false)
-            {
-                "$online"
-            } else {
-                "$offline"
-            };
+            let online_token = if node.is_online() { "$online" } else { "$offline" };
 
             let traceroute_token = if state
                 .nodes_traceroutes

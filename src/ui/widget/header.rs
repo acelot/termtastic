@@ -162,8 +162,8 @@ impl Widget for HeaderWidget<'_> {
                 let status_line = Line::from(vec![
                     Span::from("online ").dark_gray(),
                     Span::from(self.context.online_nodes.to_string()).green(),
-                    Span::from("/").green().dim(),
-                    Span::from(self.context.nodes_count.to_string()).green(),
+                    Span::from("/").dark_gray().dim(),
+                    Span::from(self.context.nodes_count.to_string()).dark_gray(),
                     Span::from("  "),
                     db_indicator,
                     Span::from(" "),

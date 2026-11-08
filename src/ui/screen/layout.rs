@@ -1,7 +1,7 @@
 use crate::ui::{
     logo::APP_LOGO_TEXT,
     prelude::*,
-    screen::{Chat, Connection, Logs, Nodes, Settings},
+    screen::{Chat, Connection, Dashboard, Logs, Nodes, Settings},
 };
 use itertools::Itertools;
 use ratatui::layout::Layout as RatatuiLayout;
@@ -9,14 +9,15 @@ use std::ops::Sub;
 use std::time::{Duration, Instant};
 use strum::IntoEnumIterator;
 
-const MIN_TERMINAL_SIZE: (u16, u16) = (70, 20);
+pub const MIN_TERMINAL_SIZE: (u16, u16) = (70, 21);
 
 pub struct Layout<'a> {
-    chat_component: Chat<'a>,
-    nodes_component: Nodes<'a>,
-    settings_component: Settings<'a>,
-    connection_component: Connection<'a>,
-    logs_component: Logs,
+    chat_screen: Chat<'a>,
+    nodes_screen: Nodes<'a>,
+    settings_screen: Settings<'a>,
+    connection_screen: Connection<'a>,
+    dashboard_screen: Dashboard,
+    logs_screen: Logs,
     logo: Text<'static>,
     nodeinfo_widget_state: NodeInfoWidgetState,
     last_esc_t: Instant,
@@ -26,11 +27,12 @@ pub struct Layout<'a> {
 impl<'a> Layout<'a> {
     pub fn new() -> Self {
         Self {
-            chat_component: Chat::new(),
-            nodes_component: Nodes::new(),
-            settings_component: Settings::new(),
-            connection_component: Connection::new(),
-            logs_component: Logs::new(),
+            chat_screen: Chat::new(),
+            nodes_screen: Nodes::new(),
+            settings_screen: Settings::new(),
+            connection_screen: Connection::new(),
+            dashboard_screen: Dashboard::new(),
+            logs_screen: Logs::new(),
             logo: APP_LOGO_TEXT.clone(),
             nodeinfo_widget_state: NodeInfoWidgetState::default(),
             last_esc_t: Instant::now().sub(Duration::from_secs(1)),
@@ -48,11 +50,12 @@ impl<'a> Screen for Layout<'a> {
         }
 
         match state.active_tab {
-            Tab::Chat => self.chat_component.get_hotkeys(state),
-            Tab::Nodes => self.nodes_component.get_hotkeys(state),
-            Tab::Settings => self.settings_component.get_hotkeys(state),
-            Tab::Connection => self.connection_component.get_hotkeys(state),
-            Tab::Logs => self.logs_component.get_hotkeys(state),
+            Tab::Chat => self.chat_screen.get_hotkeys(state),
+            Tab::Nodes => self.nodes_screen.get_hotkeys(state),
+            Tab::Settings => self.settings_screen.get_hotkeys(state),
+            Tab::Connection => self.connection_screen.get_hotkeys(state),
+            Tab::Dashboard => self.dashboard_screen.get_hotkeys(state),
+            Tab::Logs => self.logs_screen.get_hotkeys(state),
         }
     }
 
@@ -97,11 +100,12 @@ impl<'a> Screen for Layout<'a> {
         }
 
         let is_handled = match state.active_tab {
-            Tab::Chat => self.chat_component.handle_event(state, event, emit),
-            Tab::Nodes => self.nodes_component.handle_event(state, event, emit),
-            Tab::Settings => self.settings_component.handle_event(state, event, emit),
-            Tab::Connection => self.connection_component.handle_event(state, event, emit),
-            Tab::Logs => self.logs_component.handle_event(state, event, emit),
+            Tab::Chat => self.chat_screen.handle_event(state, event, emit),
+            Tab::Nodes => self.nodes_screen.handle_event(state, event, emit),
+            Tab::Settings => self.settings_screen.handle_event(state, event, emit),
+            Tab::Connection => self.connection_screen.handle_event(state, event, emit),
+            Tab::Dashboard => self.dashboard_screen.handle_event(state, event, emit),
+            Tab::Logs => self.logs_screen.handle_event(state, event, emit),
         };
 
         if is_handled {
@@ -183,11 +187,12 @@ impl<'a> Screen for Layout<'a> {
         }
 
         match state.active_tab {
-            Tab::Chat => self.chat_component.render(state, frame, v[4]),
-            Tab::Nodes => self.nodes_component.render(state, frame, v[4]),
-            Tab::Settings => self.settings_component.render(state, frame, v[4]),
-            Tab::Connection => self.connection_component.render(state, frame, v[4]),
-            Tab::Logs => self.logs_component.render(state, frame, v[4]),
+            Tab::Chat => self.chat_screen.render(state, frame, v[4]),
+            Tab::Nodes => self.nodes_screen.render(state, frame, v[4]),
+            Tab::Settings => self.settings_screen.render(state, frame, v[4]),
+            Tab::Connection => self.connection_screen.render(state, frame, v[4]),
+            Tab::Dashboard => self.dashboard_screen.render(state, frame, v[4]),
+            Tab::Logs => self.logs_screen.render(state, frame, v[4]),
         }
 
         // hotkeys

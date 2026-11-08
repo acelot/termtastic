@@ -336,7 +336,12 @@ impl<'a> Screen for Nodes<'a> {
 
             list.render(v[0], frame.buffer_mut(), &mut self.list_state);
         } else {
-            PlaceholderWidget::dark_gray("no nodes").render(v[0], frame.buffer_mut());
+            PlaceholderWidget::dark_gray(if state.nodes.is_empty() {
+                "no nodes"
+            } else {
+                "no nodes found"
+            })
+            .render(v[0], frame.buffer_mut());
         }
 
         let count_filtered = state.nodes_view.len().to_string();

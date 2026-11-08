@@ -1,12 +1,12 @@
 use std::{collections::HashMap, time::Duration};
 
 use chrono::{DateTime, Utc};
-use meshtastic::protobufs::{config, module_config, routing};
+use meshtastic::protobufs::{DeviceMetrics, config, module_config, routing};
 use strum::EnumProperty;
 
 use crate::types::{
     AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node, NodePosition,
-    NodeTelemetry, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
+    NodeTelemetry, NodeTelemetryTyped, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
 };
 
 #[derive(Debug, Clone, EnumProperty)]
@@ -37,6 +37,7 @@ pub enum StateAction {
     DbNodesLastPositionLoad(HashMap<u32, NodePosition>),
     DbMessagesLoad(Vec<Message>),
     DbTracerouteLoad(Vec<Traceroute>),
+    DbMyNodeDeviceMetricsLoad(Vec<NodeTelemetryTyped<DeviceMetrics>>),
     DeviceActiveSet(Device),
     DevicesAdd(Device),
     DevicesRemove(Device),

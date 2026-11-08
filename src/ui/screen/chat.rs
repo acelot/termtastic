@@ -2,7 +2,7 @@ use crate::ui::prelude::*;
 use crate::ui::screen::Messenger;
 
 pub struct Chat<'a> {
-    messenger_component: Messenger<'a>,
+    messenger_screen: Messenger<'a>,
     list_state: ListState,
     chat_purge: Option<crate::types::Chat>,
 }
@@ -10,7 +10,7 @@ pub struct Chat<'a> {
 impl<'a> Chat<'a> {
     pub fn new() -> Self {
         Self {
-            messenger_component: Messenger::new(),
+            messenger_screen: Messenger::new(),
             list_state: ListState::default(),
             chat_purge: None,
         }
@@ -20,7 +20,7 @@ impl<'a> Chat<'a> {
 impl<'a> Screen for Chat<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if state.active_chat.is_some() {
-            return self.messenger_component.get_hotkeys(state);
+            return self.messenger_screen.get_hotkeys(state);
         }
 
         vec![
@@ -32,7 +32,7 @@ impl<'a> Screen for Chat<'a> {
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         if state.active_chat.is_some() {
-            return self.messenger_component.handle_event(state, event, emit);
+            return self.messenger_screen.handle_event(state, event, emit);
         }
 
         if self.chat_purge.is_some() {
@@ -92,7 +92,7 @@ impl<'a> Screen for Chat<'a> {
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
         if state.active_chat.is_some() {
-            self.messenger_component.render(state, frame, area);
+            self.messenger_screen.render(state, frame, area);
             return;
         }
 

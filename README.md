@@ -70,7 +70,7 @@
 - Fully handwritten code, no vibe-coding
 - Dependency-free single-binary application
 - Fully asynchronous (Tokio channel-based)
-- Optimized for small screens (down to `70x20`)
+- Optimized for small screens (down to `70x21`)
 - Respects the user's terminal color scheme (no opinionated TrueColor colors)
 - Keyboard-centric UI navigation
 - Minimal use of emoji and non-ASCII characters in the UI
@@ -92,6 +92,7 @@
 - Telemetry
 - Settings (all available sections, including module configs)
 - Connection manager with auto-discovery (TCP, BLE, serial)
+- Dashboard with widgets: node info, uptime, online nodes, clock, hops stat, role stat, HW stat, device metrics stat
 - Logs screen
 - Indicators (battery, DB, traceroute, RX, online nodes)
 

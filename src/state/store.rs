@@ -1,4 +1,5 @@
 use chrono::Utc;
+use meshtastic::protobufs::telemetry::Variant::DeviceMetrics;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
 use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
@@ -12,8 +13,8 @@ use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::service::{update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
-    Chat, DbLoadState, DeviceConfig, DeviceModuleConfig, Message, Node, NodeLastTelemetry, NodeLastTelemetryItem,
-    NodeTelemetry, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
+    Chat, DbLoadState, DeviceConfig, DeviceModuleConfig, Message, Node, NodeLastTelemetry, NodeTelemetry,
+    NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -161,10 +162,12 @@ impl Store {
                     state.connection_attempt = 0;
                     state.connection_state = ConnectionState::default();
                     state.db_load_state = DbLoadState::default();
+                    state.device_metadata = None;
                     state.device_config = DeviceConfig::default();
                     state.device_module_config = DeviceModuleConfig::default();
                     state.messages.clear();
                     state.my_node_key = None;
+                    state.my_node_device_metrics.clear();
                     state.nodeinfo_key = None;
                     state.nodeinfo_telemetry.clear();
                     state.nodes_loader_current = 0;
@@ -214,6 +217,7 @@ impl Store {
                     state.db_load_transaction_nodes_last_position = None;
                     state.db_load_transaction_messages = None;
                     state.db_load_transaction_traceroutes = None;
+                    state.db_load_transaction_my_node_device_metrics = None;
                     state.db_load_state = DbLoadState::Failed;
                 });
 
@@ -268,6 +272,11 @@ impl Store {
                         }
                     }
 
+                    // my node device metrics
+                    if let Some(metrics) = state.db_load_transaction_my_node_device_metrics.take() {
+                        state.my_node_device_metrics = VecDeque::from(metrics);
+                    }
+
                     update_nodes_view(state);
 
                     state.db_load_state = DbLoadState::Loaded;
@@ -314,6 +323,13 @@ impl Store {
             StateAction::DbTracerouteLoad(traceroutes) => {
                 self.state_tx.send_modify(|state| {
                     state.db_load_transaction_traceroutes = Some(traceroutes);
+                });
+
+                true
+            }
+            StateAction::DbMyNodeDeviceMetricsLoad(metrics) => {
+                self.state_tx.send_modify(|state| {
+                    state.db_load_transaction_my_node_device_metrics = Some(metrics);
                 });
 
                 true
@@ -580,6 +596,17 @@ impl Store {
             }),
             StateAction::NodeLastTelemetrySet(node_telemetry) => {
                 self.state_tx.send_modify(|state| {
+                    if let DeviceMetrics(data) = node_telemetry.variant
+                        && Some(node_telemetry.node_key) == state.my_node_key
+                    {
+                        state.my_node_device_metrics.pop_front();
+
+                        state.my_node_device_metrics.push_back(NodeTelemetryTyped {
+                            datetime: node_telemetry.datetime,
+                            data,
+                        });
+                    }
+
                     set_last_telemetry(node_telemetry, state);
                     update_nodeinfo_telemetry(state);
                     update_nodes_view(state);
@@ -1104,7 +1131,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.device_metrics = Some(NodeLastTelemetryItem {
+                telemetry.device_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1116,7 +1143,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.environment_metrics = Some(NodeLastTelemetryItem {
+                telemetry.environment_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1128,7 +1155,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.air_quality_metrics = Some(NodeLastTelemetryItem {
+                telemetry.air_quality_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1140,7 +1167,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.power_metrics = Some(NodeLastTelemetryItem {
+                telemetry.power_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1152,7 +1179,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.local_stats = Some(NodeLastTelemetryItem {
+                telemetry.local_stats = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1164,7 +1191,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.health_metrics = Some(NodeLastTelemetryItem {
+                telemetry.health_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1176,7 +1203,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.host_metrics = Some(NodeLastTelemetryItem {
+                telemetry.host_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
@@ -1188,7 +1215,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .as_ref()
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
-                telemetry.traffic_management_stats = Some(NodeLastTelemetryItem {
+                telemetry.traffic_management_stats = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });

@@ -1,4 +1,5 @@
 use crate::types::*;
+use meshtastic::protobufs::DeviceMetrics;
 use ordermap::OrderMap;
 use std::collections::HashSet;
 use std::{
@@ -24,6 +25,7 @@ pub struct State {
     pub db_load_transaction_nodes_last_position: Option<HashMap<u32, NodePosition>>,
     pub db_load_transaction_messages: Option<Vec<Message>>,
     pub db_load_transaction_traceroutes: Option<Vec<Traceroute>>,
+    pub db_load_transaction_my_node_device_metrics: Option<Vec<NodeTelemetryTyped<DeviceMetrics>>>,
     pub db_indicator_t: Instant,
     pub db_indicator: bool,
     pub device_canned_messages: Option<String>,
@@ -37,6 +39,7 @@ pub struct State {
     pub messages: HashMap<u32, Message>,
     pub messages_is_loading: bool,
     pub my_node_key: Option<u32>,
+    pub my_node_device_metrics: VecDeque<NodeTelemetryTyped<DeviceMetrics>>,
     pub nodeinfo_telemetry: Vec<TelemetryItem>,
     pub nodeinfo_position: Vec<NodePosition>,
     pub nodeinfo_key: Option<u32>,
@@ -85,6 +88,7 @@ impl Default for State {
             db_load_transaction_nodes_last_position: None,
             db_load_transaction_messages: None,
             db_load_transaction_traceroutes: None,
+            db_load_transaction_my_node_device_metrics: None,
             db_indicator: false,
             db_indicator_t: Instant::now(),
             device_discovering_state: DeviceDiscoveringState::default(),
@@ -98,6 +102,7 @@ impl Default for State {
             messages: HashMap::with_capacity(1000),
             messages_is_loading: false,
             my_node_key: None,
+            my_node_device_metrics: VecDeque::default(),
             nodeinfo_key: None,
             nodeinfo_telemetry: Vec::default(),
             nodeinfo_position: Vec::default(),
