@@ -42,7 +42,7 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         block.render(area, buf);
 
         if self.data.is_empty() {
-            PlaceholderWidget::dark_gray("no data").render(block_area, buf);
+            PlaceholderWidget::dark_gray("no telemetry data collected yet").render(block_area, buf);
             return;
         }
 
@@ -53,18 +53,18 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             Utc::now(),
         );
 
-        let (ch_util, air_util_tx, max): (Vec<(f64, f64)>, Vec<(f64, f64)>, f64) = self.data.iter().fold(
+        let (ch_util, air_util_tx, util_max): (Vec<(f64, f64)>, Vec<(f64, f64)>, f64) = self.data.iter().fold(
             (Vec::new(), Vec::new(), 0.0),
-            |(mut ch_util, mut air_util_tx, mut max), item| {
+            |(mut ch_util, mut air_util_tx, mut util_max), item| {
                 let ch_util_f64 = item.data.channel_utilization() as f64;
                 let air_util_tx_f64 = item.data.air_util_tx() as f64;
 
                 ch_util.push((item.datetime.timestamp() as f64, ch_util_f64));
                 air_util_tx.push((item.datetime.timestamp() as f64, air_util_tx_f64));
 
-                max = max.max(ch_util_f64).max(air_util_tx_f64);
+                util_max = util_max.max(ch_util_f64).max(air_util_tx_f64);
 
-                (ch_util, air_util_tx, max)
+                (ch_util, air_util_tx, util_max)
             },
         );
 
@@ -104,11 +104,11 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
 
         let mut y_axis = Axis::default().title("%".blue());
 
-        if max <= 25.0 {
+        if util_max <= 25.0 {
             y_axis = y_axis.bounds([0.0, 25.0]).labels(["0", "5", "10", "15", "20", "25"]);
-        } else if max <= 50.0 {
+        } else if util_max <= 50.0 {
             y_axis = y_axis.bounds([0.0, 50.0]).labels(["0", "25", "50"]);
-        } else if max <= 75.0 {
+        } else if util_max <= 75.0 {
             y_axis = y_axis.bounds([0.0, 75.0]).labels(["0", "25", "50", "75"]);
         } else {
             y_axis = y_axis.bounds([0.0, 100.0]).labels(["0", "25", "50", "75", "100"]);
