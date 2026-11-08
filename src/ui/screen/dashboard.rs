@@ -72,7 +72,7 @@ impl Screen for Dashboard {
         // app memory usage
 
         let is_big = area.width > 116;
-        let rows: [u16; 3] = if is_big { [11, 12, 16] } else { [8, 10, 12] };
+        let rows: [u16; 3] = if is_big { [11, 12, 16] } else { [8, 10, 11] };
 
         let content_size = Size::new(area.width - 2, rows.iter().sum());
         let mut scroll_view = ScrollView::new(content_size)

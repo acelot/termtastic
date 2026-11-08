@@ -33,16 +33,10 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
     {
         let block = Block::new()
             .borders(Borders::all())
-            .border_type(BorderType::Plain)
+            .border_type(BorderType::Rounded)
             .border_style(Style::new().dark_gray())
             .padding(Padding::symmetric(1, 0))
-            .title_top(Line::from(vec![
-                Span::from(" device metrics ("),
-                Span::from("channel util").green(),
-                Span::from(", "),
-                Span::from("air util tx").yellow(),
-                Span::from(") "),
-            ]));
+            .title_top(" device metrics ");
 
         let block_area = block.inner(area);
         block.render(area, buf);
@@ -51,6 +45,8 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             PlaceholderWidget::dark_gray("no data").render(block_area, buf);
             return;
         }
+
+        let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).split(block_area);
 
         let (datetime_min, datetime_max) = (
             Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS)),
@@ -66,17 +62,13 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
                 ch_util.push((item.datetime.timestamp() as f64, ch_util_f64));
                 air_util_tx.push((item.datetime.timestamp() as f64, air_util_tx_f64));
 
-                if ch_util_f64 > max {
-                    max = ch_util_f64;
-                }
-
-                if air_util_tx_f64 > max {
-                    max = air_util_tx_f64;
-                }
+                max = max.max(ch_util_f64).max(air_util_tx_f64);
 
                 (ch_util, air_util_tx, max)
             },
         );
+
+        let current = self.data.iter().last().unwrap();
 
         let dataset_ch_util = Dataset::default()
             .name("channel util")
@@ -125,7 +117,19 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         Chart::new(vec![dataset_air_util_tx, dataset_ch_util])
             .x_axis(x_axis)
             .y_axis(y_axis)
-            .render(block_area, buf);
+            .render(v[0], buf);
+
+        Line::from(vec![
+            Span::from("· channel util").green(),
+            Span::from(" (current=").dark_gray(),
+            Span::from(format!("{:.2}%", current.data.channel_utilization())),
+            Span::from(")   ").dark_gray(),
+            Span::from("· air util tx").yellow(),
+            Span::from(" (current=").dark_gray(),
+            Span::from(format!("{:.2}%", current.data.air_util_tx())),
+            Span::from(")").dark_gray(),
+        ])
+        .render(v[1], buf);
     }
 }
 

@@ -22,7 +22,7 @@ impl Widget for OnlineNodesWidget {
     {
         let block = Block::new()
             .borders(Borders::all())
-            .border_type(BorderType::Plain)
+            .border_type(BorderType::Rounded)
             .border_style(Style::new().dark_gray())
             .padding(Padding::symmetric(1, 0))
             .title_top(" online nodes ");

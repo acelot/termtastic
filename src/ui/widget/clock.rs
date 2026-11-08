@@ -33,7 +33,7 @@ impl Widget for ClockWidget {
     {
         let block = Block::new()
             .borders(Borders::all())
-            .border_type(BorderType::Plain)
+            .border_type(BorderType::Rounded)
             .border_style(Style::new().dark_gray())
             .title_top(" clock ");
 
