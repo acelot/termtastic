@@ -23,11 +23,17 @@ impl<'a> Screen for Chat<'a> {
             return self.messenger_screen.get_hotkeys(state);
         }
 
-        vec![
-            Hotkey::new("↑↓", "scroll"),
-            Hotkey::new("enter", "open"),
-            Hotkey::new("delete", "purge chat"),
+        [
+            (!state.chats.is_empty()).then_some(Hotkey::new("↑↓", "scroll")),
+            (!state.chats.is_empty()).then_some(Hotkey::new("enter", "open")),
+            self.list_state
+                .selected
+                .is_some()
+                .then_some(Hotkey::new("delete", "purge chat")),
         ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {

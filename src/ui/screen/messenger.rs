@@ -49,11 +49,16 @@ impl<'a> Screen for Messenger<'a> {
         }
 
         if self.is_emoji_selector_visible {
-            return vec![
-                Hotkey::new("↑↓", "scroll"),
-                Hotkey::new("enter", "insert"),
-                Hotkey::new("esc", "close"),
-            ];
+            return [
+                Some(Hotkey::new("↑↓", "scroll")),
+                self.emoji_selector_state
+                    .is_selected()
+                    .then_some(Hotkey::new("enter", "insert")),
+                Some(Hotkey::new("esc", "close")),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
         }
 
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
@@ -77,7 +82,7 @@ impl<'a> Screen for Messenger<'a> {
             .unwrap_or(false);
 
         if self.replying_to.contains_key(active_chat) {
-            return vec![
+            return [
                 input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
                 Some(Hotkey::new("F5", "emoji")),
                 input_has_single_emoji.then_some(Hotkey::new("enter", "send reaction")),

@@ -17,17 +17,14 @@ use crate::ui::{
         short_name_to_span,
     },
     widget::{
-        PositionPopupWidget, PositionPopupWidgetState, PositionWidget, TraceroutePopupWidget,
+        InfoWidget, PlaceholderWidget, PopupConfirmWidget, PositionPopupWidget, PositionPopupWidgetState,
+        PositionWidget, TabsWidget, TelemetryItemWidget, ThreeColumnWidget, TraceroutePopupWidget,
         TraceroutePopupWidgetState, TracerouteWidget,
     },
 };
 use crate::{
-    types::NodePosition,
-    ui::widget::{PlaceholderWidget, PopupConfirmWidget, TabsWidget, TelemetryItemWidget, ThreeColumnWidget},
-};
-use crate::{
-    types::{Hotkey, Node, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE},
-    ui::widget::InfoWidget,
+    state::State,
+    types::{Hotkey, Node, NodePosition, TelemetryItem, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, FromRepr, Display, EnumIter, EnumCount)]
@@ -91,6 +88,33 @@ pub struct NodeInfoContext<'a> {
 impl<'a> NodeInfoContext<'a> {
     pub fn is_my_node(&self) -> bool {
         self.node_key == self.my_node_key
+    }
+}
+
+impl<'a> From<(u32, &'a State)> for NodeInfoContext<'a> {
+    fn from((node_key, state): (u32, &'a State)) -> Self {
+        Self {
+            node_key,
+            my_node_key: state.my_node_key.expect("should be Some"),
+            nodes: &state.nodes,
+            traceroutes: state
+                .nodes_traceroutes
+                .get(&node_key)
+                .map(|ids| {
+                    ids.iter()
+                        .filter_map(|id| state.traceroutes.get(id))
+                        .sorted_by(|t1, t2| t1.cmp(t2))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            position: &state.nodeinfo_position,
+            telemetry: &state.nodeinfo_telemetry,
+            uptime: state
+                .nodes_last_telemetry
+                .get(&node_key)
+                .and_then(|t| t.device_metrics.as_ref())
+                .and_then(|m| m.data.uptime_seconds),
+        }
     }
 }
 
@@ -330,7 +354,7 @@ impl NodeInfoWidgetState {
     }
 
     pub fn get_hotkeys(&self, is_my_node: bool) -> Vec<Hotkey> {
-        match &self.active_tab {
+        let hotkeys = match &self.active_tab {
             NodeInfoTab::Info => vec![
                 (!is_my_node).then_some(Hotkey::new("F2", "direct")),
                 Some(Hotkey::new("c", "copy public key")),
@@ -358,7 +382,12 @@ impl NodeInfoWidgetState {
             ],
             NodeInfoTab::Telemetry => vec![Hotkey::new("c", "copy value"), Hotkey::new("esc", "close")],
             _ => vec![],
-        }
+        };
+
+        hotkeys
+            .into_iter()
+            .chain(std::iter::once(Hotkey::new("tab", "next tab")))
+            .collect()
     }
 }
 

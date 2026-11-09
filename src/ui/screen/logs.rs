@@ -35,7 +35,7 @@ impl Logs {
 }
 
 impl Screen for Logs {
-    fn get_hotkeys(&self, _state: &State) -> Vec<Hotkey> {
+    fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if self.popup_record.is_some() {
             return vec![
                 Hotkey::new("↑↓".to_string(), "scroll".to_string()),
@@ -44,13 +44,19 @@ impl Screen for Logs {
             ];
         }
 
-        vec![
-            Hotkey::new("↑↓".to_string(), "scroll".to_string()),
-            Hotkey::new("enter".to_string(), "expand".to_string()),
-            Hotkey::new("c".to_string(), "copy".to_string()),
-            Hotkey::new("home".to_string(), "to top".to_string()),
-            Hotkey::new("end".to_string(), "to bottom".to_string()),
+        let has_logs = !state.logs.is_empty();
+        let is_list_selected = self.list_state.selected.is_some();
+
+        [
+            has_logs.then_some(Hotkey::new("↑↓".to_string(), "scroll".to_string())),
+            is_list_selected.then_some(Hotkey::new("enter".to_string(), "expand".to_string())),
+            is_list_selected.then_some(Hotkey::new("c".to_string(), "copy".to_string())),
+            has_logs.then_some(Hotkey::new("home".to_string(), "to top".to_string())),
+            has_logs.then_some(Hotkey::new("end".to_string(), "to bottom".to_string())),
         ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {

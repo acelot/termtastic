@@ -124,27 +124,37 @@ impl<'a> Nodes<'a> {
 }
 
 impl<'a> Screen for Nodes<'a> {
-    fn get_hotkeys(&self, _state: &State) -> Vec<Hotkey> {
+    fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         if self.is_emoji_selector_visible {
-            return vec![
-                Hotkey::new("↑↓", "scroll"),
-                Hotkey::new("enter", "insert"),
-                Hotkey::new("esc", "close"),
-            ];
+            return [
+                Some(Hotkey::new("↑↓", "scroll")),
+                self.emoji_selector_state
+                    .is_selected()
+                    .then_some(Hotkey::new("enter", "insert")),
+                Some(Hotkey::new("esc", "close")),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
         }
 
         if self.is_filter_help_visible {
             return vec![Hotkey::new("↑↓", "scroll"), Hotkey::new("esc", "close")];
         }
 
-        vec![
-            Hotkey::new("↑↓", "scroll"),
-            Hotkey::new("enter", "info"),
-            Hotkey::new("F1", "help"),
-            Hotkey::new("F2", "direct"),
-            Hotkey::new("F5", "emoji"),
-            Hotkey::new("F6", "sort"),
+        let is_node_selected = self.list_state.selected.is_some();
+
+        [
+            (!state.nodes_view.is_empty()).then_some(Hotkey::new("↑↓", "scroll")),
+            is_node_selected.then_some(Hotkey::new("enter", "info")),
+            Some(Hotkey::new("F1", "help")),
+            is_node_selected.then_some(Hotkey::new("F2", "direct")),
+            Some(Hotkey::new("F5", "emoji")),
+            Some(Hotkey::new("F6", "sort")),
         ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {

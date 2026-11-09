@@ -3,7 +3,6 @@ use crate::ui::{
     prelude::*,
     screen::{Chat, Connection, Dashboard, Logs, Nodes, Settings},
 };
-use itertools::Itertools;
 use ratatui::layout::Layout as RatatuiLayout;
 use std::ops::Sub;
 use std::time::{Duration, Instant};
@@ -49,14 +48,19 @@ impl<'a> Screen for Layout<'a> {
                 .get_hotkeys(state.my_node_key == Some(node_key));
         }
 
-        match state.active_tab {
+        let hotkeys = match state.active_tab {
             Tab::Chat => self.chat_screen.get_hotkeys(state),
             Tab::Nodes => self.nodes_screen.get_hotkeys(state),
             Tab::Settings => self.settings_screen.get_hotkeys(state),
             Tab::Connection => self.connection_screen.get_hotkeys(state),
             Tab::Dashboard => self.dashboard_screen.get_hotkeys(state),
             Tab::Logs => self.logs_screen.get_hotkeys(state),
-        }
+        };
+
+        hotkeys
+            .into_iter()
+            .chain(std::iter::once(Hotkey::new("tab", "next tab")))
+            .collect()
     }
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
@@ -72,10 +76,9 @@ impl<'a> Screen for Layout<'a> {
         }
 
         if let Some(node_key) = state.nodeinfo_key {
-            if self.nodeinfo_widget_state.handle_event(
-                build_nodeinfo_context(node_key, state),
-                event.clone(),
-                &mut |ev| match ev {
+            if self
+                .nodeinfo_widget_state
+                .handle_event((node_key, state).into(), event.clone(), &mut |ev| match ev {
                     NodeInfoWidgetEvent::CloseRequested => {
                         emit(UiEvent::NodeInfoPopupCloseRequested);
                     }
@@ -91,8 +94,8 @@ impl<'a> Screen for Layout<'a> {
                     NodeInfoWidgetEvent::TracerouteRequested => {
                         emit(UiEvent::TracerouteRequested { node_key });
                     }
-                },
-            ) {
+                })
+            {
                 return true;
             }
 
@@ -204,7 +207,7 @@ impl<'a> Screen for Layout<'a> {
 
             Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
-            NodeInfoWidget::new(build_nodeinfo_context(node_key, state)).render(
+            NodeInfoWidget::new((node_key, state).into()).render(
                 popup_area,
                 frame.buffer_mut(),
                 &mut self.nodeinfo_widget_state,
@@ -255,30 +258,5 @@ impl<'a> Screen for Layout<'a> {
                 .centered()
                 .render(toast_block_area, frame.buffer_mut());
         }
-    }
-}
-
-fn build_nodeinfo_context(node_key: u32, state: &State) -> NodeInfoContext<'_> {
-    NodeInfoContext {
-        node_key,
-        my_node_key: state.my_node_key.expect("should be Some"),
-        nodes: &state.nodes,
-        traceroutes: state
-            .nodes_traceroutes
-            .get(&node_key)
-            .map(|ids| {
-                ids.iter()
-                    .filter_map(|id| state.traceroutes.get(id))
-                    .sorted_by(|t1, t2| t1.cmp(t2))
-                    .collect()
-            })
-            .unwrap_or_default(),
-        position: &state.nodeinfo_position,
-        telemetry: &state.nodeinfo_telemetry,
-        uptime: state
-            .nodes_last_telemetry
-            .get(&node_key)
-            .and_then(|t| t.device_metrics.as_ref())
-            .and_then(|m| m.data.uptime_seconds),
     }
 }

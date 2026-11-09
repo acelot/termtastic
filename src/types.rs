@@ -273,19 +273,14 @@ impl From<LogRecord> for String {
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Display, FromRepr, EnumIter, EnumCount, Serialize, Deserialize, Hash,
 )]
+#[strum(serialize_all = "snake_case")]
 pub enum Tab {
     #[default]
-    #[strum(to_string = "chat")]
     Chat,
-    #[strum(to_string = "nodes")]
     Nodes,
-    #[strum(to_string = "settings")]
     Settings,
-    #[strum(to_string = "connection")]
     Connection,
-    #[strum(to_string = "dashboard")]
     Dashboard,
-    #[strum(to_string = "logs")]
     Logs,
 }
 

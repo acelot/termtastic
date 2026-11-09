@@ -92,9 +92,9 @@ impl<'a> Screen for Connection<'a> {
 
         let is_list_selected = self.list_state.selected.is_some();
 
-        vec![
-            Some(Hotkey::new("↑↓", "scroll")),
-            Some(Hotkey::new("enter", "connect")),
+        [
+            (!state.devices.is_empty()).then_some(Hotkey::new("↑↓", "scroll")),
+            is_list_selected.then_some(Hotkey::new("enter", "connect")),
             Some(Hotkey::new("t", "add TCP")),
             Some(Hotkey::new("d", "discover")),
             is_list_selected.then_some(Hotkey::new("r", "rename")),

@@ -32,6 +32,10 @@ impl<'a> EmojiSelectorState<'a> {
         }
     }
 
+    pub fn is_selected(&self) -> bool {
+        !self.emojis.is_empty() && self.list_state.selected.is_some()
+    }
+
     pub fn get_value(&self) -> Option<&'static Emoji> {
         self.list_state.selected.and_then(|i| self.emojis.get(i).cloned())
     }
@@ -43,6 +47,8 @@ impl<'a> EmojiSelectorState<'a> {
     }
 
     pub fn handle_event(&mut self, event: Event) -> bool {
+        self.list_state.fix_selection(self.emojis.len());
+
         if self
             .list_state
             .handle_navigation_events(&event, Some(self.emojis.len()))
