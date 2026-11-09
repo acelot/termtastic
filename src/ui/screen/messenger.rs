@@ -216,8 +216,6 @@ impl<'a> Screen for Messenger<'a> {
                         if input_widget.trimmed_len() <= INPUT_VALUE_MAX_LENGTH
                             && let Some((_, message_id)) = self.replying_to.remove(active_chat)
                         {
-                            self.follow_chat.insert(active_chat.clone(), true);
-
                             match input_widget.get_single_emoji() {
                                 Some(emoji) => {
                                     emit(UiEvent::ChatReactionSubmitted {
@@ -230,6 +228,8 @@ impl<'a> Screen for Messenger<'a> {
                                         text: input_widget.trimmed_lines().join("\n"),
                                         reply_message_id: Some(message_id),
                                     });
+
+                                    self.follow_chat.insert(active_chat.clone(), true);
                                 }
                             }
 
