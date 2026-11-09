@@ -68,5 +68,5 @@ tracing-appender = { version = "0.2.5" }
 tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0.1" }
 tui-scrollview = { git = "https://github.com/acelot/tui-widgets.git", rev = "831e6a9" }
-tui-widget-list = { version = "0.15.3" }
+tui-widget-list = { git = "https://github.com/acelot/tui-widget-list.git", rev = "e812de3" }
 unicode-width = { version = "0.2.3" }
