@@ -343,7 +343,7 @@ impl<'a> Screen for Messenger<'a> {
                     emit(UiEvent::ChatSwitchRequested);
                     return true;
                 }
-                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc => {
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
                     // capture these events to prevent handling by input widget
                     return false;
                 }

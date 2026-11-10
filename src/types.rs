@@ -278,9 +278,9 @@ pub enum Tab {
     #[default]
     Chat,
     Nodes,
+    Dashboard,
     Settings,
     Connection,
-    Dashboard,
     Logs,
 }
 

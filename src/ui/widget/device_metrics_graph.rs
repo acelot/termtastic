@@ -102,17 +102,15 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
                     .to_string()
             }));
 
-        let mut y_axis = Axis::default().title("%".blue());
+        let y_axis_max = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0]
+            .into_iter()
+            .find(|&max| util_max <= max)
+            .unwrap_or(100.0);
 
-        if util_max <= 25.0 {
-            y_axis = y_axis.bounds([0.0, 25.0]).labels(["0", "5", "10", "15", "20", "25"]);
-        } else if util_max <= 50.0 {
-            y_axis = y_axis.bounds([0.0, 50.0]).labels(["0", "25", "50"]);
-        } else if util_max <= 75.0 {
-            y_axis = y_axis.bounds([0.0, 75.0]).labels(["0", "25", "50", "75"]);
-        } else {
-            y_axis = y_axis.bounds([0.0, 100.0]).labels(["0", "25", "50", "75", "100"]);
-        }
+        let y_axis = Axis::default()
+            .title("%".blue())
+            .bounds([0.0, y_axis_max])
+            .labels((0..=2).map(|i| format!("{}", y_axis_max / 2.0 * i as f64)));
 
         Chart::new(vec![dataset_air_util_tx, dataset_ch_util])
             .x_axis(x_axis)

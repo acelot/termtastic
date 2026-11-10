@@ -271,7 +271,7 @@ impl<'a> Screen for Nodes<'a> {
                     }
                     return true;
                 }
-                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc => {
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
                     // capture these events to prevent handling them by input widget
                     return false;
                 }
