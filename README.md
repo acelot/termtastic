@@ -174,6 +174,11 @@
       <td><em>TBA</em></td>
       <td></td>
     </tr>
+    <tr>
+      <td>Docker</td>
+      <td><a href="https://hub.docker.com/r/acelot/termtastic">docker.io/acelot/termtastic</a></td>
+      <td>See FAQ for more information</td>
+    </tr>
   </tbody>
 </table>
 
@@ -185,6 +190,15 @@ To run an unsigned application on macOS, you need to dequarantine it using the c
 
 ```sh
 xattr -d com.apple.quarantine ./path/to/termtastic
+```
+
+### How to launch in a Docker?
+
+```sh
+docker run --rm -it \
+  -v "$HOME/.config/termtastic:/home/termtastic/.config/termtastic" \
+  -v "$HOME/.local/share/termtastic:/home/termtastic/.local/share/\termtastic" \
+  docker.io/acelot/termtastic:latest
 ```
 
 ### Application doesn't discover BLE devices on macOS
