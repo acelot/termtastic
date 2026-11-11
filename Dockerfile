@@ -14,6 +14,9 @@ ARG APP_VERSION=dev
 ENV GIT_REF_TYPE=tag \
     GIT_REF_NAME=${APP_VERSION}
 
+ENV CFLAGS_aarch64_unknown_linux_musl="-mno-outline-atomics" \
+    CXXFLAGS_aarch64_unknown_linux_musl="-mno-outline-atomics"
+
 COPY Cargo.toml Cargo.lock build.rs LICENSE ./
 COPY src ./src
 
