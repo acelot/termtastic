@@ -20,7 +20,6 @@ jobs:
   build:
     name: Build for ${{ matrix.target }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    # при пуше в ветку docker-image собирается только образ, релизные артефакты не нужны
     if: github.ref != 'refs/heads/docker-image'
     permissions:
       id-token: write
