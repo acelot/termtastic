@@ -42,7 +42,7 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         block.render(area, buf);
 
         if self.data.is_empty() {
-            PlaceholderWidget::dark_gray("no telemetry data collected yet").render(block_area, buf);
+            PlaceholderWidget::dark_gray("no data").render(block_area, buf);
             return;
         }
 
@@ -73,14 +73,14 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         let dataset_ch_util = Dataset::default()
             .name("channel util")
             .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
+            .graph_type(GraphType::Scatter)
             .style(Color::Green)
             .data(ch_util.as_slice());
 
         let dataset_air_util_tx = Dataset::default()
             .name("air util tx")
             .marker(Marker::Braille)
-            .graph_type(GraphType::Line)
+            .graph_type(GraphType::Scatter)
             .style(Color::Yellow)
             .data(air_util_tx.as_slice());
 
@@ -112,7 +112,7 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             .bounds([0.0, y_axis_max])
             .labels((0..=2).map(|i| format!("{}", y_axis_max / 2.0 * i as f64)));
 
-        Chart::new(vec![dataset_air_util_tx, dataset_ch_util])
+        Chart::new(vec![dataset_ch_util, dataset_air_util_tx])
             .x_axis(x_axis)
             .y_axis(y_axis)
             .render(v[0], buf);

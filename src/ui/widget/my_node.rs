@@ -38,6 +38,11 @@ impl<'a> Widget for MyNodeWidget<'a> {
         let block_area = block.inner(area);
         block.render(area, buf);
 
+        let Some(node) = self.data.node else {
+            PlaceholderWidget::dark_gray("not connected").render(block_area, buf);
+            return;
+        };
+
         let v = Layout::vertical([
             Constraint::Length(1),
             Constraint::Min(0),
@@ -50,11 +55,6 @@ impl<'a> Widget for MyNodeWidget<'a> {
         .split(block_area);
 
         let v6_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(1), Constraint::Fill(2)]).split(v[6]);
-
-        let Some(node) = self.data.node else {
-            PlaceholderWidget::dark_gray("not connected").render(v[2], buf);
-            return;
-        };
 
         if let Some(device) = self.data.device {
             DeviceWidget::new(device, false, false).render(v[0], buf);

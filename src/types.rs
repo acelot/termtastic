@@ -1099,13 +1099,13 @@ impl NodePosition {
 
     pub fn coordinates(&self) -> (f32, f32) {
         (
-            self.position.longitude_i() as f32 / Self::POSITION_DENOMINATOR,
             self.position.latitude_i() as f32 / Self::POSITION_DENOMINATOR,
+            self.position.longitude_i() as f32 / Self::POSITION_DENOMINATOR,
         )
     }
 
     pub fn coordinates_as_str(&self) -> String {
-        let (lon, lat) = self.coordinates();
+        let (lat, lon) = self.coordinates();
         format!("{:.5}, {:.5}", lat, lon)
     }
 }

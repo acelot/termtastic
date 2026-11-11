@@ -5,7 +5,7 @@ use ratatui::{
 };
 use tui_widget_list::{ListBuilder, ListState, ListView};
 
-use crate::state::State;
+use crate::{state::State, ui::widget::PlaceholderWidget};
 
 pub struct RoleDistributionWidget {
     data: RoleDistributionWidgetData,
@@ -38,6 +38,11 @@ impl StatefulWidget for RoleDistributionWidget {
 
         let block_area = block.inner(area);
         block.render(area, buf);
+
+        if self.data.stat.is_empty() {
+            PlaceholderWidget::dark_gray("no data").render(block_area, buf);
+            return;
+        };
 
         let online_length = self.data.max_online.checked_ilog10().unwrap_or(0) as u16 + 1;
         let total_length = self.data.max_total.checked_ilog10().unwrap_or(0) as u16 + 1;

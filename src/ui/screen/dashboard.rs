@@ -59,20 +59,8 @@ impl Screen for Dashboard {
     }
 
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
-        // datetime with ticking seconds
-        // node info: name, connection type, uptime, HW name, FW version
-        // online nodes
-        // position block: nearest node, farthest node, highest node
-        // hops distribution (0-7 = count)
-        // HW distribution (top 8 HW = count)
-        // best signal node (node name = SNR/RSSI)
-        // packets block: basic stat, graph
-        // DB block: size, records count
-        // funny: last incoming reaction emoji
-        // app memory usage
-
         let is_big = area.width > 116;
-        let rows: [u16; 3] = if is_big { [11, 12, 16] } else { [8, 10, 11] };
+        let rows: [u16; 4] = if is_big { [8, 10, 14, 9] } else { [8, 10, 12, 9] };
 
         let content_size = Size::new(area.width - 2, rows.iter().sum());
         let mut scroll_view = ScrollView::new(content_size)
@@ -84,19 +72,21 @@ impl Screen for Dashboard {
             Constraint::Length(rows[0]),
             Constraint::Length(rows[1]),
             Constraint::Length(rows[2]),
+            Constraint::Length(rows[3]),
         ])
         .split(Rect::new(0, 0, content_size.width, content_size.height));
 
-        let v0_h = Layout::horizontal(Constraint::from_fills([1, 1, 1, if is_big { 1 } else { 0 }])).split(v[0]);
-        let v1_h = Layout::horizontal(Constraint::from_fills([1, 1, 1])).split(v[1]);
-
         // first row
+        let v0_h = Layout::horizontal(Constraint::from_fills([1, 1, 1, if is_big { 1 } else { 0 }])).split(v[0]);
+
         scroll_view.render_widget(MyNodeWidget::new(state.into()), v0_h[0]);
         scroll_view.render_widget(UptimeWidget::new(state.into()), v0_h[1]);
         scroll_view.render_widget(OnlineNodesWidget::new(state.into()), v0_h[2]);
         scroll_view.render_widget(ClockWidget, v0_h[3]);
 
         // second row
+        let v1_h = Layout::horizontal(Constraint::from_fills([1, 1, 1])).split(v[1]);
+
         scroll_view.render_widget(HopsDistributionWidget::new(state.into()), v1_h[0]);
         scroll_view.render_stateful_widget(
             RoleDistributionWidget::new(state.into()),
@@ -111,6 +101,21 @@ impl Screen for Dashboard {
 
         // third row
         scroll_view.render_widget(DeviceMetricsGraphWidget::new(state.into()), v[2]);
+
+        // fourth row
+        let v3_h = Layout::horizontal(Constraint::from_fills([1, 1, 1])).split(v[3]);
+
+        let node_distance_widget_data: NodeDistanceWidgetData = state.into();
+
+        scroll_view.render_widget(
+            NodeDistanceWidget::new(NodeDistanceWidgetMode::Closest, &node_distance_widget_data),
+            v3_h[0],
+        );
+
+        scroll_view.render_widget(
+            NodeDistanceWidget::new(NodeDistanceWidgetMode::Farthest, &node_distance_widget_data),
+            v3_h[1],
+        );
 
         // render scroll view
         scroll_view.render(area, frame.buffer_mut(), &mut self.scroll_view_state);

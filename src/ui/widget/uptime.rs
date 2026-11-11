@@ -34,7 +34,7 @@ impl Widget for UptimeWidget {
         block.render(area, buf);
 
         let Some(uptime) = self.data.uptime else {
-            PlaceholderWidget::dark_gray("UNKNOWN").render(block_area, buf);
+            PlaceholderWidget::dark_gray("no data").render(block_area, buf);
             return;
         };
 
