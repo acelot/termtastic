@@ -157,7 +157,7 @@ impl<'a> Settings<'a> {
                         FormValue::Option(Some(b)) if let FormValue::Bool(v) = **b => {
                             FormValue::Option(Some(Box::new(FormValue::Bool(!v))))
                         }
-                        FormValue::Option(None) => FormValue::Option(None),
+                        FormValue::Option(None) => FormValue::Option(Some(Box::new(FormValue::Bool(true)))),
                         _ => unreachable!(),
                     },
                 ));
@@ -754,10 +754,11 @@ impl<'a> Widget for FormItemWidget<'a> {
                 )
             }
             FormItemKind::Switch => {
-                let value = match self.value {
-                    FormValue::Bool(v) => v,
+                let value = match &self.value {
+                    FormValue::Bool(v) => *v,
                     FormValue::Option(Some(b)) => b.as_bool(),
-                    _ => unreachable!(),
+                    FormValue::Option(None) => false,
+                    other => unreachable!("unexpected switch value: {:?}", other),
                 };
 
                 Line::from(
