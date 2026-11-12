@@ -242,6 +242,10 @@ impl<'a> Screen for Messenger<'a> {
                         self.replying_to.remove(active_chat);
                         return true;
                     }
+                    KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
+                        // capture these events to prevent handling by input widget
+                        return false;
+                    }
                     _ => {}
                 },
                 Event::Paste(text) => {
