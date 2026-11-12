@@ -177,7 +177,7 @@ impl<'a> Screen for Settings<'a> {
         match &state.settings_form_state {
             SettingsFormState::Inactive => vec![
                 Some(Hotkey::new("↑↓", "scroll")),
-                Some(Hotkey::new("enter (→)", "open")),
+                Some(Hotkey::new("enter", "open").alt("→")),
             ],
             SettingsFormState::Loading { .. } => vec![Some(Hotkey::new("esc", "cancel"))],
             SettingsFormState::LoadingFailed { .. } => vec![Some(Hotkey::new("esc", "return"))],
@@ -203,7 +203,7 @@ impl<'a> Screen for Settings<'a> {
                 state.settings_form_is_changed.then_some(Hotkey::new("s", "save")),
                 state.settings_form_is_changed.then_some(Hotkey::new("r", "reset")),
                 Some(Hotkey::new("c", "copy")),
-                Some(Hotkey::new("esc (←)", "return")),
+                Some(Hotkey::new("esc", "return").alt("←")),
             ],
             SettingsFormState::Saving { .. } => vec![],
         }

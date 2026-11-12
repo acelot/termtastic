@@ -146,7 +146,7 @@ impl<'a> Screen for Nodes<'a> {
 
         [
             (!state.nodes_view.is_empty()).then_some(Hotkey::new("↑↓", "scroll")),
-            is_node_selected.then_some(Hotkey::new("enter", "info")),
+            is_node_selected.then_some(Hotkey::new("enter", "info").alt("F4")),
             Some(Hotkey::new("F1", "help")),
             is_node_selected.then_some(Hotkey::new("F2", "direct")),
             Some(Hotkey::new("F5", "emoji")),

@@ -303,6 +303,7 @@ impl Tab {
 #[derive(Debug, Clone)]
 pub struct Hotkey {
     pub key: String,
+    pub alt: Option<String>,
     pub label: String,
 }
 
@@ -310,8 +311,14 @@ impl Hotkey {
     pub fn new<S: Into<String>>(key: S, label: S) -> Self {
         Self {
             key: key.into(),
+            alt: None,
             label: label.into(),
         }
+    }
+
+    pub fn alt<S: Into<String>>(mut self, alt: S) -> Self {
+        self.alt = Some(alt.into());
+        self
     }
 }
 
