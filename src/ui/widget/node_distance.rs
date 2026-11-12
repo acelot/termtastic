@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub enum NodeDistanceWidgetMode {
-    Closest,
+    Nearest,
     Farthest,
 }
 
@@ -39,7 +39,7 @@ impl<'a> Widget for NodeDistanceWidget<'a> {
             .border_style(Style::new().dark_gray())
             .padding(Padding::symmetric(1, 0))
             .title_top(match self.mode {
-                NodeDistanceWidgetMode::Closest => " closest node ",
+                NodeDistanceWidgetMode::Nearest => " nearest node ",
                 NodeDistanceWidgetMode::Farthest => " farthest node ",
             });
 
@@ -47,7 +47,7 @@ impl<'a> Widget for NodeDistanceWidget<'a> {
         block.render(area, buf);
 
         let Some((node, distance)) = (match self.mode {
-            NodeDistanceWidgetMode::Closest => self.data.closest,
+            NodeDistanceWidgetMode::Nearest => self.data.nearest,
             NodeDistanceWidgetMode::Farthest => self.data.farthest,
         }) else {
             PlaceholderWidget::dark_gray("no data").render(block_area, buf);
@@ -105,7 +105,7 @@ impl<'a> Widget for NodeDistanceWidget<'a> {
 
 #[derive(Default)]
 pub struct NodeDistanceWidgetData<'a> {
-    closest: Option<(&'a Node, f32)>,
+    nearest: Option<(&'a Node, f32)>,
     farthest: Option<(&'a Node, f32)>,
 }
 
@@ -123,8 +123,8 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
             return Self::default();
         };
 
-        let mut closest_node: Option<&Node> = None;
-        let mut closest_distance: f32 = f32::MAX;
+        let mut nearest_node: Option<&Node> = None;
+        let mut nearest_distance: f32 = f32::MAX;
         let mut farthest_node: Option<&Node> = None;
         let mut farthest_distance: f32 = 0.0;
 
@@ -144,14 +144,14 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
                 farthest_distance = distance;
             }
 
-            if distance < closest_distance {
-                closest_node = Some(node);
-                closest_distance = distance;
+            if distance < nearest_distance {
+                nearest_node = Some(node);
+                nearest_distance = distance;
             }
         }
 
         Self {
-            closest: closest_node.and_then(|n| Some((n, closest_distance))),
+            nearest: nearest_node.and_then(|n| Some((n, nearest_distance))),
             farthest: farthest_node.and_then(|n| Some((n, farthest_distance))),
         }
     }

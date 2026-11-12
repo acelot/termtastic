@@ -108,7 +108,7 @@ impl Screen for Dashboard {
         let node_distance_widget_data: NodeDistanceWidgetData = state.into();
 
         scroll_view.render_widget(
-            NodeDistanceWidget::new(NodeDistanceWidgetMode::Closest, &node_distance_widget_data),
+            NodeDistanceWidget::new(NodeDistanceWidgetMode::Nearest, &node_distance_widget_data),
             v3_h[0],
         );
 
