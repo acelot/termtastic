@@ -175,7 +175,10 @@ impl<'a> Settings<'a> {
 impl<'a> Screen for Settings<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
         match &state.settings_form_state {
-            SettingsFormState::Inactive => vec![Some(Hotkey::new("↑↓", "scroll")), Some(Hotkey::new("enter", "open"))],
+            SettingsFormState::Inactive => vec![
+                Some(Hotkey::new("↑↓", "scroll")),
+                Some(Hotkey::new("enter (→)", "open")),
+            ],
             SettingsFormState::Loading { .. } => vec![Some(Hotkey::new("esc", "cancel"))],
             SettingsFormState::LoadingFailed { .. } => vec![Some(Hotkey::new("esc", "return"))],
             SettingsFormState::Loaded { .. } if self.popup_input_state.is_some() => {
@@ -200,7 +203,7 @@ impl<'a> Screen for Settings<'a> {
                 state.settings_form_is_changed.then_some(Hotkey::new("s", "save")),
                 state.settings_form_is_changed.then_some(Hotkey::new("r", "reset")),
                 Some(Hotkey::new("c", "copy")),
-                Some(Hotkey::new("esc", "return")),
+                Some(Hotkey::new("esc (←)", "return")),
             ],
             SettingsFormState::Saving { .. } => vec![],
         }
@@ -377,7 +380,7 @@ impl<'a> Screen for Settings<'a> {
                 modifiers,
                 ..
             }) => match (code, &state.settings_form_state) {
-                (KeyCode::Enter, SettingsFormState::Inactive) if modifiers.is_empty() => {
+                (KeyCode::Enter | KeyCode::Right, SettingsFormState::Inactive) if modifiers.is_empty() => {
                     if let Some(index) = self.settings_list_state.selected
                         && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
                     {
@@ -385,9 +388,10 @@ impl<'a> Screen for Settings<'a> {
                         return true;
                     }
                 }
-                (KeyCode::Esc, SettingsFormState::Loading { .. } | SettingsFormState::LoadingFailed { .. })
-                    if modifiers.is_empty() =>
-                {
+                (
+                    KeyCode::Esc | KeyCode::Left,
+                    SettingsFormState::Loading { .. } | SettingsFormState::LoadingFailed { .. },
+                ) if modifiers.is_empty() => {
                     emit(UiEvent::SettingsFormCancelRequested);
                     return true;
                 }
@@ -416,7 +420,7 @@ impl<'a> Screen for Settings<'a> {
 
                     return true;
                 }
-                (KeyCode::Esc, SettingsFormState::Loaded { .. }) if modifiers.is_empty() => {
+                (KeyCode::Esc | KeyCode::Left, SettingsFormState::Loaded { .. }) if modifiers.is_empty() => {
                     if state.settings_form_is_changed {
                         self.is_exit_confirm_visible = true;
                     } else {
