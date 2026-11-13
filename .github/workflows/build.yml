@@ -2,7 +2,7 @@ name: Termtastic Pipeline
 
 on:
   push:
-    branches: [master, docker-image]
+    branches: [master, docker-image, hops-distrib-overflow-fix-beta4]
     tags:
       - "v*"
   pull_request:
