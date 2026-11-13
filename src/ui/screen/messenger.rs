@@ -345,6 +345,7 @@ impl<'a> Screen for Messenger<'a> {
                     return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
+                    self.follow_chat.insert(active_chat.clone(), false);
                     emit(UiEvent::ChatSwitchRequested);
                     return true;
                 }

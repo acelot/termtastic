@@ -83,7 +83,7 @@ impl Repository {
                     FROM chunk
                     JOIN messages AS e ON e.reply_id = chunk.id AND e.is_emoji = 1
 
-                    ORDER BY is_emoji, id
+                    ORDER BY is_emoji, id DESC
                     "#,
                 )?;
 
