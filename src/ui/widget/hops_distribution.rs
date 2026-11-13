@@ -74,7 +74,9 @@ impl Widget for HopsDistributionWidget {
 
             Line::from(vec![
                 Span::from("■".repeat(online_width)).green(),
-                Span::from("■".repeat(total_width - online_width)).dark_gray().dim(),
+                Span::from("■".repeat(total_width.saturating_sub(online_width)))
+                    .dark_gray()
+                    .dim(),
             ])
             .render(h[1], buf);
 
