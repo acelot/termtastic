@@ -2,7 +2,7 @@ name: Termtastic Pipeline
 
 on:
   push:
-    branches: [master, docker-image]
+    branches: [master, docker-image, arm-unknown-linux-gnueabihf-debug]
     tags:
       - "v*"
   pull_request:
@@ -72,11 +72,19 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build release binary
+        if: matrix.target != 'arm-unknown-linux-gnueabihf'
         uses: houseabsolute/actions-rust-cross@v1
         with:
           target: ${{ matrix.target }}
           command: build
           args: --release
+
+      - name: Build debug binary
+        if: matrix.target == 'arm-unknown-linux-gnueabihf'
+        uses: houseabsolute/actions-rust-cross@v1
+        with:
+          target: ${{ matrix.target }}
+          command: build
 
       - name: Prepare binary (Windows)
         if: matrix.os == 'windows-latest'
