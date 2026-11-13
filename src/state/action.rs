@@ -28,15 +28,21 @@ pub enum StateAction {
     ConnectionLoadNodeConfig,
     ConnectionSuccess,
     ReconnectionBackoffSet(Duration),
-    DbLoadFail,
-    DbLoadSuccess,
+    DbLoadRollback,
+    DbLoadCommit,
     #[strum(props(rebroadcast = false))]
     DbIndicatorTrigger,
+    #[strum(props(rebroadcast = false))]
     DbNodesLoad(Vec<Node>),
+    #[strum(props(rebroadcast = false))]
     DbNodesLastTelemetryLoad(Vec<NodeTelemetry>),
+    #[strum(props(rebroadcast = false))]
     DbNodesLastPositionLoad(HashMap<u32, NodePosition>),
+    #[strum(props(rebroadcast = false))]
     DbMessagesLoad(Vec<Message>),
+    #[strum(props(rebroadcast = false))]
     DbTracerouteLoad(Vec<Traceroute>),
+    #[strum(props(rebroadcast = false))]
     DbMyNodeDeviceMetricsLoad(Vec<NodeTelemetryTyped<DeviceMetrics>>),
     DeviceActiveSet(Device),
     DevicesAdd(Device),
@@ -57,7 +63,7 @@ pub enum StateAction {
     },
     MessageAdd(Message),
     MessageErrorSet {
-        message_id: u32,
+        packet_id: u32,
         error: Option<routing::Error>,
         datetime: DateTime<Utc>,
     },

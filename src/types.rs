@@ -18,6 +18,7 @@ use std::{
 };
 use strum::{AsRefStr, Display, EnumCount, EnumIter, EnumString, FromRepr};
 use tracing::Level;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Default)]
 pub struct AppConfig {
@@ -69,11 +70,11 @@ pub enum UiEvent {
     ChatPreviousMessagesLoadRequested,
     ChatMessageSubmitted {
         text: String,
-        reply_message_id: Option<u32>,
+        reply_id: Option<Uuid>,
     },
     ChatReactionSubmitted {
         emoji: &'static Emoji,
-        reply_message_id: Option<u32>,
+        reply_id: Option<Uuid>,
     },
     CopyToClipboardRequested(String),
     DeviceRebootRequested,
@@ -876,15 +877,17 @@ impl From<&Channel> for meshtastic::protobufs::Channel {
 
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub id: u32,
-    pub reply_message_id: u32,
+    pub id: Uuid,
+    pub reply_id: Uuid,
+    pub packet_id: u32,
+    pub reply_packet_id: u32,
     pub from: u32,
     pub to: u32,
     pub channel: u32,
     pub datetime: DateTime<Utc>,
     pub text: String,
     pub is_emoji: bool,
-    pub reactions: Vec<u32>,
+    pub reactions: Vec<Uuid>,
     pub hops: u32,
     pub snr: f32,
     pub rssi: i32,
@@ -922,8 +925,10 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
         }
 
         Ok(Self {
-            id: packet.id,
-            reply_message_id: data.reply_id,
+            id: Uuid::now_v7(),
+            reply_id: Uuid::nil(),
+            packet_id: packet.id,
+            reply_packet_id: data.reply_id,
             from: packet.from,
             to: packet.to,
             channel: packet.channel,

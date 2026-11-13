@@ -1,11 +1,14 @@
 use crate::types::*;
+use lru::LruCache;
 use meshtastic::protobufs::DeviceMetrics;
 use ordermap::OrderMap;
 use std::collections::HashSet;
+use std::num::NonZeroUsize;
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     time::{Duration, Instant},
 };
+use uuid::Uuid;
 
 pub const MAX_LOG_RECORDS: usize = 1000;
 
@@ -16,7 +19,7 @@ pub struct State {
     pub active_tab: Tab,
     pub active_traceroutes: HashSet<u32>,
     pub channels: HashMap<u32, Channel>,
-    pub chats: OrderMap<Chat, VecDeque<u32>>,
+    pub chats: OrderMap<Chat, VecDeque<Uuid>>,
     pub connection_attempt: u32,
     pub connection_state: ConnectionState,
     pub db_load_state: DbLoadState,
@@ -36,7 +39,7 @@ pub struct State {
     pub devices_discovered: BTreeSet<Device>,
     pub devices: BTreeSet<Device>,
     pub logs: VecDeque<LogRecord>,
-    pub messages: HashMap<u32, Message>,
+    pub messages: HashMap<Uuid, Message>,
     pub messages_is_loading: bool,
     pub my_node_key: Option<u32>,
     pub my_node_device_metrics: VecDeque<NodeTelemetryTyped<DeviceMetrics>>,
@@ -53,6 +56,7 @@ pub struct State {
     pub nodes_view: Vec<u32>,
     pub nodes: HashMap<u32, Node>,
     pub online_nodes: u32,
+    pub packets_id_cache: LruCache<u32, Uuid>,
     pub reconnection_backoff: Option<Duration>,
     pub rx_indicator_t: Instant,
     pub rx_indicator: bool,
@@ -116,6 +120,7 @@ impl Default for State {
             nodes_loader_current: 0,
             nodes_loader_total: 0,
             online_nodes: 0,
+            packets_id_cache: LruCache::new(NonZeroUsize::new(10000).unwrap()),
             reconnection_backoff: None,
             rx_indicator_t: Instant::now(),
             rx_indicator: false,

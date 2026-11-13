@@ -1,14 +1,15 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Message {
-    pub id: u32,
-    pub reply_message_id: u32,
+    pub id: Vec<u8>,
+    pub reply_id: Vec<u8>,
+    pub packet_id: u32,
+    pub reply_packet_id: u32,
     pub from: u32,
     pub to: u32,
     pub channel: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: String,
     pub text: String,
     pub is_emoji: bool,
     pub hops: u32,

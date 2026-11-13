@@ -53,13 +53,13 @@ pub enum CommandToMeshtastic {
     },
     SendBroadcastTextMessage {
         channel_id: u32,
-        reply_message_id: Option<u32>,
+        reply_packet_id: Option<u32>,
         text: TextMessage,
         my_node_num: u32,
     },
     SendDirectTextMessage {
         node_num: u32,
-        reply_message_id: Option<u32>,
+        reply_packet_id: Option<u32>,
         text: TextMessage,
         my_node_num: u32,
     },

@@ -188,7 +188,11 @@ impl<'a> Widget for ChannelWidget<'a> {
         };
 
         let block = Block::bordered()
-            .border_type(BorderType::Rounded)
+            .border_type(if self.is_selected {
+                BorderType::Thick
+            } else {
+                BorderType::Plain
+            })
             .border_style(Style::new().fg(if self.is_selected {
                 Color::Yellow
             } else {

@@ -95,14 +95,16 @@ impl ChatService {
                             .send(StateAction::PreviousMessagesLoadPending(active_chat));
                     }
                 }
-                UiEvent::ChatMessageSubmitted { text, reply_message_id } => match state.active_chat {
+                UiEvent::ChatMessageSubmitted { text, reply_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
                         let _ = self
                             .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendBroadcastTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
-                                reply_message_id,
+                                reply_packet_id: reply_id
+                                    .and_then(|id| state.messages.get(&id))
+                                    .and_then(|msg| Some(msg.packet_id)),
                                 text: TextMessage::Text(text),
                             });
                     }
@@ -112,23 +114,24 @@ impl ChatService {
                             .send(CommandToMeshtastic::SendDirectTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
-                                reply_message_id,
+                                reply_packet_id: reply_id
+                                    .and_then(|id| state.messages.get(&id))
+                                    .and_then(|msg| Some(msg.packet_id)),
                                 text: TextMessage::Text(text),
                             });
                     }
                     _ => {}
                 },
-                UiEvent::ChatReactionSubmitted {
-                    emoji,
-                    reply_message_id,
-                } => match state.active_chat {
+                UiEvent::ChatReactionSubmitted { emoji, reply_id } => match state.active_chat {
                     Some(Chat::Channel(channel_id)) => {
                         let _ = self
                             .meshtastic_command_tx
                             .send(CommandToMeshtastic::SendBroadcastTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
-                                reply_message_id,
+                                reply_packet_id: reply_id
+                                    .and_then(|id| state.messages.get(&id))
+                                    .and_then(|msg| Some(msg.packet_id)),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }
@@ -138,7 +141,9 @@ impl ChatService {
                             .send(CommandToMeshtastic::SendDirectTextMessage {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
-                                reply_message_id,
+                                reply_packet_id: reply_id
+                                    .and_then(|id| state.messages.get(&id))
+                                    .and_then(|msg| Some(msg.packet_id)),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }
@@ -189,7 +194,7 @@ impl ChatService {
                                 match routing::Error::try_from(e) {
                                     Ok(error) => {
                                         let _ = self.state_action_tx.send(StateAction::MessageErrorSet {
-                                            message_id: data.request_id,
+                                            packet_id: data.request_id,
                                             error: Some(error),
                                             datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
                                         });

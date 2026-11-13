@@ -226,7 +226,7 @@ impl MeshtasticService {
             }
             CommandToMeshtastic::SendBroadcastTextMessage {
                 channel_id,
-                reply_message_id,
+                reply_packet_id,
                 text,
                 my_node_num,
             } => {
@@ -251,7 +251,7 @@ impl MeshtasticService {
                         true,                                               // want_ack
                         false,                                              // want_response
                         true,                                               // echo_response
-                        reply_message_id,                                   // reply_id
+                        reply_packet_id,                                    // reply_id
                         matches!(text, TextMessage::Emoji(_)).then_some(1), // emoji
                     )
                     .await
@@ -266,7 +266,7 @@ impl MeshtasticService {
             }
             CommandToMeshtastic::SendDirectTextMessage {
                 node_num,
-                reply_message_id,
+                reply_packet_id,
                 text,
                 my_node_num,
             } => {
@@ -291,7 +291,7 @@ impl MeshtasticService {
                         true,                                               // want_ack
                         false,                                              // want_response
                         true,                                               // echo_response
-                        reply_message_id,                                   // reply_id
+                        reply_packet_id,                                    // reply_id
                         matches!(text, TextMessage::Emoji(_)).then_some(1), // emoji
                     )
                     .await

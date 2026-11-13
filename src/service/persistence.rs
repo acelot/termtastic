@@ -11,6 +11,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tokio_graceful_shutdown::SubsystemHandle;
+use uuid::Uuid;
 
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
@@ -21,7 +22,7 @@ use crate::{APP_NAME, state::StateAction, types::Toast};
 
 pub const DEVICE_METRICS_TIME_LIMIT_HOURS: u64 = 24;
 const DATA_LOAD_TIMEOUT_SECS: u64 = 5;
-const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 500;
+const RECENT_MESSAGES_PER_CHAT_LIMIT: u32 = 200;
 const NODEINFO_POSITION_LOAD_TIMEOUT_SECS: u64 = 2;
 const NODEINFO_POSITION_LOAD_LIMIT: u32 = 100;
 
@@ -105,7 +106,7 @@ impl PersistenceService {
                     Err(e) => {
                         tracing::error!("DB initialization failed: {}", e);
 
-                        let _ = self.state_action_tx.send(StateAction::DbLoadFail);
+                        let _ = self.state_action_tx.send(StateAction::DbLoadRollback);
 
                         let _ = self
                             .state_action_tx
@@ -130,12 +131,12 @@ impl PersistenceService {
                         Ok(Ok(())) => {
                             tracing::info!("DB loading completed");
 
-                            let _ = state_action_tx.send(StateAction::DbLoadSuccess);
+                            let _ = state_action_tx.send(StateAction::DbLoadCommit);
                         }
                         Ok(Err(e)) => {
                             tracing::error!("DB loading failed: {}", e);
 
-                            let _ = state_action_tx.send(StateAction::DbLoadFail);
+                            let _ = state_action_tx.send(StateAction::DbLoadRollback);
 
                             let _ = state_action_tx.send(StateAction::Toast(Toast::error(
                                 "An error occurred while loading DB data",
@@ -144,7 +145,7 @@ impl PersistenceService {
                         Err(e) => {
                             tracing::error!("DB loading timed out: {}", e);
 
-                            let _ = state_action_tx.send(StateAction::DbLoadFail);
+                            let _ = state_action_tx.send(StateAction::DbLoadRollback);
 
                             let _ = state_action_tx.send(StateAction::Toast(Toast::error(
                                 "An error occurred while loading DB data",
@@ -312,13 +313,17 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::MessageErrorSet { message_id, error, .. } if is_db_loaded => {
+            StateAction::MessageErrorSet { packet_id, error, .. } if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
 
+                let Some(message_id) = self.state_rx.borrow().packets_id_cache.peek(&packet_id).cloned() else {
+                    return;
+                };
+
                 if let Err(e) = repository
-                    .message_update_routing_error(message_id, error.map(|e| e as i32))
+                    .message_update_routing_error(message_id.clone(), error.map(|e| e as i32))
                     .await
                 {
                     tracing::error!("message update failed: {}", e);
@@ -337,12 +342,7 @@ impl PersistenceService {
                 let state_action_tx = self.state_action_tx.clone();
                 let state = self.state_rx.borrow();
 
-                let Some(oldest_message) = state
-                    .chats
-                    .get(&chat)
-                    .as_ref()
-                    .and_then(|ids| ids.front())
-                    .and_then(|id| state.messages.get(id).cloned())
+                let Some(oldest_message_id) = state.chats.get(&chat).as_ref().and_then(|ids| ids.front().cloned())
                 else {
                     return;
                 };
@@ -352,21 +352,37 @@ impl PersistenceService {
                         Duration::from_secs(DATA_LOAD_TIMEOUT_SECS),
                         repository_clone.message_find_before_datetime_for_chat(
                             &chat,
-                            oldest_message.datetime,
-                            oldest_message.id,
+                            oldest_message_id,
                             RECENT_MESSAGES_PER_CHAT_LIMIT,
                         ),
                     )
                     .await
                     {
-                        Ok(Ok(messages)) => {
+                        Ok(Ok(entities)) => {
                             tracing::info!("DB loading completed");
+
+                            let messages: Vec<Message> = entities
+                                .into_iter()
+                                .filter_map(|entity| {
+                                    let entity_id = Uuid::from_slice(&entity.id).unwrap_or_default();
+
+                                    match Message::try_from(entity) {
+                                        Ok(m) => Some(m),
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                "can't convert DB entity to Message, id: {}, error: {}",
+                                                entity_id,
+                                                e
+                                            );
+                                            None
+                                        }
+                                    }
+                                })
+                                .collect();
 
                             let count = messages.len();
 
-                            let _ = state_action_tx.send(StateAction::PreviousMessagesLoadFinished(
-                                messages.into_iter().map_into().collect(),
-                            ));
+                            let _ = state_action_tx.send(StateAction::PreviousMessagesLoadFinished(messages));
 
                             let _ = state_action_tx.send(StateAction::Toast(Toast::normal(if count > 0 {
                                 format!("loaded {} messages", count)
@@ -400,9 +416,7 @@ impl PersistenceService {
                     return;
                 };
 
-                let my_node_key = self.state_rx.borrow().my_node_key.expect("should be Some");
-
-                if let Err(e) = repository.message_remove_by_chat(chat, my_node_key).await {
+                if let Err(e) = repository.message_remove_by_chat(chat).await {
                     tracing::error!("chat purge failed: {}", e);
 
                     let _ = self
@@ -410,7 +424,7 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::DbLoadFail | StateAction::ConnectionStop => {
+            StateAction::DbLoadRollback | StateAction::ConnectionStop => {
                 if let Some(handle) = self.previous_messages_load_handle.take() {
                     handle.abort();
                 }
@@ -453,7 +467,17 @@ async fn load_data(
         .message_find_recent_for_each_chat(RECENT_MESSAGES_PER_CHAT_LIMIT)
         .await?
         .into_iter()
-        .map_into()
+        .filter_map(|entity| {
+            let entity_id = Uuid::from_slice(&entity.id).unwrap_or_default();
+
+            match Message::try_from(entity) {
+                Ok(m) => Some(m),
+                Err(e) => {
+                    tracing::warn!("can't convert DB entity to Message, id: {}, error: {}", entity_id, e);
+                    None
+                }
+            }
+        })
         .collect();
 
     tracing::info!("messages loaded from DB: {}", messages.len());

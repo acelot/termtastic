@@ -155,11 +155,6 @@
       <td></td>
     </tr>
     <tr>
-      <td>Debian APT</td>
-      <td><em>TBA</em></td>
-      <td></td>
-    </tr>
-    <tr>
       <td>Arch Linux AUR</td>
       <td><a href="https://aur.archlinux.org/packages?K=termtastic">termtastic · termtastic-bin · termtastic-git</a></td>
       <td>Maintained by <a href="https://aur.archlinux.org/account/Ateles">Ateles</a></td>
@@ -170,14 +165,19 @@
       <td>Updated automatically on release</td>
     </tr>
     <tr>
-      <td>Windows WinGet</td>
+      <td>Docker</td>
+      <td><a href="https://hub.docker.com/r/acelot/termtastic">docker.io/acelot/termtastic</a></td>
+      <td>See FAQ for more information</td>
+    </tr>
+    <tr>
+      <td>Debian APT</td>
       <td><em>TBA</em></td>
       <td></td>
     </tr>
     <tr>
-      <td>Docker</td>
-      <td><a href="https://hub.docker.com/r/acelot/termtastic">docker.io/acelot/termtastic</a></td>
-      <td>See FAQ for more information</td>
+      <td>Windows WinGet</td>
+      <td><em>TBA</em></td>
+      <td></td>
     </tr>
   </tbody>
 </table>
@@ -218,10 +218,10 @@ grapheme-width-method=wcswidth
 
 The same named option exists in other terminals too. Check your terminal docs.
 
-### Why do some emoji appear as squares in Windows Terminal??
+### Why do some emoji appear as squares in my terminal?
 
-Unfortunately, Windows Terminal cannot display some compound emoji such as 1️⃣, 2️⃣, 3️⃣, etc.
-There is an issue in Github: <https://github.com/microsoft/terminal/issues/9708>
+Unfortunately, some terminals such as Windows Terminal or Putty cannot display some compound emoji such as 1️⃣, 2️⃣, 3️⃣, etc.
+There is an issue in Github: <https://github.com/microsoft/terminal/issues/9708>.
 
 <hr/>
 

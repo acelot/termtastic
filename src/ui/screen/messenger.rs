@@ -7,6 +7,7 @@ use std::{
 };
 use tracing_unwrap::OptionExt;
 use tui_widget_list::ScrollDirection;
+use uuid::Uuid;
 
 use crate::ui::prelude::*;
 
@@ -14,13 +15,13 @@ const INPUT_VALUE_MAX_LENGTH: usize = 200;
 const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
 const REACTIONS_LINE_MAX_WIDTH: usize = 20;
 
-static EMPTY_MESSAGES_VEC_DEQUE: VecDeque<u32> = VecDeque::new();
+static EMPTY_MESSAGES_VEC_DEQUE: VecDeque<Uuid> = VecDeque::new();
 
 pub struct Messenger<'a> {
     list_states: HashMap<Chat, ListState>,
     input_widgets: HashMap<Chat, TextArea<'a>>,
     follow_chat: HashMap<Chat, bool>,
-    replying_to: HashMap<Chat, (Node, u32)>,
+    replying_to: HashMap<Chat, (Node, Uuid)>,
     is_emoji_selector_visible: bool,
     emoji_selector_state: EmojiSelectorState<'a>,
     is_reaction_viewer_visible: bool,
@@ -220,13 +221,13 @@ impl<'a> Screen for Messenger<'a> {
                                 Some(emoji) => {
                                     emit(UiEvent::ChatReactionSubmitted {
                                         emoji,
-                                        reply_message_id: Some(message_id),
+                                        reply_id: Some(message_id),
                                     });
                                 }
                                 None => {
                                     emit(UiEvent::ChatMessageSubmitted {
                                         text: input_widget.trimmed_lines().join("\n"),
-                                        reply_message_id: Some(message_id),
+                                        reply_id: Some(message_id),
                                     });
 
                                     self.follow_chat.insert(active_chat.clone(), true);
@@ -289,7 +290,7 @@ impl<'a> Screen for Messenger<'a> {
 
                         emit(UiEvent::ChatMessageSubmitted {
                             text: input_widget.trimmed_lines().join("\n"),
-                            reply_message_id: None,
+                            reply_id: None,
                         });
 
                         input_widget.clear();
@@ -412,17 +413,17 @@ impl<'a> Screen for Messenger<'a> {
                     .filter_map(|message_id| state.messages.get(message_id))
                     .collect();
 
-                let replying_node = if message.reply_message_id > 0 {
+                let replying_node = if !message.reply_id.is_nil() {
                     state
                         .messages
-                        .get(&message.reply_message_id)
+                        .get(&message.reply_id)
                         .map(|m| state.nodes.get(&m.from).unwrap_or(&UNKNOWN_NODE))
                 } else {
                     None
                 };
 
-                let replying_message = if message.reply_message_id > 0 {
-                    state.messages.get(&message.reply_message_id)
+                let replying_message = if !message.reply_id.is_nil() {
+                    state.messages.get(&message.reply_id)
                 } else {
                     None
                 };

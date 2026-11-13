@@ -4,6 +4,7 @@ use meshtastic::protobufs::{config, module_config, routing, telemetry};
 use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
+use std::iter;
 use std::ops::Sub;
 use std::time::{Duration, Instant};
 use tokio::{
@@ -11,6 +12,7 @@ use tokio::{
     time,
 };
 use tokio_graceful_shutdown::SubsystemHandle;
+use uuid::Uuid;
 
 use crate::service::{DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view};
 use crate::types::{
@@ -77,7 +79,7 @@ impl Store {
     }
 
     fn handle_action(&mut self, action: StateAction) -> anyhow::Result<()> {
-        let rebroadcast_action = action.should_rebroadcast().then(|| action.clone());
+        let mut rebroadcast_action = action.should_rebroadcast().then(|| action.clone());
 
         let is_changed: bool = match action {
             StateAction::SplashLogo => {
@@ -176,6 +178,7 @@ impl Store {
                     state.nodes_view.clear();
                     state.nodes.clear();
                     state.online_nodes = 0;
+                    state.packets_id_cache.clear();
                     state.reconnection_backoff = None;
                     state.settings_form_data = None;
                     state.settings_form_is_changed = false;
@@ -211,7 +214,7 @@ impl Store {
 
                 true
             }
-            StateAction::DbLoadFail => {
+            StateAction::DbLoadRollback => {
                 self.state_tx.send_modify(|state| {
                     state.db_load_transaction_nodes = None;
                     state.db_load_transaction_nodes_last_telemetry = None;
@@ -224,7 +227,7 @@ impl Store {
 
                 true
             }
-            StateAction::DbLoadSuccess => {
+            StateAction::DbLoadCommit => {
                 self.state_tx.send_modify(|state| {
                     // nodes
                     if let Some(nodes) = state.db_load_transaction_nodes.take() {
@@ -669,29 +672,20 @@ impl Store {
                 true
             }
             StateAction::ChatPurge(chat) => self.state_tx.send_if_modified(|state| {
-                let message_ids: Vec<u32> = match chat {
-                    Chat::Channel(channel_key) => state
-                        .messages
-                        .iter()
-                        .filter_map(|(id, message)| (message.channel == channel_key).then_some(*id))
-                        .collect(),
-                    Chat::Direct(node_key) => {
-                        let Some(my_node_key) = state.my_node_key else {
-                            tracing::warn!("chat not purged: my node key is unknown");
-                            return false;
-                        };
+                let my_node_key = state.my_node_key.expect("should be Some");
 
-                        state
-                            .messages
-                            .iter()
-                            .filter_map(|(id, message)| {
-                                ((message.from == my_node_key && message.to == node_key)
-                                    || (message.to == my_node_key && message.from == node_key))
-                                    .then_some(*id)
-                            })
-                            .collect()
-                    }
-                };
+                let message_ids: Vec<Uuid> = state
+                    .messages
+                    .iter()
+                    .filter_map(|(id, m)| {
+                        if chat == Chat::from((m, my_node_key)) {
+                            Some(iter::once(id.clone()).chain(m.reactions.clone()).collect::<Vec<Uuid>>())
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect();
 
                 for id in message_ids {
                     state.messages.remove(&id);
@@ -777,30 +771,46 @@ impl Store {
 
                 true
             }
-            StateAction::MessageAdd(message) => {
-                self.state_tx.send_modify(|state| add_message(message, true, state));
+            StateAction::MessageAdd(mut message) => {
+                self.state_tx.send_modify(|state| {
+                    if message.reply_packet_id > 0 && message.reply_id.is_nil() {
+                        message.reply_id = state
+                            .packets_id_cache
+                            .get(&message.reply_packet_id)
+                            .cloned()
+                            .unwrap_or(Uuid::nil());
+                    }
+
+                    rebroadcast_action = Some(StateAction::MessageAdd(message.clone()));
+
+                    add_message(message, true, state);
+                });
 
                 true
             }
             StateAction::MessageErrorSet {
-                message_id,
+                packet_id,
                 error,
                 datetime,
             } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_cache.get(&packet_id) else {
+                    return false;
+                };
+
                 if let Some(message) = state.messages.get_mut(&message_id) {
                     message.routing_error = error;
 
                     return true;
                 }
 
-                if let Some(traceroute) = state.traceroutes.get_mut(&message_id) {
+                if let Some(traceroute) = state.traceroutes.get_mut(&packet_id) {
                     traceroute.routing_error = error;
                     traceroute.duration = datetime - traceroute.datetime;
 
                     if !matches!(error, Some(routing::Error::None)) {
                         traceroute.state = TracerouteState::RoutingError;
 
-                        state.active_traceroutes.remove(&message_id);
+                        state.active_traceroutes.remove(&packet_id);
                         state.traceroute_indicator = TracerouteIndicatorState::Error;
                         state.traceroute_indicator_t = Instant::now();
                     }
@@ -1253,39 +1263,40 @@ fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMa
 }
 
 fn add_message(message: Message, push_back: bool, state: &mut State) {
+    let Some(my_node_key) = state.my_node_key else {
+        tracing::warn!(
+            message_id = message.id.to_string(),
+            "message skipped: my node key is unknown"
+        );
+        return;
+    };
+
     if state.messages.contains_key(&message.id) {
         return;
     }
 
+    state.packets_id_cache.put(message.packet_id, message.id);
+
     if message.is_emoji {
-        if let Some(reply_message) = state.messages.get_mut(&message.reply_message_id) {
+        if let Some(reply_message) = state.messages.get_mut(&message.reply_id) {
             reply_message.reactions.push(message.id);
         }
+    } else {
+        let chat = Chat::from((&message, my_node_key));
 
-        state.messages.insert(message.id, message);
-
-        return;
-    }
-
-    let Some(my_node_key) = state.my_node_key else {
-        tracing::warn!(message_id = message.id, "message skipped: my node key is unknown");
-        return;
-    };
-
-    let chat = Chat::from((&message, my_node_key));
-
-    match state.chats.entry(chat) {
-        Occupied(mut ids) => {
-            if push_back {
-                ids.get_mut().push_back(message.id);
-            } else {
-                ids.get_mut().push_front(message.id);
+        match state.chats.entry(chat) {
+            Occupied(mut ids) => {
+                if push_back {
+                    ids.get_mut().push_back(message.id);
+                } else {
+                    ids.get_mut().push_front(message.id);
+                }
             }
-        }
-        Vacant(entry) => {
-            entry.insert_sorted(VecDeque::from([message.id]));
-        }
-    };
+            Vacant(entry) => {
+                entry.insert_sorted(VecDeque::from([message.id]));
+            }
+        };
+    }
 
     state.messages.insert(message.id, message);
 }

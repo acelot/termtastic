@@ -42,6 +42,7 @@ fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }
 hostaddr = { version = "1.0", features = ["serde"] }
 itertools = { version = "0.15.0" }
+lru = { version = "0.19.0" }
 mdns-sd = { version = "0.21.7" }
 meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "1741a83", features = [
     "bluetooth-le",
@@ -52,7 +53,13 @@ paste = { version = "1.0" }
 ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info"] }
 ratatui-textarea = { version = "0.9.4" }
 regex = { version = "1.13" }
-rusqlite = { version = "0.40.2", features = ["bundled", "hooks", "chrono"] }
+rusqlite = { version = "0.40.2", features = [
+    "bundled",
+    "hooks",
+    "chrono",
+    "uuid",
+    "functions",
+] }
 rusqlite_migration = { version = "2.6" }
 serde = { version = "1.0" }
 serde_json = { version = "1.0" }
@@ -70,3 +77,4 @@ tracing-unwrap = { version = "1.0.1" }
 tui-scrollview = { git = "https://github.com/acelot/tui-widgets.git", rev = "831e6a9" }
 tui-widget-list = { git = "https://github.com/acelot/tui-widget-list.git", rev = "e812de3" }
 unicode-width = { version = "0.2.3" }
+uuid = { version = "1.29", features = ["serde", "v7"] }

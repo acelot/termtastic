@@ -72,7 +72,7 @@ impl ConnectionService {
 
     fn handle_stored_action(&self, event: Result<StateAction, broadcast::error::RecvError>) {
         match event {
-            Ok(StateAction::DbLoadSuccess | StateAction::DbLoadFail) => {
+            Ok(StateAction::DbLoadCommit | StateAction::DbLoadRollback) => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::ResumeRadio);
                 let _ = self.state_action_tx.send(StateAction::ConnectionLoadNodeConfig);
 

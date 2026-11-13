@@ -1,13 +1,15 @@
-use rusqlite::hooks::Action;
+use rusqlite::{functions::FunctionFlags, hooks::Action};
 use rusqlite_migration::{M, Migrations};
-use std::{iter, path::PathBuf};
+use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tokio_rusqlite_new::Connection;
+use uuid::{NoContext, Timestamp, Uuid};
 
 const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0001.sql"),
     include_str!("migrations/0002.sql"),
     include_str!("migrations/0003.sql"),
+    include_str!("migrations/0004.sql"),
 ];
 
 pub async fn create_sqlite_repository<'a>(
@@ -21,19 +23,28 @@ pub async fn create_sqlite_repository<'a>(
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
 
+        conn.create_scalar_function("uuid_v7", 0, FunctionFlags::SQLITE_UTF8, |_| {
+            Ok(Uuid::now_v7().as_bytes().to_vec())
+        })?;
+
+        conn.create_scalar_function("uuid_v7", 1, FunctionFlags::SQLITE_UTF8, |ctx| {
+            let timestamp = ctx.get::<i64>(0)?;
+
+            Ok(Uuid::new_v7(Timestamp::from_unix(NoContext, timestamp as u64, 0))
+                .as_bytes()
+                .to_vec())
+        })?;
+
         conn.update_hook(Some(move |_action: Action, _db: &str, _table: &str, _rowid: i64| {
             let _ = db_tx.try_send(());
         }))?;
 
-        let third_migration_sql = MIGRATIONS[2].replace(":node_key", &node_key.to_string());
+        let migrations: Vec<String> = MIGRATIONS
+            .iter()
+            .map(|s| s.replace(":node_key", &node_key.to_string()))
+            .collect();
 
-        let migrations = Migrations::from_iter(
-            MIGRATIONS[..2]
-                .iter()
-                .chain(iter::once(&third_migration_sql.as_str()))
-                .chain(MIGRATIONS.get(3..).unwrap_or_default().iter())
-                .map(|sql| M::up(sql)),
-        );
+        let migrations = Migrations::from_iter(migrations.iter().map(|sql| M::up(sql)));
 
         migrations.to_latest(conn)
     })
@@ -46,11 +57,11 @@ pub async fn create_sqlite_repository<'a>(
 pub enum RepositoryError {
     #[error("connection closed")]
     ConnectionClosed,
-    #[error("connection is closing")]
+    #[error("connection is closing: {1}")]
     Close(Connection, rusqlite::Error),
     #[error("db error: {0}")]
     DbError(#[from] rusqlite::Error),
-    #[error("serialization error")]
+    #[error("serialization error: {0}")]
     SerializationError(#[from] serde_rusqlite::Error),
 }
 

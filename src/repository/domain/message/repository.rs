@@ -1,9 +1,9 @@
 use crate::repository::domain::message::Message;
 use crate::repository::{Repository, RepositoryError};
 use crate::types::Chat;
-use chrono::{DateTime, Utc};
-use rusqlite::{named_params, params};
+use rusqlite::named_params;
 use serde_rusqlite::{from_rows, to_params_named};
+use uuid::Uuid;
 
 impl Repository {
     pub async fn message_find_recent_for_each_chat(
@@ -20,7 +20,7 @@ impl Repository {
                             id,
                             ROW_NUMBER() OVER (
                                 PARTITION BY chat_id
-                                ORDER BY datetime DESC, id DESC
+                                ORDER BY id DESC
                             ) AS rn
                         FROM messages
                         WHERE is_emoji = 0
@@ -34,9 +34,9 @@ impl Repository {
 
                     SELECT e.*
                     FROM r
-                    JOIN messages AS e ON e.reply_message_id = r.id AND e.is_emoji = 1
-                    
-                    ORDER BY chat_id, datetime, id;
+                    JOIN messages AS e ON e.reply_id = r.id AND e.is_emoji = 1
+
+                    ORDER BY chat_id, is_emoji, id
                     "#,
                 )?;
 
@@ -53,8 +53,7 @@ impl Repository {
     pub async fn message_find_before_datetime_for_chat(
         &self,
         chat: &Chat,
-        before_datetime: DateTime<Utc>,
-        last_message_id: u32,
+        before_id: Uuid,
         limit: u32,
     ) -> Result<Vec<Message>, RepositoryError> {
         let chat_id = match chat {
@@ -70,8 +69,8 @@ impl Repository {
                     WITH chunk AS (
                         SELECT id 
                         FROM messages
-                        WHERE chat_id = :chat_id AND datetime <= :before_datetime AND id != :last_message_id AND is_emoji = 0
-                        ORDER BY datetime DESC, id DESC
+                        WHERE chat_id = :chat_id AND id < :before_id AND is_emoji = 0
+                        ORDER BY id DESC
                         LIMIT :limit
                     )
                     SELECT m.*
@@ -82,16 +81,15 @@ impl Repository {
 
                     SELECT e.*
                     FROM chunk
-                    JOIN messages AS e ON e.reply_message_id = chunk.id AND e.is_emoji = 1
-                    
-                    ORDER BY datetime, id;
+                    JOIN messages AS e ON e.reply_id = chunk.id AND e.is_emoji = 1
+
+                    ORDER BY is_emoji, id
                     "#,
                 )?;
 
                 let result: Result<_, _> = from_rows::<Message>(statement.query(named_params! {
                     ":chat_id": chat_id,
-                    ":before_datetime": before_datetime,
-                    ":last_message_id": last_message_id,
+                    ":before_id": before_id,
                     ":limit": limit
                 })?)
                 .collect();
@@ -110,7 +108,9 @@ impl Repository {
                     r#"
                     INSERT INTO messages (
                         id,
-                        reply_message_id,
+                        reply_id,
+                        packet_id,
+                        reply_packet_id,
                         "from",
                         "to",
                         channel,
@@ -124,7 +124,9 @@ impl Repository {
                     )
                     VALUES (
                         :id,
-                        :reply_message_id,
+                        :reply_id,
+                        :packet_id,
+                        :reply_packet_id,
                         :from,
                         :to,
                         :channel,
@@ -137,7 +139,9 @@ impl Repository {
                         :routing_error
                     )
                     ON CONFLICT(id) DO UPDATE SET
-                        reply_message_id = excluded.reply_message_id,
+                        reply_id = excluded.reply_id,
+                        packet_id = excluded.packet_id,
+                        reply_packet_id = excluded.reply_packet_id,
                         "from" = excluded."from",
                         "to" = excluded."to",
                         channel = excluded.channel,
@@ -162,7 +166,7 @@ impl Repository {
 
     pub async fn message_update_routing_error(
         &self,
-        id: u32,
+        id: Uuid,
         routing_error: Option<i32>,
     ) -> Result<(), RepositoryError> {
         self.conn
@@ -179,44 +183,23 @@ impl Repository {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub async fn message_remove(&self, id: u32) -> Result<(), RepositoryError> {
+    pub async fn message_remove_by_chat(&self, chat: Chat) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare("DELETE FROM messages WHERE id = :id")?;
-                statement.execute(params![id]).map_err(Into::into)
-            })
-            .await?;
+                let chat_id = match chat {
+                    Chat::Channel(channel_key) => channel_key,
+                    Chat::Direct(node_key) => node_key,
+                };
 
-        Ok(())
-    }
+                let mut statement = conn.prepare(
+                    r#"
+                    DELETE FROM messages WHERE chat_id = :chat_id
+                    "#,
+                )?;
 
-    pub async fn message_remove_by_chat(&self, chat: Chat, my_node_key: u32) -> Result<(), RepositoryError> {
-        self.conn
-            .call(move |conn| -> Result<_, RepositoryError> {
-                match chat {
-                    Chat::Channel(channel_key) => {
-                        let mut statement = conn.prepare(
-                            r#"
-                            DELETE FROM messages 
-                            WHERE channel = :channel AND "to" IN (0, :broadcast)
-                            "#,
-                        )?;
-
-                        statement.execute(named_params! { ":channel": channel_key, ":broadcast": u32::MAX })
-                    }
-                    Chat::Direct(node_key) => {
-                        let mut statement = conn.prepare(
-                            r#"
-                            DELETE FROM messages
-                            WHERE ("from" = :me AND "to" = :node) OR ("from" = :node AND "to" = :me)
-                            "#,
-                        )?;
-
-                        statement.execute(named_params! { ":me": my_node_key, ":node": node_key })
-                    }
-                }
-                .map_err(Into::into)
+                statement
+                    .execute(named_params! { ":chat_id": chat_id })
+                    .map_err(Into::into)
             })
             .await?;
 
