@@ -318,7 +318,7 @@ impl PersistenceService {
                     return;
                 };
 
-                let Some(message_id) = self.state_rx.borrow().packets_id_cache.peek(&packet_id).cloned() else {
+                let Some(message_id) = self.state_rx.borrow().packets_id_map.get(&packet_id).cloned() else {
                     return;
                 };
 

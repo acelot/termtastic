@@ -178,7 +178,7 @@ impl Store {
                     state.nodes_view.clear();
                     state.nodes.clear();
                     state.online_nodes = 0;
-                    state.packets_id_cache.clear();
+                    state.packets_id_map.clear();
                     state.reconnection_backoff = None;
                     state.settings_form_data = None;
                     state.settings_form_is_changed = false;
@@ -687,8 +687,17 @@ impl Store {
                     .flatten()
                     .collect();
 
-                for id in message_ids {
-                    state.messages.remove(&id);
+                let packet_ids: Vec<u32> = message_ids
+                    .iter()
+                    .filter_map(|id| state.messages.get(id).and_then(|m| Some(m.packet_id)))
+                    .collect();
+
+                for message_id in message_ids {
+                    state.messages.remove(&message_id);
+                }
+
+                for packet_id in packet_ids {
+                    state.packets_id_map.remove(&packet_id);
                 }
 
                 match chat {
@@ -775,7 +784,7 @@ impl Store {
                 self.state_tx.send_modify(|state| {
                     if message.reply_packet_id > 0 && message.reply_id.is_nil() {
                         message.reply_id = state
-                            .packets_id_cache
+                            .packets_id_map
                             .get(&message.reply_packet_id)
                             .cloned()
                             .unwrap_or(Uuid::nil());
@@ -793,7 +802,7 @@ impl Store {
                 error,
                 datetime,
             } => self.state_tx.send_if_modified(|state| {
-                let Some(message_id) = state.packets_id_cache.get(&packet_id) else {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
                     return false;
                 };
 
@@ -1275,8 +1284,6 @@ fn add_message(message: Message, push_back: bool, state: &mut State) {
         return;
     }
 
-    state.packets_id_cache.put(message.packet_id, message.id);
-
     if message.is_emoji {
         if let Some(reply_message) = state.messages.get_mut(&message.reply_id) {
             reply_message.reactions.push(message.id);
@@ -1298,6 +1305,7 @@ fn add_message(message: Message, push_back: bool, state: &mut State) {
         };
     }
 
+    state.packets_id_map.insert(message.packet_id, message.id);
     state.messages.insert(message.id, message);
 }
 

@@ -1,9 +1,7 @@
 use crate::types::*;
-use lru::LruCache;
 use meshtastic::protobufs::DeviceMetrics;
 use ordermap::OrderMap;
 use std::collections::HashSet;
-use std::num::NonZeroUsize;
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
     time::{Duration, Instant},
@@ -56,7 +54,7 @@ pub struct State {
     pub nodes_view: Vec<u32>,
     pub nodes: HashMap<u32, Node>,
     pub online_nodes: u32,
-    pub packets_id_cache: LruCache<u32, Uuid>,
+    pub packets_id_map: HashMap<u32, Uuid>,
     pub reconnection_backoff: Option<Duration>,
     pub rx_indicator_t: Instant,
     pub rx_indicator: bool,
@@ -120,7 +118,7 @@ impl Default for State {
             nodes_loader_current: 0,
             nodes_loader_total: 0,
             online_nodes: 0,
-            packets_id_cache: LruCache::new(NonZeroUsize::new(10000).unwrap()),
+            packets_id_map: HashMap::with_capacity(1000),
             reconnection_backoff: None,
             rx_indicator_t: Instant::now(),
             rx_indicator: false,

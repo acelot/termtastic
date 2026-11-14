@@ -42,7 +42,6 @@ fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }
 hostaddr = { version = "1.0", features = ["serde"] }
 itertools = { version = "0.15.0" }
-lru = { version = "0.19.0" }
 mdns-sd = { version = "0.21.7" }
 meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "1741a83", features = [
     "bluetooth-le",
