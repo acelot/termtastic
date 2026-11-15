@@ -267,7 +267,7 @@ impl<'a> Screen for Messenger<'a> {
                 }
 
                 self.follow_chat
-                    .insert(active_chat.clone(), index == messages.len() - 1);
+                    .insert(active_chat.clone(), Some(index) == messages.len().checked_sub(1));
             }
 
             return true;
@@ -386,6 +386,8 @@ impl<'a> Screen for Messenger<'a> {
         let follow_chat = self.follow_chat.get(active_chat).unwrap();
         let replying_to = self.replying_to.get(active_chat);
         let message_ids = state.chats.get(active_chat).unwrap_or(&EMPTY_MESSAGES_VEC_DEQUE);
+
+        list_state.fix_selection(message_ids.len());
 
         if *follow_chat && !message_ids.is_empty() {
             list_state.select(Some(message_ids.len() - 1));
