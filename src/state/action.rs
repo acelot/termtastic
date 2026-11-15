@@ -69,7 +69,10 @@ pub enum StateAction {
     },
     PreviousMessagesLoadPending(Chat),
     PreviousMessagesLoadFailed,
-    PreviousMessagesLoadFinished(Vec<Message>),
+    PreviousMessagesLoadFinished {
+        chat: Chat,
+        messages: Vec<Message>,
+    },
     MyNodeInfoSet {
         node_key: u32,
         nodes_count: u32,

@@ -1,6 +1,7 @@
 use chrono::Utc;
 use meshtastic::protobufs::telemetry::Variant::DeviceMetrics;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
+use ordermap::OrderSet;
 use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
@@ -264,7 +265,7 @@ impl Store {
                     // messages
                     if let Some(messages) = state.db_load_transaction_messages.take() {
                         for message in messages {
-                            add_message(message, true, state);
+                            add_message(message, state);
                         }
                     }
 
@@ -649,7 +650,7 @@ impl Store {
                             state.active_chat = None;
                         }
                     } else if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat, VecDeque::new());
+                        state.chats.insert_sorted(chat.clone(), OrderSet::new());
                     }
 
                     state.channels.insert(key, channel);
@@ -770,7 +771,7 @@ impl Store {
                     let chat = Chat::Direct(node_key);
 
                     if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat.clone(), VecDeque::new());
+                        state.chats.insert_sorted(chat.clone(), OrderSet::new());
                     }
 
                     state.nodeinfo_key = None;
@@ -792,7 +793,7 @@ impl Store {
 
                     rebroadcast_action = Some(StateAction::MessageAdd(message.clone()));
 
-                    add_message(message, true, state);
+                    add_message(message, state);
                 });
 
                 true
@@ -844,10 +845,28 @@ impl Store {
 
                 true
             }
-            StateAction::PreviousMessagesLoadFinished(messages) => {
+            StateAction::PreviousMessagesLoadFinished { chat, messages } => {
                 self.state_tx.send_modify(|state| {
+                    let Some(existing_ids) = state.chats.get(&chat) else {
+                        return;
+                    };
+
+                    let mut new_ids: OrderSet<Uuid> =
+                        messages.iter().filter_map(|m| (!m.is_emoji).then_some(m.id)).collect();
+
+                    new_ids.extend(existing_ids);
+
+                    state.chats.insert(chat, new_ids);
+
                     for message in messages {
-                        add_message(message, false, state);
+                        if message.is_emoji
+                            && let Some(reply_message) = state.messages.get_mut(&message.reply_id)
+                        {
+                            reply_message.reactions.push(message.id);
+                        }
+
+                        state.packets_id_map.insert(message.packet_id, message.id);
+                        state.messages.insert(message.id, message);
                     }
 
                     state.messages_is_loading = false;
@@ -1271,7 +1290,7 @@ fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMa
         .collect()
 }
 
-fn add_message(message: Message, push_back: bool, state: &mut State) {
+fn add_message(message: Message, state: &mut State) {
     let Some(my_node_key) = state.my_node_key else {
         tracing::warn!(
             message_id = message.id.to_string(),
@@ -1293,14 +1312,10 @@ fn add_message(message: Message, push_back: bool, state: &mut State) {
 
         match state.chats.entry(chat) {
             Occupied(mut ids) => {
-                if push_back {
-                    ids.get_mut().push_back(message.id);
-                } else {
-                    ids.get_mut().push_front(message.id);
-                }
+                ids.get_mut().insert(message.id);
             }
             Vacant(entry) => {
-                entry.insert_sorted(VecDeque::from([message.id]));
+                entry.insert_sorted(OrderSet::from([message.id]));
             }
         };
     }

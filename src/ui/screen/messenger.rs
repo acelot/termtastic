@@ -1,10 +1,5 @@
-use itertools::Itertools;
-use ordermap::OrderMap;
-use std::{
-    collections::{HashMap, VecDeque},
-    iter,
-    ops::RangeInclusive,
-};
+use ordermap::OrderSet;
+use std::{collections::HashMap, iter, ops::RangeInclusive, sync::LazyLock};
 use tracing_unwrap::OptionExt;
 use tui_widget_list::ScrollDirection;
 use uuid::Uuid;
@@ -13,9 +8,8 @@ use crate::ui::prelude::*;
 
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
-const REACTIONS_LINE_MAX_WIDTH: usize = 20;
 
-static EMPTY_MESSAGES_VEC_DEQUE: VecDeque<Uuid> = VecDeque::new();
+static EMPTY_MESSAGES: LazyLock<OrderSet<Uuid>> = LazyLock::new(|| OrderSet::new());
 
 pub struct Messenger<'a> {
     list_states: HashMap<Chat, ListState>,
@@ -378,7 +372,7 @@ impl<'a> Screen for Messenger<'a> {
         let input_widget = self.input_widgets.get_mut(active_chat).unwrap();
         let follow_chat = self.follow_chat.get(active_chat).unwrap();
         let replying_to = self.replying_to.get(active_chat);
-        let message_ids = state.chats.get(active_chat).unwrap_or(&EMPTY_MESSAGES_VEC_DEQUE);
+        let message_ids = state.chats.get(active_chat).unwrap_or(&EMPTY_MESSAGES);
 
         list_state.fix_selection(message_ids.len());
 
@@ -399,7 +393,7 @@ impl<'a> Screen for Messenger<'a> {
         if !message_ids.is_empty() {
             let list_builder = ListBuilder::new(|context| {
                 let message = message_ids
-                    .get(context.index)
+                    .get_index(context.index)
                     .and_then(|id| state.messages.get(id))
                     .expect_or_log("message should exist");
 
@@ -426,18 +420,18 @@ impl<'a> Screen for Messenger<'a> {
 
                 let node = state.nodes.get(&message.from).unwrap_or(&UNKNOWN_NODE);
 
-                let item = MessageWidget {
+                let item = MessageWidget::new(
                     node,
                     message,
-                    message_paragraph: MessageWidget::get_text_paragraph(message, replying_message),
-                    reactions_line: MessageWidget::get_reactions_line(reactions),
+                    reactions,
                     replying_node,
-                    is_my_node: state.is_my_node(node.key),
-                    is_selected: context.is_selected,
-                    is_highlighted: replying_to.map(|(_, msg_key)| message.id == *msg_key).unwrap_or(false),
-                };
+                    replying_message,
+                    state.is_my_node(node.key),
+                    context.is_selected,
+                    replying_to.map(|(_, msg_key)| message.id == *msg_key).unwrap_or(false),
+                );
 
-                let mut height = item.text_height(area.width) + 1;
+                let (mut height, _) = item.height(area.width);
 
                 if context.index < message_ids.len() - 1 {
                     height += 1;
@@ -527,7 +521,7 @@ impl<'a> Screen for Messenger<'a> {
         if self.is_reaction_viewer_visible
             && let Some(message) = list_state
                 .selected
-                .and_then(|i| message_ids.get(i))
+                .and_then(|i| message_ids.get_index(i))
                 .and_then(|id| state.messages.get(id))
         {
             let popup_area = v[0].centered(Constraint::Length(50), Constraint::Length(15));
@@ -578,141 +572,4 @@ fn new_input_widget() -> TextArea<'static> {
     input.set_cursor_line_style(Style::default());
 
     input
-}
-
-struct MessageWidget<'a> {
-    pub node: &'a Node,
-    pub message: &'a Message,
-    pub message_paragraph: Paragraph<'a>,
-    pub reactions_line: Line<'a>,
-    pub replying_node: Option<&'a Node>,
-    pub is_my_node: bool,
-    pub is_selected: bool,
-    pub is_highlighted: bool,
-}
-
-impl MessageWidget<'_> {
-    pub fn text_height(&self, width: u16) -> u16 {
-        self.message_paragraph.line_count(
-            width
-                .saturating_sub(self.reactions_line.width().min(REACTIONS_LINE_MAX_WIDTH) as u16)
-                .saturating_sub(4),
-        ) as u16
-    }
-
-    pub fn get_text_paragraph<'a>(message: &'a Message, replied_message: Option<&'a Message>) -> Paragraph<'a> {
-        let reply_line = replied_message
-            .map(|msg| Line::from(vec!["“".to_span(), Span::from(msg.text_oneline()), "”".to_span()]).magenta());
-
-        let text_lines: Vec<Line<'_>> = message.text.to_hyperlinked_lines();
-
-        Paragraph::new(reply_line.into_iter().chain(text_lines).collect::<Vec<Line<'_>>>()).wrap(Wrap { trim: false })
-    }
-
-    pub fn get_reactions_line(reactions: Vec<&'_ Message>) -> Line<'_> {
-        let summary = reactions
-            .iter()
-            .sorted_by_key(|r| r.datetime)
-            .fold(OrderMap::new(), |mut acc, r| {
-                *acc.entry(&r.text).or_insert(0) += 1;
-                acc
-            });
-
-        Line::from(
-            summary
-                .into_iter()
-                .flat_map(|(emoji, nodes_count)| {
-                    if nodes_count > 1 {
-                        vec![
-                            " ".to_span(),
-                            emoji.to_span(),
-                            Span::from(format!(":{}", nodes_count)).dark_gray(),
-                        ]
-                    } else {
-                        vec![" ".to_span(), emoji.to_span()]
-                    }
-                })
-                .collect::<Vec<Span>>(),
-        )
-        .right_aligned()
-    }
-}
-
-impl<'a> Widget for MessageWidget<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer)
-    where
-        Self: Sized,
-    {
-        let text_height = self.text_height(area.width);
-
-        let area = Rect {
-            x: area.x,
-            y: area.y,
-            width: area.width - 2,
-            height: text_height + 1,
-        };
-
-        let block = Block::bordered()
-            .borders(Borders::LEFT)
-            .border_set(if self.is_selected {
-                symbols::border::THICK
-            } else {
-                symbols::border::PLAIN
-            })
-            .border_style(Style::new().fg(if self.is_highlighted {
-                Color::Cyan
-            } else if self.is_selected {
-                Color::Yellow
-            } else {
-                Color::DarkGray
-            }))
-            .padding(Padding::symmetric(1, 0));
-
-        let block_area = block.inner(area);
-        block.render(area, buf);
-
-        let v = Layout::vertical([Constraint::Length(1), Constraint::Length(text_height)]).split(block_area);
-
-        let v0_h = Layout::horizontal([Constraint::Fill(4), Constraint::Fill(2), Constraint::Fill(1)])
-            .flex(Flex::SpaceBetween)
-            .split(v[0]);
-
-        let v1_h = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Length(2),
-            Constraint::Length(self.reactions_line.width().min(REACTIONS_LINE_MAX_WIDTH) as u16),
-        ])
-        .split(v[1]);
-
-        // first line
-        if let Some(rep_node) = self.replying_node {
-            Line::from(vec![
-                short_name_to_span(self.node, self.is_my_node),
-                " → ".to_span().dark_gray(),
-                short_name_to_span(rep_node, self.is_my_node).on_magenta(),
-            ])
-            .render(v0_h[0], buf);
-        } else {
-            Line::from(vec![
-                short_name_to_span(self.node, self.is_my_node),
-                " ".to_span(),
-                self.node.long_name().to_span().bold(),
-            ])
-            .render(v0_h[0], buf);
-        }
-
-        if !self.is_my_node {
-            Line::from(hops_to_spans(self.message, false)).render(v0_h[1], buf);
-        } else {
-            routing_error_to_span(self.message.routing_error).render(v0_h[1], buf);
-        }
-
-        Line::from(Span::from(humanize_datetime(self.message.datetime.with_timezone(&chrono::Local))).dark_gray())
-            .right_aligned()
-            .render(v0_h[2], buf);
-
-        // second line
-        self.message_paragraph.render(v1_h[0], buf);
-        self.reactions_line.render(v1_h[2], buf);
-    }
 }

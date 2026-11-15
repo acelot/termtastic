@@ -1,6 +1,6 @@
 use crate::types::*;
 use meshtastic::protobufs::DeviceMetrics;
-use ordermap::OrderMap;
+use ordermap::{OrderMap, OrderSet};
 use std::collections::HashSet;
 use std::{
     collections::{BTreeSet, HashMap, VecDeque},
@@ -17,7 +17,7 @@ pub struct State {
     pub active_tab: Tab,
     pub active_traceroutes: HashSet<u32>,
     pub channels: HashMap<u32, Channel>,
-    pub chats: OrderMap<Chat, VecDeque<Uuid>>,
+    pub chats: OrderMap<Chat, OrderSet<Uuid>>,
     pub connection_attempt: u32,
     pub connection_state: ConnectionState,
     pub db_load_state: DbLoadState,
