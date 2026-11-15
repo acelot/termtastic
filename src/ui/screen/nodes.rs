@@ -159,35 +159,24 @@ impl<'a> Screen for Nodes<'a> {
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         if self.is_emoji_selector_visible {
-            match event {
-                Event::Key(KeyEvent {
-                    code,
-                    kind: KeyEventKind::Press,
-                    modifiers,
-                    ..
-                }) if modifiers.is_empty() => match code {
-                    KeyCode::Enter => {
-                        if let Some(emoji) = self.emoji_selector_state.get_value() {
-                            self.filter_input.insert_str(emoji.as_str());
-                            self.is_emoji_selector_visible = false;
-                            emit(UiEvent::NodesFilterChanged {
-                                query: self.filter_input.lines()[0].clone(),
-                            });
-
-                            return true;
-                        }
-                    }
-                    KeyCode::Esc => {
+            if self
+                .emoji_selector_state
+                .handle_event(event.clone(), &mut |ev| match ev {
+                    EmojiSelectorWidgetEvent::EmojiSubmitted(emoji) => {
+                        self.filter_input.insert_str(emoji.as_str());
                         self.is_emoji_selector_visible = false;
-                        self.emoji_selector_state.reset();
-                        return true;
-                    }
-                    _ => {}
-                },
-                _ => {}
-            };
 
-            return self.emoji_selector_state.handle_event(event.clone());
+                        emit(UiEvent::NodesFilterChanged {
+                            query: self.filter_input.lines()[0].clone(),
+                        });
+                    }
+                    EmojiSelectorWidgetEvent::CloseRequested => {
+                        self.is_emoji_selector_visible = false;
+                    }
+                })
+            {
+                return true;
+            }
         }
 
         if self.is_filter_help_visible {

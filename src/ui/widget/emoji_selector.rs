@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crossterm::event::Event;
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use emojis::Emoji;
 use ratatui::{
     prelude::*,
@@ -36,17 +36,13 @@ impl<'a> EmojiSelectorState<'a> {
         !self.emojis.is_empty() && self.list_state.selected.is_some()
     }
 
-    pub fn get_value(&self) -> Option<&'static Emoji> {
-        self.list_state.selected.and_then(|i| self.emojis.get(i).cloned())
-    }
-
     pub fn reset(&mut self) {
         self.input_widget.clear();
         self.emojis = emojis::iter().take(MAX_EMOJIS_LIMIT).collect();
         self.list_state.select(Some(0));
     }
 
-    pub fn handle_event(&mut self, event: Event) -> bool {
+    pub fn handle_event(&mut self, event: Event, emit: &mut impl FnMut(EmojiSelectorWidgetEvent)) -> bool {
         self.list_state.fix_selection(self.emojis.len());
 
         if self
@@ -57,14 +53,48 @@ impl<'a> EmojiSelectorState<'a> {
         }
 
         match event {
+            Event::Key(KeyEvent { code, modifiers, .. }) => match code {
+                KeyCode::Enter if modifiers.is_empty() => {
+                    if let Some(emoji) = self.get_value() {
+                        emit(EmojiSelectorWidgetEvent::EmojiSubmitted(emoji));
+                        self.reset();
+                        return true;
+                    }
+                }
+                KeyCode::Esc if modifiers.is_empty() => {
+                    emit(EmojiSelectorWidgetEvent::CloseRequested);
+                    self.reset();
+                    return true;
+                }
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
+                    // capture these events to prevent handling by input widget
+                    return false;
+                }
+                _ => {
+                    self.input_widget.input(event);
+                    self.update();
+                    return true;
+                }
+            },
             Event::Paste(text) => {
                 self.input_widget.insert_as_lines(&text);
+                self.update();
             }
             _ => {
                 self.input_widget.input(event);
+                self.update();
+                return true;
             }
         }
 
+        true
+    }
+
+    fn get_value(&self) -> Option<&'static Emoji> {
+        self.list_state.selected.and_then(|i| self.emojis.get(i).cloned())
+    }
+
+    fn update(&mut self) {
         self.emojis = emojis::iter()
             .filter(|e| {
                 e.name()
@@ -77,8 +107,6 @@ impl<'a> EmojiSelectorState<'a> {
         if !self.emojis.is_empty() {
             self.list_state.select(Some(0));
         }
-
-        true
     }
 }
 
@@ -105,6 +133,8 @@ impl<'a> StatefulWidget for EmojiSelectorWidget<'a> {
         block.render(area, buf);
 
         let v = Layout::vertical([Constraint::Length(3), Constraint::Fill(1)]).split(block_area);
+
+        state.list_state.fix_selection(state.emojis.len());
 
         // input
         let input_block = Block::bordered()
@@ -165,4 +195,9 @@ impl Widget for EmojiWidget {
 
         item.render(block_area, buf);
     }
+}
+
+pub enum EmojiSelectorWidgetEvent<'a> {
+    EmojiSubmitted(&'a Emoji),
+    CloseRequested,
 }

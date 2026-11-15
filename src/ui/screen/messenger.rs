@@ -170,31 +170,20 @@ impl<'a> Screen for Messenger<'a> {
         }
 
         if self.is_emoji_selector_visible {
-            match event {
-                Event::Key(KeyEvent {
-                    code,
-                    kind: KeyEventKind::Press,
-                    modifiers,
-                    ..
-                }) => match code {
-                    KeyCode::Enter if modifiers.is_empty() => {
-                        if let Some(emoji) = self.emoji_selector_state.get_value() {
-                            input_widget.insert_str(emoji.as_str());
-                            self.is_emoji_selector_visible = false;
-                            return true;
-                        }
-                    }
-                    KeyCode::Esc if modifiers.is_empty() => {
+            if self
+                .emoji_selector_state
+                .handle_event(event.clone(), &mut |ev| match ev {
+                    EmojiSelectorWidgetEvent::EmojiSubmitted(emoji) => {
+                        input_widget.insert_str(emoji.as_str());
                         self.is_emoji_selector_visible = false;
-                        self.emoji_selector_state.reset();
-                        return true;
                     }
-                    _ => {}
-                },
-                _ => {}
-            };
-
-            return self.emoji_selector_state.handle_event(event.clone());
+                    EmojiSelectorWidgetEvent::CloseRequested => {
+                        self.is_emoji_selector_visible = false;
+                    }
+                })
+            {
+                return true;
+            }
         }
 
         if is_replying_to {
@@ -247,17 +236,21 @@ impl<'a> Screen for Messenger<'a> {
                         // capture these events to prevent handling by input widget
                         return false;
                     }
-                    _ => {}
+                    _ => {
+                        input_widget.input(event.clone());
+                        return true;
+                    }
                 },
                 Event::Paste(text) => {
                     input_widget.insert_as_lines(text);
                 }
-                _ => {}
+                _ => {
+                    input_widget.input(event.clone());
+                    return true;
+                }
             };
 
-            input_widget.input(event.clone());
-
-            return true;
+            false;
         }
 
         if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
