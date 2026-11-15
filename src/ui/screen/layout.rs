@@ -35,7 +35,7 @@ impl<'a> Layout<'a> {
             logo: APP_LOGO_TEXT.clone(),
             nodeinfo_widget_state: NodeInfoWidgetState::default(),
             last_esc_t: Instant::now().sub(Duration::from_secs(1)),
-            last_tab: Default::default(),
+            last_tab: Tab::default(),
         }
     }
 }
@@ -128,10 +128,6 @@ impl<'a> Screen for Layout<'a> {
                 }
                 KeyCode::BackTab => {
                     emit(UiEvent::TabPreviousRequested);
-                    return true;
-                }
-                KeyCode::F(12) if modifiers.is_empty() => {
-                    emit(UiEvent::SplashLogoRequested);
                     return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {

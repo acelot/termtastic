@@ -36,7 +36,7 @@ impl UiService {
     fn handle_ui_event(&mut self, event: Result<UiEvent, broadcast::error::RecvError>, subsys: &mut SubsystemHandle) {
         match event {
             Ok(app_event) => match app_event {
-                UiEvent::InitializationRequested | UiEvent::SplashLogoRequested => {
+                UiEvent::InitializationRequested => {
                     let _ = self.state_action_tx.send(StateAction::SplashLogo);
                 }
                 UiEvent::TabNextRequested => {

@@ -106,7 +106,6 @@ pub enum UiEvent {
     SettingsFormResetRequested,
     SettingsFormSaveRequested(FormId),
     SettingsFormSelected(FormId),
-    SplashLogoRequested,
     TabNextRequested,
     TabPreviousRequested,
     TracerouteRequested {

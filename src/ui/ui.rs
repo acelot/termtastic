@@ -2,8 +2,8 @@ use crate::state::State;
 use crate::types::UiEvent;
 use crate::ui::screen::{Layout, Screen};
 use crossterm::event::{
-    DisableBracketedPaste, EnableBracketedPaste, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
-    PushKeyboardEnhancementFlags,
+    DisableBracketedPaste, EnableBracketedPaste, KeyCode, KeyEvent, KeyboardEnhancementFlags,
+    PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
 };
 use crossterm::terminal::supports_keyboard_enhancement;
 use crossterm::{
@@ -70,6 +70,14 @@ impl<'a> Ui<'a> {
         subsys: &mut SubsystemHandle,
     ) -> anyhow::Result<()> {
         match maybe_event {
+            Some(Ok(Event::Key(KeyEvent {
+                code: KeyCode::F(12),
+                modifiers,
+                ..
+            }))) if modifiers.is_empty() => {
+                terminal.clear()?;
+                self.redraw(terminal)?;
+            }
             Some(Ok(event)) => {
                 self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
                     let _ = self.ui_event_tx.send(ev);
