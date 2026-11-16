@@ -19,7 +19,8 @@ pub struct Messenger<'a> {
     is_emoji_selector_visible: bool,
     emoji_selector_state: EmojiSelectorState<'a>,
     is_reaction_viewer_visible: bool,
-    reactions_viewer_state: ReactionViewerState,
+    message_info: Option<Uuid>,
+    message_info_state: MessageInfoWidgetState,
 }
 
 impl<'a> Messenger<'a> {
@@ -29,10 +30,11 @@ impl<'a> Messenger<'a> {
             input_widgets: HashMap::default(),
             follow_chat: HashMap::default(),
             replying_to: HashMap::default(),
-            emoji_selector_state: EmojiSelectorState::new(),
             is_emoji_selector_visible: false,
-            reactions_viewer_state: ReactionViewerState::new(),
+            emoji_selector_state: EmojiSelectorState::new(),
             is_reaction_viewer_visible: false,
+            message_info: None,
+            message_info_state: MessageInfoWidgetState::default(),
         }
     }
 }
@@ -54,6 +56,10 @@ impl<'a> Screen for Messenger<'a> {
             .into_iter()
             .flatten()
             .collect();
+        }
+
+        if self.message_info.is_some() {
+            return vec![Hotkey::new("↑↓", "scroll"), Hotkey::new("esc", "close")];
         }
 
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
@@ -97,11 +103,11 @@ impl<'a> Screen for Messenger<'a> {
 
         Vec::from([
             (!input_has_something).then_some(Hotkey::new("↑↓", "scroll")),
+            (is_message_selected && !input_has_something).then_some(Hotkey::new("enter", "expand")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F2", "reply")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F4", "info")),
             Some(Hotkey::new("F5", "emoji")),
             (is_message_selected && !input_has_something).then_some(Hotkey::new("F6", "copy")),
-            (is_message_selected && !input_has_something).then_some(Hotkey::new("F7", "reactions")),
             input_has_something.then_some(Hotkey::new("shift+enter", "new line")),
             input_has_valid_value.then_some(Hotkey::new("enter", "send")),
             Some(Hotkey::new("esc", "channel")),
@@ -129,40 +135,7 @@ impl<'a> Screen for Messenger<'a> {
             .map(|ids| ids.iter().filter_map(|id| state.messages.get(id)).collect())
             .unwrap_or_default();
 
-        if self.is_reaction_viewer_visible {
-            match event {
-                Event::Key(KeyEvent {
-                    code,
-                    kind: KeyEventKind::Press,
-                    modifiers,
-                    ..
-                }) if modifiers.is_empty() => match code {
-                    KeyCode::Esc => {
-                        self.is_reaction_viewer_visible = false;
-                        return true;
-                    }
-                    _ => {}
-                },
-                _ => {}
-            };
-
-            let reactions_count = list_state
-                .selected
-                .and_then(|i| messages.get(i))
-                .map(|m| {
-                    m.reactions.iter().fold(0, |mut counter, message_id| {
-                        if state.messages.contains_key(message_id) {
-                            counter += 1;
-                        };
-
-                        counter
-                    })
-                })
-                .unwrap_or(0);
-
-            return self.reactions_viewer_state.handle_event(event, reactions_count);
-        }
-
+        // emoji selector
         if self.is_emoji_selector_visible {
             if self
                 .emoji_selector_state
@@ -180,6 +153,18 @@ impl<'a> Screen for Messenger<'a> {
             }
         }
 
+        // message info
+        if self.message_info.is_some() {
+            if self.message_info_state.handle_event(event.clone(), &mut |ev| match ev {
+                MessageInfoWidgetEvent::CloseRequested => {
+                    self.message_info = None;
+                }
+            }) {
+                return true;
+            }
+        }
+
+        // replying
         if is_replying_to {
             match event {
                 Event::Key(KeyEvent {
@@ -247,6 +232,7 @@ impl<'a> Screen for Messenger<'a> {
             false;
         }
 
+        // list events
         if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
             if let Some(index) = list_state.selected {
                 if matches!(event, Event::Key(KeyEvent { code: KeyCode::Up, .. })) && index == 0 {
@@ -260,6 +246,7 @@ impl<'a> Screen for Messenger<'a> {
             return true;
         }
 
+        // default
         match event {
             Event::Key(KeyEvent {
                 code,
@@ -272,6 +259,11 @@ impl<'a> Screen for Messenger<'a> {
                     return true;
                 }
                 KeyCode::Enter if modifiers.is_empty() => {
+                    if input_widget.is_empty() {
+                        self.message_info = list_state.selected.and_then(|i| messages.get(i).map(|m| m.id));
+                        return true;
+                    }
+
                     if VALID_INPUT_LENGTH.contains(&input_widget.trimmed_len()) {
                         self.follow_chat.insert(active_chat.clone(), true);
 
@@ -386,49 +378,22 @@ impl<'a> Screen for Messenger<'a> {
         ])
         .split(area);
 
-        let is_any_popup_visible =
-            state.nodeinfo_key.is_some() || self.is_emoji_selector_visible || self.is_reaction_viewer_visible;
+        let is_any_popup_visible = state.nodeinfo_key.is_some()
+            || self.is_emoji_selector_visible
+            || self.is_reaction_viewer_visible
+            || self.message_info.is_some();
 
         // list
         if !message_ids.is_empty() {
             let list_builder = ListBuilder::new(|context| {
-                let message = message_ids
+                let message_id = message_ids
                     .get_index(context.index)
-                    .and_then(|id| state.messages.get(id))
                     .expect_or_log("message should exist");
 
-                let reactions: Vec<&Message> = message
-                    .reactions
-                    .iter()
-                    .filter_map(|message_id| state.messages.get(message_id))
-                    .collect();
-
-                let replying_node = if !message.reply_id.is_nil() {
-                    state
-                        .messages
-                        .get(&message.reply_id)
-                        .map(|m| state.nodes.get(&m.from).unwrap_or(&UNKNOWN_NODE))
-                } else {
-                    None
-                };
-
-                let replying_message = if !message.reply_id.is_nil() {
-                    state.messages.get(&message.reply_id)
-                } else {
-                    None
-                };
-
-                let node = state.nodes.get(&message.from).unwrap_or(&UNKNOWN_NODE);
-
                 let item = MessageWidget::new(
-                    node,
-                    message,
-                    reactions,
-                    replying_node,
-                    replying_message,
-                    state.is_my_node(node.key),
-                    context.is_selected,
-                    replying_to.map(|(_, msg_key)| message.id == *msg_key).unwrap_or(false),
+                    MessageWidgetData::new(*message_id, state)
+                        .selected(context.is_selected)
+                        .highlighted(replying_to.map(|(_, msg_key)| message_id == msg_key).unwrap_or(false)),
                 );
 
                 let (mut height, _) = item.height(area.width);
@@ -517,44 +482,6 @@ impl<'a> Screen for Messenger<'a> {
         .right_aligned()
         .render(input_block_area_h[3], frame.buffer_mut());
 
-        // reaction viewer
-        if self.is_reaction_viewer_visible
-            && let Some(message) = list_state
-                .selected
-                .and_then(|i| message_ids.get_index(i))
-                .and_then(|id| state.messages.get(id))
-        {
-            let popup_area = v[0].centered(Constraint::Length(50), Constraint::Length(15));
-
-            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
-
-            self.is_reaction_viewer_visible = true;
-
-            let reaction_items: Vec<ReactionViewerItem> = message
-                .reactions
-                .iter()
-                .filter_map(|message_id| {
-                    let Some(reaction) = state.messages.get(message_id) else {
-                        return None;
-                    };
-
-                    let node = state.nodes.get(&reaction.from).unwrap_or(&UNKNOWN_NODE);
-
-                    Some(ReactionViewerItem {
-                        reaction,
-                        node,
-                        is_my_node: state.is_my_node(node.key),
-                    })
-                })
-                .collect();
-
-            ReactionViewerWidget::new(reaction_items).render(
-                popup_area,
-                frame.buffer_mut(),
-                &mut self.reactions_viewer_state,
-            );
-        }
-
         // emoji selector
         if self.is_emoji_selector_visible {
             let popup_area = v[0].centered(Constraint::Length(40), Constraint::Length(14));
@@ -562,6 +489,19 @@ impl<'a> Screen for Messenger<'a> {
             Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
 
             EmojiSelectorWidget::new().render(popup_area, frame.buffer_mut(), &mut self.emoji_selector_state);
+        }
+
+        // message info
+        if let Some(message_id) = self.message_info {
+            let popup_area = area.centered(Constraint::Max(80), Constraint::Max(21));
+
+            Clear.render(popup_area.outer(Margin::new(1, 0)), frame.buffer_mut());
+
+            MessageInfoWidget::new(MessageInfoWidgetData::new(message_id, state)).render(
+                popup_area,
+                frame.buffer_mut(),
+                &mut self.message_info_state,
+            );
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::state::State;
 use crate::types::UiEvent;
 use crate::ui::screen::{Layout, Screen};
 use crossterm::event::{
-    DisableBracketedPaste, EnableBracketedPaste, KeyCode, KeyEvent, KeyboardEnhancementFlags,
+    DisableBracketedPaste, EnableBracketedPaste, KeyCode, KeyEvent, KeyEventKind, KeyboardEnhancementFlags,
     PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
 };
 use crossterm::terminal::supports_keyboard_enhancement;
@@ -72,6 +72,7 @@ impl<'a> Ui<'a> {
         match maybe_event {
             Some(Ok(Event::Key(KeyEvent {
                 code: KeyCode::F(12),
+                kind: KeyEventKind::Press,
                 modifiers,
                 ..
             }))) if modifiers.is_empty() => {
