@@ -87,7 +87,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
         let block = Block::bordered()
             .borders(Borders::ALL)
             .border_type(BorderType::Thick)
-            .padding(Padding::symmetric(1, 0))
+            .padding(Padding::new(2, 2, 1, 0))
             .title(" expanded view ");
 
         let block_area = block.inner(area);
@@ -126,6 +126,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
                     0
                 },
                 1, // gap
+                1, // line
                 1, // meta header
                 1, // meta
             ]
@@ -148,6 +149,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             reactions_header_area,
             reactions_area,
             _,
+            line_area,
             meta_uuid_area,
             meta_packet_id_area,
         ] = Layout::vertical([
@@ -160,6 +162,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             Constraint::Length(if has_reactions { 1 } else { 0 }),                         // reactions header
             Constraint::Length(self.data.reactions.len() as u16),                          // reactions
             Constraint::Length(1),                                                         // gap
+            Constraint::Length(1),                                                         // line
             Constraint::Length(1),                                                         // meta UUID
             Constraint::Length(1),                                                         // meta packet ID
         ])
@@ -244,17 +247,22 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
         }
 
         // meta
+        scroll_view.render_widget(
+            Span::from("─".repeat(line_area.width as usize)).dark_gray().dim(),
+            line_area,
+        );
+
         let meta_uuid_area_h = Layout::horizontal([Constraint::Length(12), Constraint::Fill(1)]).split(meta_uuid_area);
         let meta_packet_id_area_h =
             Layout::horizontal([Constraint::Length(12), Constraint::Fill(1)]).split(meta_packet_id_area);
 
-        scroll_view.render_widget(Span::from("UUID").magenta(), meta_uuid_area_h[0]);
+        scroll_view.render_widget(Span::from("UUID").cyan(), meta_uuid_area_h[0]);
         scroll_view.render_widget(
             Span::from(self.data.message.id.to_string()).dark_gray(),
             meta_uuid_area_h[1],
         );
 
-        scroll_view.render_widget(Span::from("PACKET ID").magenta(), meta_packet_id_area_h[0]);
+        scroll_view.render_widget(Span::from("PACKET ID").cyan(), meta_packet_id_area_h[0]);
         scroll_view.render_widget(
             Span::from(self.data.message.packet_id.to_string()).dark_gray(),
             meta_packet_id_area_h[1],

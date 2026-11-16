@@ -18,7 +18,6 @@ pub struct Messenger<'a> {
     replying_to: HashMap<Chat, (Node, Uuid)>,
     is_emoji_selector_visible: bool,
     emoji_selector_state: EmojiSelectorState<'a>,
-    is_reaction_viewer_visible: bool,
     message_info: Option<Uuid>,
     message_info_state: MessageInfoWidgetState,
 }
@@ -32,7 +31,6 @@ impl<'a> Messenger<'a> {
             replying_to: HashMap::default(),
             is_emoji_selector_visible: false,
             emoji_selector_state: EmojiSelectorState::new(),
-            is_reaction_viewer_visible: false,
             message_info: None,
             message_info_state: MessageInfoWidgetState::default(),
         }
@@ -41,10 +39,6 @@ impl<'a> Messenger<'a> {
 
 impl<'a> Screen for Messenger<'a> {
     fn get_hotkeys(&self, state: &State) -> Vec<Hotkey> {
-        if self.is_reaction_viewer_visible {
-            return vec![Hotkey::new("↑↓", "scroll"), Hotkey::new("esc", "close")];
-        }
-
         if self.is_emoji_selector_visible {
             return [
                 Some(Hotkey::new("↑↓", "scroll")),
@@ -315,14 +309,6 @@ impl<'a> Screen for Messenger<'a> {
 
                     return true;
                 }
-                KeyCode::F(7) if modifiers.is_empty() => {
-                    if list_state.selected.and_then(|i| messages.get(i)).is_some() {
-                        self.follow_chat.insert(active_chat.clone(), false);
-                        self.is_reaction_viewer_visible = true;
-                    }
-
-                    return true;
-                }
                 KeyCode::Esc if modifiers.is_empty() => {
                     self.follow_chat.insert(active_chat.clone(), false);
                     emit(UiEvent::ChatSwitchRequested);
@@ -378,10 +364,8 @@ impl<'a> Screen for Messenger<'a> {
         ])
         .split(area);
 
-        let is_any_popup_visible = state.nodeinfo_key.is_some()
-            || self.is_emoji_selector_visible
-            || self.is_reaction_viewer_visible
-            || self.message_info.is_some();
+        let is_any_popup_visible =
+            state.nodeinfo_key.is_some() || self.is_emoji_selector_visible || self.message_info.is_some();
 
         // list
         if !message_ids.is_empty() {
