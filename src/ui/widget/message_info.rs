@@ -193,7 +193,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
 
         scroll_view.render_widget(
             Line::from(vec![
-                Span::from("MESSAGE FROM ").magenta(),
+                Span::from("FROM ").magenta(),
                 short_name_to_span(self.data.node, self.data.is_my_node),
                 Span::from(format!(" {}", self.data.node.long_name())),
             ]),
@@ -307,7 +307,7 @@ impl<'a> Widget for ReactionWidget<'a> {
         Self: Sized,
     {
         let [emoji_area, node_area, hops_area, date_area] = Layout::horizontal([
-            Constraint::Length(4),
+            Constraint::Length(5),
             Constraint::Fill(1),
             Constraint::Length(10),
             Constraint::Length(17),
