@@ -1,4 +1,5 @@
 mod clock;
+mod columns;
 mod device;
 mod device_metrics_graph;
 mod emoji_selector;
@@ -25,12 +26,12 @@ mod role_distribution;
 mod tabs;
 mod telemetry_item;
 mod terminal_size;
-mod three_column;
 mod traceroute;
 mod traceroute_popup;
 mod uptime;
 
 pub use clock::*;
+pub use columns::*;
 pub use device::*;
 pub use device_metrics_graph::*;
 pub use emoji_selector::*;
@@ -57,7 +58,6 @@ pub use role_distribution::*;
 pub use tabs::*;
 pub use telemetry_item::*;
 pub use terminal_size::*;
-pub use three_column::*;
 pub use traceroute::*;
 pub use traceroute_popup::*;
 pub use uptime::*;

@@ -125,6 +125,9 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
                 } else {
                     0
                 },
+                1, // gap
+                1, // meta header
+                1, // meta
             ]
             .iter()
             .sum(),
@@ -144,6 +147,9 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             _,
             reactions_header_area,
             reactions_area,
+            _,
+            meta_uuid_area,
+            meta_packet_id_area,
         ] = Layout::vertical([
             Constraint::Length(if replying_message_paragraph_height > 0 { 1 } else { 0 }), // replying message header
             Constraint::Length(replying_message_paragraph_height),                         // replying message
@@ -153,6 +159,9 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             Constraint::Length(if has_reactions { 1 } else { 0 }),                         // gap
             Constraint::Length(if has_reactions { 1 } else { 0 }),                         // reactions header
             Constraint::Length(self.data.reactions.len() as u16),                          // reactions
+            Constraint::Length(1),                                                         // gap
+            Constraint::Length(1),                                                         // meta UUID
+            Constraint::Length(1),                                                         // meta packet ID
         ])
         .areas(Rect::new(0, 0, content_size.width, content_size.height));
 
@@ -234,6 +243,24 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             scroll_view.render_stateful_widget(reactions_list, reactions_area, &mut state.reactions_list_state);
         }
 
+        // meta
+        let meta_uuid_area_h = Layout::horizontal([Constraint::Length(12), Constraint::Fill(1)]).split(meta_uuid_area);
+        let meta_packet_id_area_h =
+            Layout::horizontal([Constraint::Length(12), Constraint::Fill(1)]).split(meta_packet_id_area);
+
+        scroll_view.render_widget(Span::from("UUID").magenta(), meta_uuid_area_h[0]);
+        scroll_view.render_widget(
+            Span::from(self.data.message.id.to_string()).dark_gray(),
+            meta_uuid_area_h[1],
+        );
+
+        scroll_view.render_widget(Span::from("PACKET ID").magenta(), meta_packet_id_area_h[0]);
+        scroll_view.render_widget(
+            Span::from(self.data.message.packet_id.to_string()).dark_gray(),
+            meta_packet_id_area_h[1],
+        );
+
+        // final render
         scroll_view.render(block_area, buf, &mut state.scroll_view_state);
     }
 }

@@ -17,8 +17,8 @@ use crate::ui::{
         short_name_to_span,
     },
     widget::{
-        InfoWidget, PlaceholderWidget, PopupConfirmWidget, PositionPopupWidget, PositionPopupWidgetState,
-        PositionWidget, TabsWidget, TelemetryItemWidget, ThreeColumnWidget, TraceroutePopupWidget,
+        ColumnsWidget, InfoWidget, PlaceholderWidget, PopupConfirmWidget, PositionPopupWidget,
+        PositionPopupWidgetState, PositionWidget, TabsWidget, TelemetryItemWidget, TraceroutePopupWidget,
         TraceroutePopupWidgetState, TracerouteWidget,
     },
 };
@@ -410,34 +410,34 @@ impl<'a> NodeInfoWidget<'a> {
         .split(area);
 
         // first line
-        ThreeColumnWidget {
-            col1: Some(InfoWidget::new("short name", node.short_name().to_span())),
-            col2: Some(InfoWidget::new("node number", node.key.to_span())),
-            col3: Some(InfoWidget::new("user ID", node.id().to_span())),
-        }
+        ColumnsWidget::new([
+            Some(InfoWidget::new("short name", node.short_name().to_span())),
+            Some(InfoWidget::new("node number", node.key.to_span())),
+            Some(InfoWidget::new("user ID", node.id().to_span())),
+        ])
         .render(v[0], buf);
 
         // second line
-        ThreeColumnWidget {
-            col1: Some(InfoWidget::new(
+        ColumnsWidget::new([
+            Some(InfoWidget::new(
                 "last heard",
                 last_heard_to_spans(node, self.context.is_my_node()),
             )),
-            col2: Some(InfoWidget::new("hops", hops_to_spans(node, self.context.is_my_node()))),
-            col3: Some(InfoWidget::new(
+            Some(InfoWidget::new("hops", hops_to_spans(node, self.context.is_my_node()))),
+            Some(InfoWidget::new(
                 "uptime",
                 self.context
                     .uptime
                     .map(|s| Span::from(humanize_uptime(s)))
                     .unwrap_or(Span::from("no data").dark_gray().dim()),
             )),
-        }
+        ])
         .render(v[1], buf);
 
         // third line
-        ThreeColumnWidget {
-            col1: Some(InfoWidget::new("device role", node.role().to_span())),
-            col2: Some(InfoWidget::new(
+        ColumnsWidget::new([
+            Some(InfoWidget::new("device role", node.role().to_span())),
+            Some(InfoWidget::new(
                 "public key",
                 if let Some(user) = node.user.as_ref() {
                     Span::from(format!("{}-byte", user.public_key.len())).green()
@@ -445,7 +445,7 @@ impl<'a> NodeInfoWidget<'a> {
                     "none".to_span().red()
                 },
             )),
-            col3: Some(InfoWidget::new(
+            Some(InfoWidget::new(
                 "status",
                 if node.user.is_none() {
                     Span::from("UNKNOWN").yellow()
@@ -453,7 +453,7 @@ impl<'a> NodeInfoWidget<'a> {
                     Span::from("KNOWN").green()
                 },
             )),
-        }
+        ])
         .render(v[2], buf);
 
         // fourth line
