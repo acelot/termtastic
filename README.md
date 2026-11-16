@@ -32,7 +32,7 @@
     <td><img width="774" height="548" alt="chat" src="https://github.com/user-attachments/assets/516d0212-b797-4e30-857d-944626f7f0f7" /></td>
   </tr>
   <tr>
-    <td><img width="774" height="548" alt="reactions" src="https://github.com/user-attachments/assets/7c257c98-c593-45d8-8d27-cf21a6825082" /></td>
+    <td><img width="774" height="548" alt="message_info" src="https://github.com/user-attachments/assets/0b1b662c-8c90-4e38-9e22-ebc3e41db57c" /></td>
     <td><img width="774" height="548" alt="emoji" src="https://github.com/user-attachments/assets/b7567185-2b01-4640-aa87-02cce8359d2e" /></td>
   </tr>
   <tr>
