@@ -144,7 +144,7 @@ impl Screen for Logs {
         false
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         self.sync_selection(state);
 
         let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).split(area);

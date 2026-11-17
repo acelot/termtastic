@@ -465,7 +465,7 @@ impl<'a> Screen for Settings<'a> {
         false
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         let h = Layout::horizontal([Constraint::Ratio(2, 6), Constraint::Ratio(4, 6)]).split(area);
 
         self.settings_list_state.fix_selection(SETTINGS.len());

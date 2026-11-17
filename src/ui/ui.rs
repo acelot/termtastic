@@ -1,15 +1,16 @@
 use crate::state::State;
 use crate::types::UiEvent;
 use crate::ui::screen::{Layout, Screen};
-use crossterm::event::{
-    DisableBracketedPaste, EnableBracketedPaste, KeyCode, KeyEvent, KeyEventKind, KeyboardEnhancementFlags,
-    PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
-};
-use crossterm::terminal::supports_keyboard_enhancement;
 use crossterm::{
-    event::{Event, EventStream},
+    event::{
+        DisableBracketedPaste, DisableFocusChange, EnableBracketedPaste, EnableFocusChange, Event, EventStream,
+        KeyCode, KeyEvent, KeyEventKind, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+        PushKeyboardEnhancementFlags,
+    },
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{
+        EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode, supports_keyboard_enhancement,
+    },
 };
 use futures::{StreamExt, future::FutureExt};
 use ratatui::{Terminal, prelude::CrosstermBackend};
@@ -80,11 +81,11 @@ impl<'a> Ui<'a> {
                 self.redraw(terminal)?;
             }
             Some(Ok(event)) => {
-                self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
+                if self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
                     let _ = self.ui_event_tx.send(ev);
-                });
-
-                self.redraw(terminal)?;
+                }) {
+                    self.redraw(terminal)?;
+                }
             }
             Some(Err(e)) => tracing::error!("event catching error {}", e),
             None => subsys.request_shutdown(),
@@ -94,7 +95,11 @@ impl<'a> Ui<'a> {
     }
 
     fn redraw(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
-        terminal.draw(|frame| self.layout.render(&self.state_rx.borrow(), frame, frame.area()))?;
+        terminal.draw(|frame| {
+            self.layout.render(&self.state_rx.borrow(), frame, frame.area(), &|ev| {
+                let _ = self.ui_event_tx.send(ev);
+            })
+        })?;
 
         Ok(())
     }
@@ -110,7 +115,7 @@ fn setup_terminal(supports_keyboard_enhancement: bool) -> io::Result<Terminal<Cr
 
     enable_raw_mode()?;
 
-    execute!(stdout(), EnterAlternateScreen, EnableBracketedPaste)?;
+    execute!(stdout(), EnterAlternateScreen, EnableBracketedPaste, EnableFocusChange)?;
 
     if supports_keyboard_enhancement {
         execute!(
@@ -127,7 +132,12 @@ fn restore_terminal(supports_keyboard_enhancement: bool) -> io::Result<()> {
         execute!(stdout(), PopKeyboardEnhancementFlags)?;
     }
 
-    execute!(stdout(), DisableBracketedPaste, LeaveAlternateScreen)?;
+    execute!(
+        stdout(),
+        DisableFocusChange,
+        DisableBracketedPaste,
+        LeaveAlternateScreen
+    )?;
 
     disable_raw_mode()?;
 

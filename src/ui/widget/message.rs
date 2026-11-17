@@ -63,7 +63,7 @@ impl<'a> Widget for MessageWidget<'a> {
         let area = Rect {
             x: area.x,
             y: area.y,
-            width: area.width - 2,
+            width: area.width - 1,
             height,
         };
 
@@ -98,9 +98,8 @@ impl<'a> Widget for MessageWidget<'a> {
         )
         .split(block_area);
 
-        let v0_h = Layout::horizontal([Constraint::Fill(4), Constraint::Fill(2), Constraint::Fill(1)])
-            .flex(Flex::SpaceBetween)
-            .split(v[0]);
+        let v0_h =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(10), Constraint::Length(17)]).split(v[0]);
 
         let v1_h = Layout::horizontal([
             Constraint::Fill(1),

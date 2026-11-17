@@ -149,6 +149,11 @@ impl ChatService {
                     }
                     _ => {}
                 },
+                UiEvent::ChatMessageSelected(chat, message_id) => {
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::ChatSelectMessage(chat, message_id));
+                }
                 _ => {}
             },
             Err(broadcast::error::RecvError::Lagged(n)) => {

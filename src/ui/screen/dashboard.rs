@@ -58,7 +58,7 @@ impl Screen for Dashboard {
         false
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         let is_big = area.width > 116;
         let rows: [u16; 4] = if is_big { [8, 10, 14, 9] } else { [8, 10, 12, 9] };
 

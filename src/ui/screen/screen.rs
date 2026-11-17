@@ -5,5 +5,5 @@ pub trait Screen {
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool;
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect);
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, emit: &impl Fn(UiEvent));
 }

@@ -1,3 +1,4 @@
+mod app;
 mod chat;
 mod config;
 mod connection;
@@ -7,8 +8,8 @@ mod persistence;
 mod settings;
 mod telemetry;
 mod traceroute;
-mod ui;
 
+pub use app::*;
 pub use chat::*;
 pub use config::*;
 pub use connection::*;
@@ -18,4 +19,3 @@ pub use persistence::*;
 pub use settings::*;
 pub use telemetry::*;
 pub use traceroute::*;
-pub use ui::*;

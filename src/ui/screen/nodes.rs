@@ -287,7 +287,7 @@ impl<'a> Screen for Nodes<'a> {
         true
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         if self
             .list_state
             .selected

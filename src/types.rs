@@ -68,6 +68,7 @@ pub enum UiEvent {
     ChatSwitchRequested,
     ChatTopReached,
     ChatPreviousMessagesLoadRequested,
+    ChatMessageSelected(Chat, Uuid),
     ChatMessageSubmitted {
         text: String,
         reply_id: Option<Uuid>,
@@ -757,7 +758,7 @@ impl From<channel::Role> for ChannelRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Copy)]
 pub enum Chat {
     Channel(u32),
     Direct(u32),

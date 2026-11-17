@@ -10,7 +10,7 @@ use crate::service::{PersistenceService, TracerouteService};
 use crate::{
     log2state::LogToState,
     meshtastic::MeshtasticService,
-    service::{ChatService, ConfigService, ConnectionService, NodesService, SettingsService, UiService},
+    service::{AppService, ChatService, ConfigService, ConnectionService, NodesService, SettingsService},
     state::{State, Store},
     types::UiEvent,
     ui::Ui,
@@ -59,7 +59,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         config_dir,
     );
 
-    let ui_service = UiService::new(ui_event_rx.resubscribe(), state_action_tx.clone());
+    let app_service = AppService::new(ui_event_rx.resubscribe(), state_action_tx.clone());
 
     let nodes_service = NodesService::new(
         ui_event_rx.resubscribe(),
@@ -124,8 +124,8 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         }));
 
         s.start(SubsystemBuilder::new(
-            "UiService",
-            async |subsys: &mut SubsystemHandle| ui_service.run(subsys).await,
+            "AppService",
+            async |subsys: &mut SubsystemHandle| app_service.run(subsys).await,
         ));
 
         s.start(SubsystemBuilder::new(

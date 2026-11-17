@@ -342,7 +342,11 @@ impl PersistenceService {
                 let state_action_tx = self.state_action_tx.clone();
                 let state = self.state_rx.borrow();
 
-                let Some(oldest_message_id) = state.chats.get(&chat).as_ref().and_then(|ids| ids.first().cloned())
+                let Some(oldest_message_id) = state
+                    .chats
+                    .get(&chat)
+                    .as_ref()
+                    .and_then(|chat_state| chat_state.ids.first().cloned())
                 else {
                     return;
                 };

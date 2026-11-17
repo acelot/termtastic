@@ -147,7 +147,7 @@ impl<'a> Screen for Layout<'a> {
         false
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, emit: &impl Fn(UiEvent)) {
         if area.width < MIN_TERMINAL_SIZE.0 || area.height < MIN_TERMINAL_SIZE.1 {
             TerminalSizeWidget::new(MIN_TERMINAL_SIZE).render(area, frame.buffer_mut());
             return;
@@ -186,12 +186,12 @@ impl<'a> Screen for Layout<'a> {
         }
 
         match state.active_tab {
-            Tab::Chat => self.chat_screen.render(state, frame, v[4]),
-            Tab::Nodes => self.nodes_screen.render(state, frame, v[4]),
-            Tab::Settings => self.settings_screen.render(state, frame, v[4]),
-            Tab::Connection => self.connection_screen.render(state, frame, v[4]),
-            Tab::Dashboard => self.dashboard_screen.render(state, frame, v[4]),
-            Tab::Logs => self.logs_screen.render(state, frame, v[4]),
+            Tab::Chat => self.chat_screen.render(state, frame, v[4], emit),
+            Tab::Nodes => self.nodes_screen.render(state, frame, v[4], emit),
+            Tab::Settings => self.settings_screen.render(state, frame, v[4], emit),
+            Tab::Connection => self.connection_screen.render(state, frame, v[4], emit),
+            Tab::Dashboard => self.dashboard_screen.render(state, frame, v[4], emit),
+            Tab::Logs => self.logs_screen.render(state, frame, v[4], emit),
         }
 
         // hotkeys

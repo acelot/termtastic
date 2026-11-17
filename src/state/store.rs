@@ -16,9 +16,10 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use uuid::Uuid;
 
 use crate::service::{DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view};
+use crate::state::ChatState;
 use crate::types::{
-    Chat, DbLoadState, DeviceConfig, DeviceModuleConfig, Message, Node, NodeLastTelemetry, NodeTelemetry,
-    NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
+    Chat, DbLoadState, Message, Node, NodeLastTelemetry, NodeTelemetry, NodeTelemetryTyped, Traceroute,
+    TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -158,34 +159,34 @@ impl Store {
             }
             StateAction::ConnectionStop => {
                 self.state_tx.send_modify(|state| {
-                    state.active_chat = None;
-                    state.active_device = None;
-                    state.active_traceroutes.clear();
+                    state.active_chat = Default::default();
+                    state.active_device = Default::default();
+                    state.active_traceroutes = Default::default();
                     state.channels = State::default_channels();
-                    state.chats.clear();
-                    state.connection_attempt = 0;
-                    state.connection_state = ConnectionState::default();
-                    state.db_load_state = DbLoadState::default();
-                    state.device_metadata = None;
-                    state.device_config = DeviceConfig::default();
-                    state.device_module_config = DeviceModuleConfig::default();
-                    state.messages.clear();
-                    state.my_node_key = None;
-                    state.my_node_device_metrics.clear();
-                    state.nodeinfo_key = None;
-                    state.nodeinfo_telemetry.clear();
-                    state.nodes_loader_current = 0;
-                    state.nodes_loader_total = 0;
-                    state.nodes_view.clear();
-                    state.nodes.clear();
-                    state.online_nodes = 0;
-                    state.packets_id_map.clear();
-                    state.reconnection_backoff = None;
-                    state.settings_form_data = None;
-                    state.settings_form_is_changed = false;
-                    state.settings_form_original_data = None;
-                    state.settings_form_state = SettingsFormState::default();
-                    state.traceroutes.clear();
+                    state.chats = Default::default();
+                    state.connection_attempt = Default::default();
+                    state.connection_state = Default::default();
+                    state.db_load_state = Default::default();
+                    state.device_metadata = Default::default();
+                    state.device_config = Default::default();
+                    state.device_module_config = Default::default();
+                    state.messages = Default::default();
+                    state.my_node_key = Default::default();
+                    state.my_node_device_metrics = Default::default();
+                    state.nodeinfo_key = Default::default();
+                    state.nodeinfo_telemetry = Default::default();
+                    state.nodes_loader_current = Default::default();
+                    state.nodes_loader_total = Default::default();
+                    state.nodes_view = Default::default();
+                    state.nodes = Default::default();
+                    state.online_nodes = Default::default();
+                    state.packets_id_map = Default::default();
+                    state.reconnection_backoff = Default::default();
+                    state.settings_form_data = Default::default();
+                    state.settings_form_is_changed = Default::default();
+                    state.settings_form_original_data = Default::default();
+                    state.settings_form_state = Default::default();
+                    state.traceroutes = Default::default();
 
                     update_nodes_view(state);
                 });
@@ -266,6 +267,10 @@ impl Store {
                     if let Some(messages) = state.db_load_transaction_messages.take() {
                         for message in messages {
                             add_message(message, state);
+                        }
+
+                        for (_, chat_state) in state.chats.iter_mut() {
+                            chat_state.select_last();
                         }
                     }
 
@@ -368,7 +373,7 @@ impl Store {
             StateAction::DeviceDiscoveringStart => {
                 self.state_tx.send_modify(|state| {
                     state.device_discovering_state = DeviceDiscoveringState::Scanning;
-                    state.devices_discovered.clear();
+                    state.devices_discovered = Default::default();
                 });
 
                 true
@@ -512,8 +517,8 @@ impl Store {
             StateAction::NodeInfoKeyUnset => {
                 self.state_tx.send_modify(|state| {
                     state.nodeinfo_key = None;
-                    state.nodeinfo_telemetry.clear();
-                    state.nodeinfo_position.clear();
+                    state.nodeinfo_telemetry = Default::default();
+                    state.nodeinfo_position = Default::default();
                 });
 
                 true
@@ -576,7 +581,7 @@ impl Store {
                     && nodeinfo_key == node_key
                 {
                     state.nodeinfo_key = None;
-                    state.nodeinfo_telemetry.clear();
+                    state.nodeinfo_telemetry = Default::default();
                 }
 
                 update_nodes_view(state);
@@ -650,7 +655,7 @@ impl Store {
                             state.active_chat = None;
                         }
                     } else if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat.clone(), OrderSet::new());
+                        state.chats.insert_sorted(chat, ChatState::default());
                     }
 
                     state.channels.insert(key, channel);
@@ -711,8 +716,8 @@ impl Store {
                         {
                             state.chats.remove(&chat);
                         } else {
-                            if let Some(messages) = state.chats.get_mut(&chat) {
-                                messages.clear()
+                            if let Some(chat_state) = state.chats.get_mut(&chat) {
+                                chat_state.clear();
                             }
                         }
                     }
@@ -723,6 +728,9 @@ impl Store {
 
                 true
             }),
+            StateAction::ChatSelectMessage(chat, message_id) => self
+                .state_tx
+                .send_if_modified(|state| state.chats.entry(chat).or_default().select(message_id)),
             StateAction::RxIndicatorTrigger => {
                 self.state_tx.send_modify(|state| {
                     state.rx_indicator_t = Instant::now();
@@ -771,7 +779,7 @@ impl Store {
                     let chat = Chat::Direct(node_key);
 
                     if !state.chats.contains_key(&chat) {
-                        state.chats.insert_sorted(chat.clone(), OrderSet::new());
+                        state.chats.insert_sorted(chat, ChatState::default());
                     }
 
                     state.nodeinfo_key = None;
@@ -847,16 +855,16 @@ impl Store {
             }
             StateAction::PreviousMessagesLoadFinished { chat, messages } => {
                 self.state_tx.send_modify(|state| {
-                    let Some(existing_ids) = state.chats.get(&chat) else {
+                    let Some(chat_state) = state.chats.get_mut(&chat) else {
                         return;
                     };
 
                     let mut new_ids: OrderSet<Uuid> =
                         messages.iter().filter_map(|m| (!m.is_emoji).then_some(m.id)).collect();
 
-                    new_ids.extend(existing_ids);
+                    new_ids.extend(chat_state.ids.clone());
 
-                    state.chats.insert(chat, new_ids);
+                    chat_state.ids = new_ids;
 
                     for message in messages {
                         if message.is_emoji
@@ -1311,11 +1319,11 @@ fn add_message(message: Message, state: &mut State) {
         let chat = Chat::from((&message, my_node_key));
 
         match state.chats.entry(chat) {
-            Occupied(mut ids) => {
-                ids.get_mut().insert(message.id);
+            Occupied(mut entry) => {
+                entry.get_mut().ids.insert(message.id);
             }
             Vacant(entry) => {
-                entry.insert_sorted(OrderSet::from([message.id]));
+                entry.insert_sorted(ChatState::new([message.id], None));
             }
         };
     }

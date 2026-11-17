@@ -129,6 +129,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
                 1, // line
                 1, // meta header
                 1, // meta
+                1, // gap
             ]
             .iter()
             .sum(),
@@ -152,6 +153,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             line_area,
             meta_uuid_area,
             meta_packet_id_area,
+            _,
         ] = Layout::vertical([
             Constraint::Length(if replying_message_paragraph_height > 0 { 1 } else { 0 }), // replying message header
             Constraint::Length(replying_message_paragraph_height),                         // replying message
@@ -165,6 +167,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
             Constraint::Length(1),                                                         // line
             Constraint::Length(1),                                                         // meta UUID
             Constraint::Length(1),                                                         // meta packet ID
+            Constraint::Length(1),                                                         // gap
         ])
         .areas(Rect::new(0, 0, content_size.width, content_size.height));
 
@@ -256,13 +259,13 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
         let meta_packet_id_area_h =
             Layout::horizontal([Constraint::Length(12), Constraint::Fill(1)]).split(meta_packet_id_area);
 
-        scroll_view.render_widget(Span::from("UUID").cyan(), meta_uuid_area_h[0]);
+        scroll_view.render_widget(Span::from("uuid").cyan(), meta_uuid_area_h[0]);
         scroll_view.render_widget(
             Span::from(self.data.message.id.to_string()).dark_gray(),
             meta_uuid_area_h[1],
         );
 
-        scroll_view.render_widget(Span::from("PACKET ID").cyan(), meta_packet_id_area_h[0]);
+        scroll_view.render_widget(Span::from("packet id").cyan(), meta_packet_id_area_h[0]);
         scroll_view.render_widget(
             Span::from(self.data.message.packet_id.to_string()).dark_gray(),
             meta_packet_id_area_h[1],

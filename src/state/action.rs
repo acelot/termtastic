@@ -3,6 +3,7 @@ use std::{collections::HashMap, time::Duration};
 use chrono::{DateTime, Utc};
 use meshtastic::protobufs::{DeviceMetrics, config, module_config, routing};
 use strum::EnumProperty;
+use uuid::Uuid;
 
 use crate::types::{
     AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node, NodePosition,
@@ -19,6 +20,7 @@ pub enum StateAction {
         channel: Channel,
     },
     ChatPurge(Chat),
+    ChatSelectMessage(Chat, Uuid),
     ConnectionFail {
         error: String,
     },

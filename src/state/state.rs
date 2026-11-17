@@ -1,9 +1,8 @@
 use crate::types::*;
 use meshtastic::protobufs::DeviceMetrics;
 use ordermap::{OrderMap, OrderSet};
-use std::collections::HashSet;
 use std::{
-    collections::{BTreeSet, HashMap, VecDeque},
+    collections::{BTreeSet, HashMap, HashSet, VecDeque},
     time::{Duration, Instant},
 };
 use uuid::Uuid;
@@ -17,7 +16,7 @@ pub struct State {
     pub active_tab: Tab,
     pub active_traceroutes: HashSet<u32>,
     pub channels: HashMap<u32, Channel>,
-    pub chats: OrderMap<Chat, OrderSet<Uuid>>,
+    pub chats: OrderMap<Chat, ChatState>,
     pub connection_attempt: u32,
     pub connection_state: ConnectionState,
     pub db_load_state: DbLoadState,
@@ -150,5 +149,75 @@ impl State {
 
     pub fn default_channels() -> HashMap<u32, Channel> {
         (0..=7).map(|i| (i, Channel::disabled(i))).collect()
+    }
+
+    pub fn unread_messages_count(&self, chat: Chat) -> usize {
+        let Some(chat_state) = self.chats.get(&chat) else {
+            return 0;
+        };
+
+        chat_state
+            .max_id()
+            .and_then(|max_id| chat_state.ids.get_index_of(&max_id))
+            .and_then(|index| chat_state.ids.len().checked_sub(index + 1))
+            .unwrap_or(0)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ChatState {
+    pub ids: OrderSet<Uuid>,
+    selected_id: Option<Uuid>,
+    max_id: Option<Uuid>,
+}
+
+impl ChatState {
+    pub fn new<I>(ids: I, selected_id: Option<Uuid>) -> Self
+    where
+        I: IntoIterator<Item = Uuid>,
+    {
+        Self {
+            ids: OrderSet::from_iter(ids),
+            selected_id,
+            max_id: selected_id,
+        }
+    }
+
+    pub fn select(&mut self, id: Uuid) -> bool {
+        let mut changed = false;
+
+        if self.selected_id != Some(id) {
+            self.selected_id = Some(id);
+            changed = true;
+        }
+
+        if Some(id) > self.max_id() {
+            self.max_id = Some(id);
+            changed = true;
+        }
+
+        changed
+    }
+
+    pub fn select_last(&mut self) -> bool {
+        if let Some(last_id) = self.ids.last() {
+            return self.select(last_id.clone());
+        }
+
+        false
+    }
+
+    pub fn selected_id(&self) -> Option<Uuid> {
+        self.selected_id
+    }
+
+    pub fn max_id(&self) -> Option<Uuid> {
+        self.max_id
+    }
+
+    pub fn clear(&mut self) {
+        self.ids = Default::default();
+        self.selected_id = None;
+        self.max_id = None;
     }
 }

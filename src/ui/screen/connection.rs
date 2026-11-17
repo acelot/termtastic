@@ -325,7 +325,7 @@ impl<'a> Screen for Connection<'a> {
         false
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         self.list_state.fix_selection(state.devices.len());
 
         if let Some(active) = &state.active_device {

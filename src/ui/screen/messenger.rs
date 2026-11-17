@@ -1,21 +1,18 @@
-use ordermap::OrderSet;
-use std::{collections::HashMap, iter, ops::RangeInclusive, sync::LazyLock};
+use std::{collections::HashMap, iter, ops::RangeInclusive};
 use tracing_unwrap::OptionExt;
 use tui_widget_list::ScrollDirection;
 use uuid::Uuid;
 
-use crate::ui::prelude::*;
+use crate::{state::ChatState, ui::prelude::*};
 
 const INPUT_VALUE_MAX_LENGTH: usize = 200;
 const VALID_INPUT_LENGTH: RangeInclusive<usize> = 1..=INPUT_VALUE_MAX_LENGTH;
 
-static EMPTY_MESSAGES: LazyLock<OrderSet<Uuid>> = LazyLock::new(|| OrderSet::new());
-
 pub struct Messenger<'a> {
     list_states: HashMap<Chat, ListState>,
     input_widgets: HashMap<Chat, TextArea<'a>>,
-    follow_chat: HashMap<Chat, bool>,
     replying_to: HashMap<Chat, (Node, Uuid)>,
+    is_follow: bool,
     is_emoji_selector_visible: bool,
     emoji_selector_state: EmojiSelectorState<'a>,
     message_info: Option<Uuid>,
@@ -27,8 +24,8 @@ impl<'a> Messenger<'a> {
         Self {
             list_states: HashMap::default(),
             input_widgets: HashMap::default(),
-            follow_chat: HashMap::default(),
             replying_to: HashMap::default(),
+            is_follow: false,
             is_emoji_selector_visible: false,
             emoji_selector_state: EmojiSelectorState::new(),
             message_info: None,
@@ -114,20 +111,12 @@ impl<'a> Screen for Messenger<'a> {
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
 
-        let list_state = self.list_states.entry(active_chat.clone()).or_default();
-
         let input_widget = self
             .input_widgets
-            .entry(active_chat.clone())
+            .entry(*active_chat)
             .or_insert_with(|| new_input_widget());
 
         let is_replying_to = self.replying_to.contains_key(active_chat);
-
-        let messages: Vec<&Message> = state
-            .chats
-            .get(active_chat)
-            .map(|ids| ids.iter().filter_map(|id| state.messages.get(id)).collect())
-            .unwrap_or_default();
 
         // emoji selector
         if self.is_emoji_selector_visible {
@@ -185,14 +174,14 @@ impl<'a> Screen for Messenger<'a> {
                                         emoji,
                                         reply_id: Some(message_id),
                                     });
+
+                                    self.is_follow = true;
                                 }
                                 None => {
                                     emit(UiEvent::ChatMessageSubmitted {
                                         text: input_widget.trimmed_lines().join("\n"),
                                         reply_id: Some(message_id),
                                     });
-
-                                    self.follow_chat.insert(active_chat.clone(), true);
                                 }
                             }
 
@@ -205,7 +194,7 @@ impl<'a> Screen for Messenger<'a> {
                         self.replying_to.remove(active_chat);
                         return true;
                     }
-                    KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
+                    KeyCode::Tab | KeyCode::BackTab | KeyCode::F(12) => {
                         // capture these events to prevent handling by input widget
                         return false;
                     }
@@ -226,15 +215,21 @@ impl<'a> Screen for Messenger<'a> {
             false;
         }
 
+        let list_state = self.list_states.get_mut(active_chat).expect("should exists");
+        let ChatState { ids: messages_ids, .. } = state.chats.get(active_chat).expect("chat state should exists");
+
         // list events
-        if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages.len())) {
-            if let Some(index) = list_state.selected {
-                if matches!(event, Event::Key(KeyEvent { code: KeyCode::Up, .. })) && index == 0 {
+        if input_widget.is_empty() && list_state.handle_navigation_events(event, Some(messages_ids.len())) {
+            if let Some(selected_index) = list_state.selected {
+                if matches!(event, Event::Key(KeyEvent { code: KeyCode::Up, .. })) && selected_index == 0 {
                     emit(UiEvent::ChatTopReached);
                 }
 
-                self.follow_chat
-                    .insert(active_chat.clone(), Some(index) == messages.len().checked_sub(1));
+                if let Some(&selected_id) = messages_ids.get_index(selected_index) {
+                    emit(UiEvent::ChatMessageSelected(*active_chat, selected_id));
+                }
+
+                self.is_follow = false;
             }
 
             return true;
@@ -254,19 +249,19 @@ impl<'a> Screen for Messenger<'a> {
                 }
                 KeyCode::Enter if modifiers.is_empty() => {
                     if input_widget.is_empty() {
-                        self.message_info = list_state.selected.and_then(|i| messages.get(i).map(|m| m.id));
+                        self.message_info = list_state.selected.and_then(|i| messages_ids.get_index(i).cloned());
                         return true;
                     }
 
                     if VALID_INPUT_LENGTH.contains(&input_widget.trimmed_len()) {
-                        self.follow_chat.insert(active_chat.clone(), true);
-
                         emit(UiEvent::ChatMessageSubmitted {
                             text: input_widget.trimmed_lines().join("\n"),
                             reply_id: None,
                         });
 
                         input_widget.clear();
+
+                        self.is_follow = true;
                     }
 
                     return true;
@@ -279,10 +274,13 @@ impl<'a> Screen for Messenger<'a> {
                     return true;
                 }
                 KeyCode::F(2) if modifiers.is_empty() => {
-                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i))
+                    if let Some(message) = list_state
+                        .selected
+                        .and_then(|i| messages_ids.get_index(i))
+                        .and_then(|id| state.messages.get(id))
                         && let Some(node) = state.nodes.get(&message.from)
                     {
-                        self.replying_to.insert(active_chat.clone(), (node.clone(), message.id));
+                        self.replying_to.insert(*active_chat, (node.clone(), message.id));
                     }
 
                     return true;
@@ -290,7 +288,8 @@ impl<'a> Screen for Messenger<'a> {
                 KeyCode::F(4) if modifiers.is_empty() => {
                     if let Some(node_key) = list_state
                         .selected
-                        .and_then(|i| messages.get(i))
+                        .and_then(|i| messages_ids.get_index(i))
+                        .and_then(|id| state.messages.get(id))
                         .map(|message| message.from)
                     {
                         emit(UiEvent::NodeInfoPopupOpenRequested { node_key });
@@ -303,18 +302,26 @@ impl<'a> Screen for Messenger<'a> {
                     return true;
                 }
                 KeyCode::F(6) if modifiers.is_empty() => {
-                    if let Some(message) = list_state.selected.and_then(|i| messages.get(i)) {
+                    if let Some(message) = list_state
+                        .selected
+                        .and_then(|i| messages_ids.get_index(i))
+                        .and_then(|id| state.messages.get(id))
+                    {
                         emit(UiEvent::CopyToClipboardRequested(message.text.clone()));
                     }
 
                     return true;
                 }
                 KeyCode::Esc if modifiers.is_empty() => {
-                    self.follow_chat.insert(active_chat.clone(), false);
                     emit(UiEvent::ChatSwitchRequested);
+                    self.is_follow = false;
                     return true;
                 }
-                KeyCode::Tab | KeyCode::BackTab | KeyCode::Esc | KeyCode::F(12) => {
+                KeyCode::Tab | KeyCode::BackTab => {
+                    self.is_follow = false;
+                    return false;
+                }
+                KeyCode::F(12) => {
                     // capture these events to prevent handling by input widget
                     return false;
                 }
@@ -322,6 +329,14 @@ impl<'a> Screen for Messenger<'a> {
             },
             Event::Paste(text) => {
                 input_widget.insert_as_lines(text);
+            }
+            Event::FocusLost => {
+                self.is_follow = false;
+            }
+            Event::FocusGained => {
+                if list_state.selected == messages_ids.len().checked_sub(1) {
+                    self.is_follow = true;
+                }
             }
             _ => {}
         }
@@ -331,32 +346,27 @@ impl<'a> Screen for Messenger<'a> {
         true
     }
 
-    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect) {
+    fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, emit: &impl Fn(UiEvent)) {
         let active_chat = state.active_chat.as_ref().expect_or_log("channel should be selected");
-
-        if !self.list_states.contains_key(active_chat) {
-            self.list_states.insert(active_chat.clone(), ListState::default());
-        }
-
-        if !self.input_widgets.contains_key(active_chat) {
-            self.input_widgets.insert(active_chat.clone(), new_input_widget());
-        }
-
-        if !self.follow_chat.contains_key(active_chat) {
-            self.follow_chat.insert(active_chat.clone(), true);
-        }
-
-        let list_state = self.list_states.get_mut(active_chat).unwrap();
-        let input_widget = self.input_widgets.get_mut(active_chat).unwrap();
-        let follow_chat = self.follow_chat.get(active_chat).unwrap();
+        let chat_state = state.chats.get(active_chat).expect_or_log("chat state should exists");
         let replying_to = self.replying_to.get(active_chat);
-        let message_ids = state.chats.get(active_chat).unwrap_or(&EMPTY_MESSAGES);
+        let is_any_popup_visible =
+            state.nodeinfo_key.is_some() || self.is_emoji_selector_visible || self.message_info.is_some();
 
-        list_state.fix_selection(message_ids.len());
+        let list_state = self.list_states.entry(*active_chat).or_insert_with(|| {
+            let mut list_state = ListState::default();
 
-        if *follow_chat && !message_ids.is_empty() {
-            list_state.select(Some(message_ids.len() - 1));
-        }
+            if let Some(selected_id) = chat_state.selected_id() {
+                list_state.select(chat_state.ids.get_index_of(&selected_id));
+            }
+
+            list_state
+        });
+
+        let input_widget = self
+            .input_widgets
+            .entry(*active_chat)
+            .or_insert_with(|| new_input_widget());
 
         let v = Layout::vertical([
             Constraint::Fill(1),
@@ -364,13 +374,29 @@ impl<'a> Screen for Messenger<'a> {
         ])
         .split(area);
 
-        let is_any_popup_visible =
-            state.nodeinfo_key.is_some() || self.is_emoji_selector_visible || self.message_info.is_some();
-
         // list
-        if !message_ids.is_empty() {
+        list_state.fix_selection(chat_state.ids.len());
+
+        if list_state.selected == chat_state.ids.len().checked_sub(1) {
+            self.is_follow = true;
+        }
+
+        if self.is_follow {
+            let index = chat_state.ids.len().checked_sub(1);
+
+            if list_state.selected != index {
+                list_state.select(index);
+
+                if let Some(selected_id) = index.and_then(|i| chat_state.ids.get_index(i)) {
+                    emit(UiEvent::ChatMessageSelected(*active_chat, *selected_id));
+                }
+            }
+        }
+
+        if !chat_state.ids.is_empty() {
             let list_builder = ListBuilder::new(|context| {
-                let message_id = message_ids
+                let message_id = chat_state
+                    .ids
                     .get_index(context.index)
                     .expect_or_log("message should exist");
 
@@ -382,14 +408,14 @@ impl<'a> Screen for Messenger<'a> {
 
                 let (mut height, _) = item.height(area.width);
 
-                if context.index < message_ids.len() - 1 {
+                if context.index < chat_state.ids.len() - 1 {
                     height += 1;
                 }
 
                 (item, height)
             });
 
-            let list = ListView::new(list_builder, message_ids.len())
+            let list = ListView::new(list_builder, chat_state.ids.len())
                 .infinite_scrolling(false)
                 .scroll_direction(ScrollDirection::Backward)
                 .scrollbar(default_scrollbar())
@@ -465,6 +491,20 @@ impl<'a> Screen for Messenger<'a> {
         )
         .right_aligned()
         .render(input_block_area_h[3], frame.buffer_mut());
+
+        // unread indicator
+        let unread_messages_count = state.unread_messages_count(*active_chat);
+
+        if unread_messages_count > 0 {
+            let unread_span = Span::from(format!(" ↓ unread: {} ", unread_messages_count))
+                .white()
+                .on_blue();
+
+            let unread_popup_area = Rect::new(area.x, area.y + area.height - 4, area.width, 1)
+                .centered_horizontally(Constraint::Length(unread_span.width() as u16));
+
+            unread_span.render(unread_popup_area, frame.buffer_mut());
+        }
 
         // emoji selector
         if self.is_emoji_selector_visible {
