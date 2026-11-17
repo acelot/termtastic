@@ -80,6 +80,9 @@ impl<'a> Ui<'a> {
                 terminal.clear()?;
                 self.redraw(terminal)?;
             }
+            Some(Ok(Event::Resize(_, _))) => {
+                self.redraw(terminal)?;
+            }
             Some(Ok(event)) => {
                 if self.layout.handle_event(&self.state_rx.borrow(), &event, &|ev| {
                     let _ = self.ui_event_tx.send(ev);
