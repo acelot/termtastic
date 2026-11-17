@@ -175,7 +175,22 @@ impl<'a> Screen for Layout<'a> {
         HeaderWidget::new(HeaderContext::from(state)).render(v[0], frame.buffer_mut());
 
         TabsWidget::new(
-            Tab::iter().map(|t| (t as usize, t.to_string())).collect(),
+            Tab::iter()
+                .map(|t| match t {
+                    Tab::Chat => (
+                        t as usize,
+                        format!(
+                            "{}{}",
+                            t.to_string(),
+                            Some(state.unread_messages_count())
+                                .filter(|c| *c > 0)
+                                .map(|c| format!("[{}]", c))
+                                .unwrap_or_default()
+                        ),
+                    ),
+                    _ => (t as usize, t.to_string()),
+                })
+                .collect(),
             state.active_tab as usize,
         )
         .render(v[2], frame.buffer_mut());

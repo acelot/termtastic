@@ -114,7 +114,7 @@ impl<'a> Screen for Chat<'a> {
             let (chat, ChatState { ids: message_ids, .. }) = state.chats.get_index(context.index).unwrap();
             let last_message = message_ids.iter().last().and_then(|id| state.messages.get(id));
             let last_message_node = last_message.and_then(|message| state.nodes.get(&message.from));
-            let unread_messages_count = state.unread_messages_count(*chat);
+            let unread_messages_count = state.unread_messages_count_by_chat(*chat);
 
             let chat_type = match chat {
                 crate::types::Chat::Channel(channel_key) => {

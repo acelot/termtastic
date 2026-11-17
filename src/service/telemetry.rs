@@ -46,7 +46,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             device_metrics.data.battery_level,
             device_metrics.data.battery_level.map(|v| {
                 if v > 100 {
-                    "\u{1F50C} PWR".to_owned()
+                    "ϟ PWR".to_owned()
                 } else {
                     format!("{}%", v)
                 }

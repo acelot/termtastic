@@ -185,7 +185,7 @@ impl Widget for HeaderWidget<'_> {
 
                 if let Some(battery_level) = self.context.battery_level {
                     if battery_level > 100 {
-                        Line::from(vec![Span::from("\u{1F50C} PWR").dark_gray()])
+                        Line::from(vec![Span::from("ϟ PWR").dark_gray()])
                             .right_aligned()
                             .render(h1_h[2], buf);
                     } else {

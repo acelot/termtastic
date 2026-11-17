@@ -493,7 +493,7 @@ impl<'a> Screen for Messenger<'a> {
         .render(input_block_area_h[3], frame.buffer_mut());
 
         // unread indicator
-        let unread_messages_count = state.unread_messages_count(*active_chat);
+        let unread_messages_count = state.unread_messages_count_by_chat(*active_chat);
 
         if unread_messages_count > 0 {
             let unread_span = Span::from(format!(" ↓ unread: {} ", unread_messages_count))

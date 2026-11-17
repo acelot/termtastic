@@ -68,7 +68,7 @@ impl<'a> Widget for MyNodeWidget<'a> {
 
         if let Some(battery_level) = self.data.battery_level {
             let span = if battery_level > 100 {
-                Span::from("\u{1F50C} PWR").dark_gray()
+                Span::from("ϟ PWR").dark_gray()
             } else {
                 Span::from(format!("BAT {}%", battery_level)).fg(battery_level.battery_level_to_color())
             };

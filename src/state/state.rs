@@ -151,7 +151,7 @@ impl State {
         (0..=7).map(|i| (i, Channel::disabled(i))).collect()
     }
 
-    pub fn unread_messages_count(&self, chat: Chat) -> usize {
+    pub fn unread_messages_count_by_chat(&self, chat: Chat) -> usize {
         let Some(chat_state) = self.chats.get(&chat) else {
             return 0;
         };
@@ -161,6 +161,13 @@ impl State {
             .and_then(|max_id| chat_state.ids.get_index_of(&max_id))
             .and_then(|index| chat_state.ids.len().checked_sub(index + 1))
             .unwrap_or(0)
+    }
+
+    pub fn unread_messages_count(&self) -> usize {
+        self.chats
+            .keys()
+            .map(|ch| self.unread_messages_count_by_chat(*ch))
+            .sum()
     }
 }
 
