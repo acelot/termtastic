@@ -1,9 +1,11 @@
 use arboard::Clipboard;
+use meshtastic::protobufs::config;
 use tokio::sync::{broadcast, mpsc};
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::state::StateAction;
-use crate::types::Toast;
+use crate::state::{State, StateAction};
+use crate::types::{ChannelRole, Chat, Tab, Toast};
+use crate::ui::helpers::ModemPresetExt;
 use crate::ui::prelude::UiEvent;
 
 pub struct AppService {
@@ -78,4 +80,66 @@ impl AppService {
 fn copy_to_clipboard(text: String) -> anyhow::Result<()> {
     Clipboard::new()?.set_text(text)?;
     Ok(())
+}
+
+pub fn update_terminal_title(state: &mut State) {
+    let title = match state.active_tab {
+        Tab::Chat => match state.active_chat {
+            Some(Chat::Channel(channel_key)) => {
+                let radio_preset_name = state
+                    .device_config
+                    .lora
+                    .as_ref()
+                    .and_then(|lora| config::lo_ra_config::ModemPreset::try_from(lora.modem_preset).ok())
+                    .map(|preset| preset.as_channel_name());
+
+                match state.channels.get(&channel_key) {
+                    Some(channel) => match channel.role {
+                        ChannelRole::Primary => Some(format!(
+                            "#{} {}",
+                            &channel.key,
+                            if !channel.name.is_empty() {
+                                channel.name.clone()
+                            } else if let Some(preset_name) = radio_preset_name {
+                                preset_name.clone()
+                            } else {
+                                "Primary".to_owned()
+                            }
+                        )),
+                        ChannelRole::Secondary => Some(format!(
+                            "#{} {}",
+                            channel.key,
+                            if !channel.name.is_empty() {
+                                &channel.name
+                            } else {
+                                "Secondary"
+                            }
+                        )),
+                        ChannelRole::Disabled => Some(format!("#{} Secondary Disabled", channel.key)),
+                    },
+                    None => Some(format!("!{:x}", channel_key)),
+                }
+            }
+            Some(Chat::Direct(node_key)) => {
+                let node = state.nodes.get(&node_key);
+
+                match node {
+                    Some(node) => Some(format!("[{}] {}", node.short_name(), node.long_name())),
+                    None => Some(format!("!{:x}", node_key)),
+                }
+            }
+            None => Some(Tab::Chat.to_string()),
+        },
+        tab => Some(tab.to_string()),
+    };
+
+    let node_name = state
+        .get_my_node()
+        .and_then(|n| Some(format!(" · [{}]", n.short_name())));
+
+    state.terminal_title = Some(format!(
+        "{}{}",
+        title.unwrap_or_default(),
+        node_name.unwrap_or_default()
+    ));
 }

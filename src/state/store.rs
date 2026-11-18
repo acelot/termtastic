@@ -15,7 +15,9 @@ use tokio::{
 use tokio_graceful_shutdown::SubsystemHandle;
 use uuid::Uuid;
 
-use crate::service::{DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view};
+use crate::service::{
+    DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view, update_terminal_title,
+};
 use crate::state::ChatState;
 use crate::types::{
     Chat, DbLoadState, Message, Node, NodeLastTelemetry, NodeTelemetry, NodeTelemetryTyped, Traceroute,
@@ -102,6 +104,7 @@ impl Store {
                     state.ui_config = cfg.ui_config;
 
                     update_nodes_view(state);
+                    update_terminal_title(state);
                 });
 
                 true
@@ -109,6 +112,7 @@ impl Store {
             StateAction::TabSwitchToNext => {
                 self.state_tx.send_modify(|state| {
                     state.active_tab = state.active_tab.next();
+                    update_terminal_title(state);
                 });
 
                 true
@@ -116,6 +120,7 @@ impl Store {
             StateAction::TabSwitchToPrevious => {
                 self.state_tx.send_modify(|state| {
                     state.active_tab = state.active_tab.prev();
+                    update_terminal_title(state);
                 });
 
                 true
@@ -189,6 +194,7 @@ impl Store {
                     state.traceroutes = Default::default();
 
                     update_nodes_view(state);
+                    update_terminal_title(state);
                 });
 
                 true
@@ -543,6 +549,7 @@ impl Store {
                 existing_node.update_fulltext();
 
                 update_nodes_view(state);
+                update_terminal_title(state);
 
                 true
             }),
@@ -598,6 +605,7 @@ impl Store {
                     node.user = Some(user);
 
                     update_nodes_view(state);
+                    update_terminal_title(state);
 
                     return true;
                 }
@@ -653,6 +661,7 @@ impl Store {
 
                         if state.active_chat.as_ref() == Some(&chat) {
                             state.active_chat = None;
+                            update_terminal_title(state);
                         }
                     } else if !state.chats.contains_key(&chat) {
                         state.chats.insert_sorted(chat, ChatState::default());
@@ -666,6 +675,7 @@ impl Store {
             StateAction::ActiveChatSet(chat) => {
                 self.state_tx.send_modify(|state| {
                     state.active_chat = Some(chat);
+                    update_terminal_title(state);
                 });
 
                 true
@@ -673,6 +683,7 @@ impl Store {
             StateAction::ActiveChatUnset => {
                 self.state_tx.send_modify(|state| {
                     state.active_chat = None;
+                    update_terminal_title(state);
                 });
 
                 true
@@ -785,6 +796,7 @@ impl Store {
                     state.nodeinfo_key = None;
                     state.active_chat = Some(chat);
                     state.active_tab = Tab::Chat;
+                    update_terminal_title(state);
                 });
 
                 true
@@ -1159,6 +1171,7 @@ fn node_init(node: Node, state: &mut State) -> bool {
             entry.insert(node);
 
             update_nodes_view(state);
+            update_terminal_title(state);
 
             true
         }
@@ -1167,6 +1180,7 @@ fn node_init(node: Node, state: &mut State) -> bool {
                 entry.insert(node);
 
                 update_nodes_view(state);
+                update_terminal_title(state);
 
                 return true;
             }

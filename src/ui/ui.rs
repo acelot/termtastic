@@ -1,6 +1,8 @@
 use crate::state::State;
 use crate::types::UiEvent;
 use crate::ui::screen::{Layout, Screen};
+use crate::{APP_NAME, APP_VERSION};
+use crossterm::terminal::SetTitle;
 use crossterm::{
     event::{
         DisableBracketedPaste, DisableFocusChange, EnableBracketedPaste, EnableFocusChange, Event, EventStream,
@@ -98,8 +100,12 @@ impl<'a> Ui<'a> {
     }
 
     fn redraw(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {
+        let state = self.state_rx.borrow();
+
+        set_terminal_title(state.terminal_title.as_ref())?;
+
         terminal.draw(|frame| {
-            self.layout.render(&self.state_rx.borrow(), frame, frame.area(), &|ev| {
+            self.layout.render(&state, frame, frame.area(), &|ev| {
                 let _ = self.ui_event_tx.send(ev);
             })
         })?;
@@ -117,6 +123,7 @@ fn setup_terminal(supports_keyboard_enhancement: bool) -> io::Result<Terminal<Cr
     }));
 
     enable_raw_mode()?;
+    set_terminal_title(None)?;
 
     execute!(stdout(), EnterAlternateScreen, EnableBracketedPaste, EnableFocusChange)?;
 
@@ -145,4 +152,16 @@ fn restore_terminal(supports_keyboard_enhancement: bool) -> io::Result<()> {
     disable_raw_mode()?;
 
     Ok(())
+}
+
+fn set_terminal_title(title: Option<&String>) -> io::Result<()> {
+    execute!(
+        stdout(),
+        SetTitle(format!(
+            "{}{} ({})",
+            title.and_then(|t| Some(format!("{} · ", t))).unwrap_or_default(),
+            APP_NAME,
+            APP_VERSION
+        ))
+    )
 }
