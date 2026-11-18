@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use uuid::Uuid;
 
 use crate::repository::domain::message::Message;
@@ -13,7 +13,7 @@ impl From<crate::types::Message> for Message {
             from: value.from,
             to: value.to,
             channel: value.channel,
-            datetime: value.datetime.to_rfc3339(),
+            datetime: value.datetime.to_string(),
             text: value.text,
             is_emoji: value.is_emoji,
             hops: value.hops,
@@ -36,7 +36,7 @@ impl TryFrom<Message> for crate::types::Message {
             from: value.from,
             to: value.to,
             channel: value.channel,
-            datetime: DateTime::parse_from_rfc3339(&value.datetime)?.with_timezone(&Utc),
+            datetime: value.datetime.parse::<Timestamp>()?,
             text: value.text,
             is_emoji: value.is_emoji,
             reactions: Vec::default(),

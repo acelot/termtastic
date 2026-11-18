@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use tokio::sync::mpsc;
 use tracing::field::{Field, Visit};
 use tracing_subscriber::Layer;
@@ -29,7 +29,7 @@ impl<S: tracing::Subscriber + Send + Sync> Layer<S> for LogToState {
 
         let _ = self.state_action_tx.send(StateAction::LogRecordAdd(LogRecord {
             id: 0,
-            datetime: Utc::now(),
+            datetime: Timestamp::now(),
             level,
             source,
             message,

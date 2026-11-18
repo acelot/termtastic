@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use chrono::Utc;
 use itertools::Itertools;
+use jiff::Timestamp;
 use meshtastic::{
     Message as _,
     protobufs::{
@@ -164,7 +164,7 @@ impl TracerouteService {
                                 let _ = self.state_action_tx.send(StateAction::TracerouteStart {
                                     node_key: mesh_packet.to,
                                     message_id: mesh_packet.id,
-                                    datetime: Utc::now(),
+                                    datetime: Timestamp::now(),
                                 });
 
                                 return;
@@ -186,7 +186,7 @@ impl TracerouteService {
 
                             let _ = self.state_action_tx.send(StateAction::TracerouteFinish {
                                 message_id: data.request_id,
-                                datetime: Utc::now(),
+                                datetime: Timestamp::now(),
                                 route_towards,
                                 route_back,
                             });
@@ -220,7 +220,7 @@ impl TracerouteService {
                     continue;
                 }
 
-                if Utc::now().signed_duration_since(traceroute.datetime).num_seconds() < TRACEROUTE_TIMEOUT_SECS {
+                if Timestamp::now().duration_since(traceroute.datetime).as_secs() < TRACEROUTE_TIMEOUT_SECS {
                     continue;
                 }
 

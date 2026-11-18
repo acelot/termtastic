@@ -110,9 +110,7 @@ impl<'a> StatefulWidget for TraceroutePopupWidget<'a> {
                     Line::from(back_spans),
                     Line::from(Span::from("")),
                     Line::from(Span::from("ROUND TRIP TIME").magenta()),
-                    Line::from(Span::from(humanize_uptime(
-                        self.traceroute.duration.num_seconds() as u32
-                    ))),
+                    Line::from(Span::from(humanize_uptime(self.traceroute.duration.as_secs() as u32))),
                 ])
                 .wrap(Wrap { trim: false });
 

@@ -1,4 +1,3 @@
-use chrono::Local;
 use tracing::Level;
 
 use crate::ui::prelude::*;
@@ -239,7 +238,7 @@ impl<'a> StatefulWidget for LogRecordWidget<'a> {
 fn get_record_paragraph(record: &'_ LogRecord, is_selected: bool, with_source: bool, wrap: bool) -> Paragraph<'_> {
     Paragraph::new(Line::from(
         vec![
-            Some(Span::from(record.datetime.with_timezone(&Local).format("%H:%M:%S").to_string()).dark_gray()),
+            Some(Span::from(to_local(record.datetime).strftime("%H:%M:%S").to_string()).dark_gray()),
             Some(
                 Span::from(format!("{:^7}", record.level.to_string())).style(match record.level {
                     Level::TRACE | Level::DEBUG => Style::default().green(),

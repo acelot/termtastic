@@ -1,4 +1,3 @@
-use chrono::Local;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use ratatui::{
     layout::*,
@@ -15,6 +14,7 @@ use crate::{
     types::{Message, Node, UNKNOWN_NODE},
     ui::helpers::{
         DEFAULT_SCROLLBAR_SET, StringExt, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span,
+        to_local,
     },
 };
 
@@ -187,10 +187,8 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
 
             if let Some(replying_message) = self.data.replying_message {
                 scroll_view.render_widget(
-                    Line::from(
-                        Span::from(humanize_datetime(replying_message.datetime.with_timezone(&Local))).dark_gray(),
-                    )
-                    .right_aligned(),
+                    Line::from(Span::from(humanize_datetime(to_local(replying_message.datetime))).dark_gray())
+                        .right_aligned(),
                     replying_header_area_h[1],
                 );
             }
@@ -225,8 +223,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
         );
 
         scroll_view.render_widget(
-            Line::from(Span::from(humanize_datetime(self.data.message.datetime.with_timezone(&Local))).dark_gray())
-                .right_aligned(),
+            Line::from(Span::from(humanize_datetime(to_local(self.data.message.datetime))).dark_gray()).right_aligned(),
             message_header_area_h[2],
         );
 
@@ -372,12 +369,10 @@ impl<'a> Widget for ReactionWidget<'a> {
         .render(hops_area, buf);
 
         // datetime
-        Line::from(humanize_datetime(
-            self.item.message.datetime.with_timezone(&chrono::Local),
-        ))
-        .right_aligned()
-        .dark_gray()
-        .render(date_area, buf);
+        Line::from(humanize_datetime(to_local(self.item.message.datetime)))
+            .right_aligned()
+            .dark_gray()
+            .render(date_area, buf);
     }
 }
 

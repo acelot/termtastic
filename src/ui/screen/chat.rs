@@ -226,7 +226,7 @@ impl<'a> Widget for ChannelWidget<'a> {
         Line::from(self.chat_type).magenta().render(v0_h[1], buf);
 
         Line::from(if let Some(message) = self.last_message {
-            Span::from(humanize_datetime(message.datetime.with_timezone(&chrono::Local)))
+            Span::from(humanize_datetime(to_local(message.datetime)))
         } else {
             Span::from("no messages").dark_gray()
         })

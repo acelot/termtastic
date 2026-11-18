@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     state::State,
     types::{Message, Node, UNKNOWN_NODE},
-    ui::helpers::{StringExt, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span},
+    ui::helpers::{StringExt, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span, to_local},
 };
 
 const REACTIONS_LINE_MAX_WIDTH: usize = 20;
@@ -137,14 +137,9 @@ impl<'a> Widget for MessageWidget<'a> {
             routing_error_to_span(self.data.message.routing_error).render(v0_h[2], buf);
         }
 
-        Line::from(
-            Span::from(humanize_datetime(
-                self.data.message.datetime.with_timezone(&chrono::Local),
-            ))
-            .dark_gray(),
-        )
-        .right_aligned()
-        .render(v0_h[4], buf);
+        Line::from(Span::from(humanize_datetime(to_local(self.data.message.datetime))).dark_gray())
+            .right_aligned()
+            .render(v0_h[4], buf);
 
         // second line
         self.message_paragraph.render(v1_h[0], buf);

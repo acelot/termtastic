@@ -123,7 +123,7 @@
 | Async/Channels              | [tokio](https://github.com/tokio-rs/tokio)                                                                           |
 | Configuration               | [confy](https://github.com/rust-cli/confy), [etcetera](https://github.com/lunacookies/etcetera)                      |
 | Errors                      | [anyhow](https://github.com/dtolnay/anyhow), [thiserror](https://github.com/dtolnay/thiserror)                       |
-| Datetime                    | [chrono](https://github.com/chronotope/chrono)                                                                       |
+| Datetime                    | [jiff](https://github.com/BurntSushi/jiff)                                                                           |
 | Emoji selector              | [emojis](https://github.com/rossmacarthur/emojis)                                                                    |
 | Local DB                    | [rusqlite](https://github.com/rusqlite/rusqlite), [rusqlite_migration](https://github.com/cljoly/rusqlite_migration) |
 

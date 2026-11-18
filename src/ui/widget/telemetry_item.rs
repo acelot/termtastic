@@ -1,4 +1,4 @@
-use chrono::Utc;
+use jiff::Timestamp;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
@@ -29,7 +29,7 @@ impl<'a> Widget for TelemetryItemWidget<'a> {
                 .magenta()
                 .render(h[0], buf);
 
-                Line::from(humanize_time_delta(Utc::now().signed_duration_since(datetime)))
+                Line::from(humanize_time_delta(Timestamp::now().duration_since(*datetime)))
                     .right_aligned()
                     .render(h[1], buf);
             }

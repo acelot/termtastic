@@ -671,6 +671,6 @@ fn traceroute_to_text(traceroute: &Traceroute, context: &NodeInfoContext) -> Str
         "TOWARDS: {}\nBACK: {}\nRTT: {}",
         towards,
         back,
-        humanize_uptime(traceroute.duration.num_seconds() as u32)
+        humanize_uptime(traceroute.duration.as_secs() as u32)
     )
 }

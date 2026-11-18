@@ -1,11 +1,11 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Node {
     pub key: u32,
     pub hops: Option<u32>,
-    pub last_heard: Option<DateTime<Utc>>,
+    pub last_heard: Option<Timestamp>,
     pub snr: f32,
     pub rssi: Option<i32>,
     pub is_favorite: bool,

@@ -1,4 +1,4 @@
-use chrono::Utc;
+use jiff::Timestamp;
 use meshtastic::protobufs::telemetry::Variant::DeviceMetrics;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
 use ordermap::OrderSet;
@@ -6,7 +6,6 @@ use ordermap::map::Entry::{Occupied, Vacant};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::iter;
-use std::ops::Sub;
 use std::time::{Duration, Instant};
 use tokio::{
     sync::{broadcast, mpsc, watch},
@@ -563,7 +562,7 @@ impl Store {
                     return false;
                 };
 
-                node.last_heard = Some(Utc::now());
+                node.last_heard = Some(Timestamp::now());
                 node.hops = Some(hops);
 
                 if hops == 0 {
@@ -623,7 +622,7 @@ impl Store {
                         });
 
                         // remove old records
-                        let old = Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS));
+                        let old = Timestamp::now() - Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS);
 
                         loop {
                             if let Some(oldest) = state.my_node_device_metrics.front()
@@ -835,7 +834,7 @@ impl Store {
 
                 if let Some(traceroute) = state.traceroutes.get_mut(&packet_id) {
                     traceroute.routing_error = error;
-                    traceroute.duration = datetime - traceroute.datetime;
+                    traceroute.duration = datetime.duration_since(traceroute.datetime);
 
                     if !matches!(error, Some(routing::Error::None)) {
                         traceroute.state = TracerouteState::RoutingError;
@@ -1018,7 +1017,7 @@ impl Store {
                 self.state_tx.send_modify(|state| {
                     state.traceroutes.entry(message_id).and_modify(|t| {
                         t.state = TracerouteState::TimedOut;
-                        t.duration = Utc::now().signed_duration_since(t.datetime);
+                        t.duration = Timestamp::now().duration_since(t.datetime);
                     });
 
                     state.active_traceroutes.remove(&message_id);
@@ -1047,7 +1046,7 @@ impl Store {
                         });
 
                     state.traceroutes.entry(message_id).and_modify(|t| {
-                        t.duration = datetime - t.datetime;
+                        t.duration = datetime.duration_since(t.datetime);
                         t.route_towards = route_towards;
                         t.route_back = route_back;
                         t.state = TracerouteState::Finished;

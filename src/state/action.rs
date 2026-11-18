@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use meshtastic::protobufs::{DeviceMetrics, config, module_config, routing};
 use strum::EnumProperty;
 use uuid::Uuid;
@@ -67,7 +67,7 @@ pub enum StateAction {
     MessageErrorSet {
         packet_id: u32,
         error: Option<routing::Error>,
-        datetime: DateTime<Utc>,
+        datetime: Timestamp,
     },
     PreviousMessagesLoadPending(Chat),
     PreviousMessagesLoadFailed,
@@ -118,14 +118,14 @@ pub enum StateAction {
     TracerouteStart {
         message_id: u32,
         node_key: u32,
-        datetime: DateTime<Utc>,
+        datetime: Timestamp,
     },
     TracerouteTimeout {
         message_id: u32,
     },
     TracerouteFinish {
         message_id: u32,
-        datetime: DateTime<Utc>,
+        datetime: Timestamp,
         route_towards: Vec<TracerouteItem>,
         route_back: Vec<TracerouteItem>,
     },

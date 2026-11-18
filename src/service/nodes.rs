@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use jiff::Timestamp;
 use meshtastic::protobufs::Position;
 use meshtastic::protobufs::mesh_packet::TransportMechanism;
 use meshtastic::{
@@ -181,7 +181,7 @@ impl NodesService {
                 match Node::try_from(&node_info) {
                     Ok(node) => {
                         let node_key = node.key;
-                        let last_heard = node.last_heard.unwrap_or(Utc::now());
+                        let last_heard = node.last_heard.unwrap_or_else(Timestamp::now);
 
                         let _ = self.state_action_tx.send(StateAction::NodeInit(node));
 
@@ -247,7 +247,7 @@ impl NodesService {
                             }) => {
                                 let node_telemetry = NodeTelemetry {
                                     node_key: mesh_packet.from,
-                                    datetime: time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    datetime: time.timestamp_to_datetime().unwrap_or_else(Timestamp::now),
                                     variant: data.clone(),
                                 };
 
@@ -266,7 +266,10 @@ impl NodesService {
                             Ok(position) => {
                                 let node_position = NodePosition {
                                     node_key: mesh_packet.from,
-                                    datetime: mesh_packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                    datetime: mesh_packet
+                                        .rx_time
+                                        .timestamp_to_datetime()
+                                        .unwrap_or_else(Timestamp::now),
                                     position,
                                 };
 
@@ -387,8 +390,8 @@ pub fn update_nodes_view(state: &mut State) {
                     .then(n1.snr.total_cmp(&n2.snr).reverse()),
                 NodesSortBy::LastHeard => n1
                     .last_heard
-                    .unwrap_or(DateTime::default())
-                    .cmp(&n2.last_heard.unwrap_or(DateTime::default()))
+                    .unwrap_or(Timestamp::default())
+                    .cmp(&n2.last_heard.unwrap_or(Timestamp::default()))
                     .reverse(),
                 NodesSortBy::ShortName => n1.short_name().cmp(&n2.short_name()),
                 NodesSortBy::LongName => n1.long_name().cmp(&n2.long_name()),

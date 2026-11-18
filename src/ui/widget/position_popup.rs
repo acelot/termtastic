@@ -1,4 +1,3 @@
-use chrono::Local;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Margin, Rect},
@@ -7,7 +6,10 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Cell, Clear, Padding, Row, ScrollbarState, StatefulWidget, Table, Widget},
 };
 
-use crate::{types::NodePosition, ui::helpers::default_scrollbar};
+use crate::{
+    types::NodePosition,
+    ui::helpers::{default_scrollbar, to_local},
+};
 
 pub struct PositionPopupWidget<'a> {
     pub position: &'a NodePosition,
@@ -52,10 +54,8 @@ impl<'a> PositionPopupWidget<'a> {
             (
                 "datetime",
                 Span::from(
-                    self.position
-                        .datetime
-                        .with_timezone(&Local)
-                        .format("%d.%m.%Y %H:%M:%S")
+                    to_local(self.position.datetime)
+                        .strftime("%d.%m.%Y %H:%M:%S")
                         .to_string(),
                 ),
             ),

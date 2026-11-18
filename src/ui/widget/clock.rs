@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use chrono::Local;
+use jiff::Zoned;
 use ratatui::{
     prelude::*,
     widgets::{Block, BorderType, Borders},
@@ -40,9 +40,9 @@ impl Widget for ClockWidget {
         let block_area = block.inner(area);
         block.render(area, buf);
 
-        let now = Local::now();
-        let hour = now.format("%H").to_string();
-        let minute = now.format("%M").to_string();
+        let now = Zoned::now();
+        let hour = now.strftime("%H").to_string();
+        let minute = now.strftime("%M").to_string();
 
         let hour_widget = if block_area.height > 8 {
             FontWidget::large_bold(&hour, 1)
@@ -86,7 +86,7 @@ impl Widget for ClockWidget {
         colon_widget.render(v1_h[2], buf);
         minute_widget.render(v1_h[3], buf);
 
-        Line::from(Span::from(now.format("%e %B %Y").to_string()).dark_gray())
+        Line::from(Span::from(now.strftime("%e %B %Y").to_string()).dark_gray())
             .centered()
             .render(v[3], buf);
     }

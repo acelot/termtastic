@@ -2,10 +2,10 @@ use crate::service::ONLINE_NODE_THRESHOLD_SECS;
 use crate::state::State;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
-use chrono::{DateTime, TimeDelta, Utc};
 use emojis::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
+use jiff::{SignedDuration, Timestamp};
 use meshtastic::protobufs::{Position, channel, config, module_config, routing};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
@@ -253,7 +253,7 @@ pub enum ConnectionState {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogRecord {
     pub id: u64,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub level: Level,
     pub source: String,
     pub message: String,
@@ -261,13 +261,7 @@ pub struct LogRecord {
 
 impl From<LogRecord> for String {
     fn from(val: LogRecord) -> Self {
-        format!(
-            "{} {} {}: {}",
-            val.datetime.to_rfc3339(),
-            val.level,
-            &val.source,
-            val.message
-        )
+        format!("{} {} {}: {}", val.datetime, val.level, &val.source, val.message)
     }
 }
 
@@ -477,7 +471,7 @@ pub struct Node {
     pub key: u32,
     pub user: Option<NodeUser>,
     pub hops: Option<u32>,
-    pub last_heard: Option<DateTime<Utc>>,
+    pub last_heard: Option<Timestamp>,
     pub snr: f32,
     pub rssi: Option<i32>,
     pub is_favorite: bool,
@@ -597,7 +591,7 @@ impl Node {
 
     pub fn is_online(&self) -> bool {
         self.last_heard
-            .map(|last_heard| (Utc::now() - last_heard).num_seconds() < ONLINE_NODE_THRESHOLD_SECS)
+            .map(|last_heard| Timestamp::now().duration_since(last_heard).as_secs() < ONLINE_NODE_THRESHOLD_SECS)
             .unwrap_or(false)
     }
 }
@@ -884,7 +878,7 @@ pub struct Message {
     pub from: u32,
     pub to: u32,
     pub channel: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub text: String,
     pub is_emoji: bool,
     pub reactions: Vec<Uuid>,
@@ -932,7 +926,7 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
             from: packet.from,
             to: packet.to,
             channel: packet.channel,
-            datetime: timestamp_to_datetime(packet.rx_time).unwrap_or(Utc::now()),
+            datetime: timestamp_to_datetime(packet.rx_time).unwrap_or_else(Timestamp::now),
             text: String::from_utf8(data.payload.clone())?,
             is_emoji: data.emoji > 0,
             reactions: Vec::default(),
@@ -948,9 +942,9 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
 pub struct Traceroute {
     pub message_id: u32,
     pub node_key: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub routing_error: Option<routing::Error>,
-    pub duration: TimeDelta,
+    pub duration: SignedDuration,
     pub route_towards: Vec<TracerouteItem>,
     pub route_back: Vec<TracerouteItem>,
     pub state: TracerouteState,
@@ -1023,14 +1017,14 @@ pub struct NodeLastTelemetry {
 
 #[derive(Debug, Clone)]
 pub struct NodeTelemetryTyped<T: Sized> {
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub data: T,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeTelemetry {
     pub node_key: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub variant: meshtastic::protobufs::telemetry::Variant,
 }
 
@@ -1071,7 +1065,7 @@ impl rusqlite::types::FromSql for TelemetryKind {
 pub enum TelemetryItem {
     Group {
         title: String,
-        datetime: DateTime<Utc>,
+        datetime: Timestamp,
         json: String,
     },
     Item {
@@ -1082,7 +1076,7 @@ pub enum TelemetryItem {
 }
 
 impl TelemetryItem {
-    pub fn group(title: impl AsRef<str>, datetime: DateTime<Utc>, json: String) -> Self {
+    pub fn group(title: impl AsRef<str>, datetime: Timestamp, json: String) -> Self {
         Self::Group {
             title: title.as_ref().to_owned(),
             datetime,
@@ -1102,7 +1096,7 @@ impl TelemetryItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct NodePosition {
     pub node_key: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub position: Position,
 }
 
@@ -1492,10 +1486,10 @@ pub struct DeviceModuleConfig {
     pub tak: Option<module_config::TakConfig>,
 }
 
-fn timestamp_to_datetime(timestamp: u32) -> Option<DateTime<Utc>> {
+fn timestamp_to_datetime(timestamp: u32) -> Option<Timestamp> {
     if timestamp == 0 {
         return None;
     }
 
-    DateTime::from_timestamp_secs(timestamp as i64)
+    Timestamp::from_second(timestamp as i64).ok()
 }

@@ -1,4 +1,4 @@
-use chrono::Utc;
+use jiff::Timestamp;
 use meshtastic::protobufs::position::LocSource;
 use ratatui::{
     buffer::Buffer,
@@ -53,11 +53,9 @@ impl<'a> Widget for PositionWidget<'a> {
         ])
         .render(v0_h[0], buf);
 
-        Line::from(humanize_time_delta(
-            Utc::now().signed_duration_since(self.item.datetime),
-        ))
-        .right_aligned()
-        .render(v0_h[2], buf);
+        Line::from(humanize_time_delta(Timestamp::now().duration_since(self.item.datetime)))
+            .right_aligned()
+            .render(v0_h[2], buf);
 
         // second line
         Line::from(vec![

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -6,7 +6,7 @@ pub struct Position {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
     pub node_key: u32,
-    pub datetime: DateTime<Utc>,
+    pub datetime: Timestamp,
     pub latitude_i: Option<i32>,
     pub longitude_i: Option<i32>,
     pub altitude: Option<i32>,

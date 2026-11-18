@@ -1,5 +1,5 @@
-use chrono::Utc;
 use itertools::Itertools;
+use jiff::Timestamp;
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Rect},
@@ -65,11 +65,9 @@ impl<'a> Widget for TracerouteWidget<'a> {
         .render(v0_h[0], buf);
 
         // date
-        Line::from(humanize_time_delta(
-            Utc::now().signed_duration_since(self.item.datetime),
-        ))
-        .right_aligned()
-        .render(v0_h[2], buf);
+        Line::from(humanize_time_delta(Timestamp::now().duration_since(self.item.datetime)))
+            .right_aligned()
+            .render(v0_h[2], buf);
 
         // towards
         Line::from(
@@ -101,12 +99,9 @@ impl<'a> Widget for TracerouteWidget<'a> {
         Line::from(vec![
             Span::from("rtt ").dark_gray(),
             Span::from(humanize_uptime(if self.item.state == TracerouteState::Started {
-                Utc::now()
-                    .signed_duration_since(self.item.datetime)
-                    .num_seconds()
-                    .max(0) as u32
+                Timestamp::now().duration_since(self.item.datetime).as_secs().max(0) as u32
             } else {
-                self.item.duration.num_seconds() as u32
+                self.item.duration.as_secs() as u32
             })),
         ])
         .right_aligned()

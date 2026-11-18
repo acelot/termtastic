@@ -1,8 +1,7 @@
-use chrono::Utc;
 use itertools::Itertools;
+use jiff::Timestamp;
 use meshtastic::protobufs::DeviceMetrics;
 use std::collections::HashMap;
-use std::ops::Sub;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -545,7 +544,7 @@ async fn load_data(
         .telemetry_find_by_node_key_and_kind(
             node_key,
             TelemetryKind::DeviceMetrics,
-            Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS)),
+            Timestamp::now() - Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS),
         )
         .await?
         .iter()

@@ -33,7 +33,6 @@ anyhow = { version = "1.0" }
 arboard = { version = "3.7", features = ["wayland-data-control"] }
 base64 = { version = "0.23" }
 btleplug = { version = "0.13.5", features = ["serde"] }
-chrono = { version = "0.4.45", features = ["serde"] }
 confy = { version = "2.0", default-features = false, features = ["ron_conf"] }
 crossterm = { version = "0.29.0", features = ["event-stream"] }
 emojis = { version = "0.9.1" }
@@ -42,6 +41,7 @@ fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }
 hostaddr = { version = "1.0", features = ["serde"] }
 itertools = { version = "0.15.0" }
+jiff = { version = "0.2.46", features = ["serde"] }
 mdns-sd = { version = "0.21.7" }
 meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "1741a83", features = [
     "bluetooth-le",
@@ -55,7 +55,7 @@ regex = { version = "1.13" }
 rusqlite = { version = "0.40.2", features = [
     "bundled",
     "hooks",
-    "chrono",
+    "jiff",
     "uuid",
     "functions",
 ] }

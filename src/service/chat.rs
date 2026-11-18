@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use meshtastic::{
     Message as _,
     protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
@@ -201,7 +201,10 @@ impl ChatService {
                                         let _ = self.state_action_tx.send(StateAction::MessageErrorSet {
                                             packet_id: data.request_id,
                                             error: Some(error),
-                                            datetime: packet.rx_time.timestamp_to_datetime().unwrap_or(Utc::now()),
+                                            datetime: packet
+                                                .rx_time
+                                                .timestamp_to_datetime()
+                                                .unwrap_or_else(Timestamp::now),
                                         });
                                     }
                                     Err(_) => {

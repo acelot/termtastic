@@ -1,10 +1,6 @@
-use std::{
-    collections::VecDeque,
-    ops::{Add, Deref, Sub},
-    time::Duration,
-};
+use std::{collections::VecDeque, ops::Deref, time::Duration};
 
-use chrono::{Local, Utc};
+use jiff::Timestamp;
 use meshtastic::protobufs::DeviceMetrics;
 use ratatui::{
     prelude::*,
@@ -13,7 +9,8 @@ use ratatui::{
 };
 
 use crate::{
-    service::DEVICE_METRICS_TIME_LIMIT_HOURS, state::State, types::NodeTelemetryTyped, ui::widget::PlaceholderWidget,
+    service::DEVICE_METRICS_TIME_LIMIT_HOURS, state::State, types::NodeTelemetryTyped, ui::helpers::to_local,
+    ui::widget::PlaceholderWidget,
 };
 
 pub struct DeviceMetricsGraphWidget<'a> {
@@ -49,8 +46,8 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         let v = Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).split(block_area);
 
         let (datetime_min, datetime_max) = (
-            Utc::now().sub(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS)),
-            Utc::now(),
+            Timestamp::now() - Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS),
+            Timestamp::now(),
         );
 
         let (ch_util, air_util_tx, util_max): (Vec<(f64, f64)>, Vec<(f64, f64)>, f64) = self.data.iter().fold(
@@ -59,8 +56,8 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
                 let ch_util_f64 = item.data.channel_utilization() as f64;
                 let air_util_tx_f64 = item.data.air_util_tx() as f64;
 
-                ch_util.push((item.datetime.timestamp() as f64, ch_util_f64));
-                air_util_tx.push((item.datetime.timestamp() as f64, air_util_tx_f64));
+                ch_util.push((item.datetime.as_second() as f64, ch_util_f64));
+                air_util_tx.push((item.datetime.as_second() as f64, air_util_tx_f64));
 
                 util_max = util_max.max(ch_util_f64).max(air_util_tx_f64);
 
@@ -93,12 +90,10 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
         };
 
         let x_axis = Axis::default()
-            .bounds([datetime_min.timestamp() as f64, datetime_max.timestamp() as f64])
+            .bounds([datetime_min.as_second() as f64, datetime_max.as_second() as f64])
             .labels((0..=x_axis_parts).map(|i| {
-                datetime_min
-                    .add(Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS * i / x_axis_parts))
-                    .with_timezone(&Local)
-                    .format("%H:%M")
+                to_local(datetime_min + Duration::from_hours(DEVICE_METRICS_TIME_LIMIT_HOURS * i / x_axis_parts))
+                    .strftime("%H:%M")
                     .to_string()
             }));
 

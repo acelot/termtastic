@@ -1,8 +1,8 @@
 use base64::{DecodeError, Engine, prelude::BASE64_STANDARD};
-use chrono::{DateTime, Datelike, Local, SubsecRound, TimeDelta, Utc};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
 use emojis::Emoji;
 use itertools::Itertools;
+use jiff::{SignedDuration, Timestamp, Zoned, tz::TimeZone};
 use meshtastic::protobufs::{config, routing};
 use ratatui::{
     style::{Color, Modifier, Style, Stylize},
@@ -176,16 +176,16 @@ impl StringExt for String {
 }
 
 pub trait DateTimeExt {
-    fn timestamp_to_datetime(self) -> Option<DateTime<Utc>>;
+    fn timestamp_to_datetime(self) -> Option<Timestamp>;
 }
 
 impl DateTimeExt for u32 {
-    fn timestamp_to_datetime(self) -> Option<DateTime<Utc>> {
+    fn timestamp_to_datetime(self) -> Option<Timestamp> {
         if self == 0 {
             return None;
         }
 
-        DateTime::from_timestamp_secs(self as i64)
+        Timestamp::from_second(self as i64).ok()
     }
 }
 
@@ -333,10 +333,16 @@ where
     trimmed
 }
 
-pub fn humanize_datetime<'a>(datetime: DateTime<Local>) -> String {
-    let now = Local::now();
+static LOCAL_TIME_ZONE: LazyLock<TimeZone> = LazyLock::new(TimeZone::system);
 
-    let format = if datetime.date_naive() == now.date_naive() {
+pub fn to_local(datetime: Timestamp) -> Zoned {
+    datetime.to_zoned(LOCAL_TIME_ZONE.clone())
+}
+
+pub fn humanize_datetime(datetime: Zoned) -> String {
+    let now = Zoned::now();
+
+    let format = if datetime.date() == now.date() {
         "%H:%M:%S"
     } else if datetime.year() == now.year() {
         "%e %b %H:%M"
@@ -344,41 +350,42 @@ pub fn humanize_datetime<'a>(datetime: DateTime<Local>) -> String {
         "%d.%m.%Y %H:%M"
     };
 
-    datetime.format(format).to_string()
+    datetime.strftime(format).to_string()
 }
 
-pub fn humanize_time_delta<'a>(delta: TimeDelta) -> Vec<Span<'a>> {
-    if delta.num_seconds() < 60 {
+pub fn humanize_time_delta<'a>(delta: SignedDuration) -> Vec<Span<'a>> {
+    if delta.as_secs() < 60 {
         return vec![Span::from("now").green()];
     }
 
-    if delta.num_minutes() < 60 {
+    if delta.as_mins() < 60 {
         return vec![
-            Span::from(format!("{}m", delta.num_minutes())).yellow(),
+            Span::from(format!("{}m", delta.as_mins())).yellow(),
             Span::from(" ago").dark_gray(),
         ];
     }
 
-    if delta.num_hours() < 48 {
+    if delta.as_hours() < 48 {
         return vec![
-            Span::from(format!("{}h", delta.num_hours())),
+            Span::from(format!("{}h", delta.as_hours())),
             Span::from(" ago").dark_gray(),
         ];
     }
 
-    if delta.num_days() < 7 {
+    if delta.as_hours() / 24 < 7 {
         return vec![
-            Span::from(format!("{}d", delta.num_days())).dark_gray(),
+            Span::from(format!("{}d", delta.as_hours() / 24)).dark_gray(),
             Span::from(" ago").dark_gray(),
         ];
     }
 
-    let datetime = Utc::now() - delta;
+    let now = Timestamp::now().to_zoned(TimeZone::UTC);
+    let datetime = (Timestamp::now() - delta).to_zoned(TimeZone::UTC);
 
     vec![
         Span::from(
             datetime
-                .format(if Utc::now().year() != datetime.year() {
+                .strftime(if now.year() != datetime.year() {
                     "%d.%m.%Y"
                 } else {
                     "%e %b"
@@ -442,7 +449,7 @@ pub fn short_name_to_span(node: &Node, my: bool) -> Span<'_> {
 pub fn last_heard_to_spans(node: &Node, my: bool) -> Vec<Span<'_>> {
     match node.last_heard {
         Some(_) if my => vec![Span::from("now").blue()],
-        Some(dt) => humanize_time_delta(Utc::now().round_subsecs(0) - dt),
+        Some(dt) => humanize_time_delta(Timestamp::now().duration_since(dt)),
         None => vec![Span::from("?").dark_gray()],
     }
 }

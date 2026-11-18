@@ -1,7 +1,7 @@
 use crate::repository::domain::telemetry::Telemetry;
 use crate::repository::{Repository, RepositoryError};
 use crate::types::TelemetryKind;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use rusqlite::params;
 use serde_rusqlite::{from_rows, to_params_named};
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ impl Repository {
         &self,
         node_key: u32,
         kind: TelemetryKind,
-        after_datetime: DateTime<Utc>,
+        after_datetime: Timestamp,
     ) -> Result<Vec<Telemetry>, RepositoryError> {
         let result: Vec<Telemetry> = self
             .conn
