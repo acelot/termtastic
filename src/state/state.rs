@@ -165,11 +165,8 @@ impl State {
             .unwrap_or(0)
     }
 
-    pub fn unread_messages_count(&self) -> usize {
-        self.chats
-            .keys()
-            .map(|ch| self.unread_messages_count_by_chat(*ch))
-            .sum()
+    pub fn has_unread_messages(&self) -> bool {
+        self.chats.keys().any(|ch| self.unread_messages_count_by_chat(*ch) > 0)
     }
 }
 

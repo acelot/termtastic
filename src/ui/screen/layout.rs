@@ -182,10 +182,7 @@ impl<'a> Screen for Layout<'a> {
                         format!(
                             "{}{}",
                             t.to_string(),
-                            Some(state.unread_messages_count())
-                                .filter(|c| *c > 0)
-                                .map(|c| format!("[{}]", c))
-                                .unwrap_or_default()
+                            state.has_unread_messages().then_some("*").unwrap_or_default()
                         ),
                     ),
                     _ => (t as usize, t.to_string()),

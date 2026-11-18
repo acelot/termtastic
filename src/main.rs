@@ -32,7 +32,9 @@ async fn main() {
 {}
 
 Feature-rich handmade Meshtastic® console client written in Rust.
-\x1b[4m\x1b[34m{}\x1b[0m\x1b[24m
+  \x1b[2mrepository:\x1b[22m \x1b[4m\x1b[34m{}\x1b[0m\x1b[24m
+  \x1b[2mauthor:\x1b[22m     acelot
+  \x1b[2mlicense:\x1b[22m    GPL-3.0
 
 \x1b[1mUsage\x1b[22m: {}{} [OPTIONS]
 
@@ -41,8 +43,8 @@ Feature-rich handmade Meshtastic® console client written in Rust.
   -V, --version  Print version
 
 \x1b[1mDirectories used\x1b[22m:
-  \x1b[2m  data\x1b[22m  {}
-  \x1b[2mconfig\x1b[22m  {}",
+  \x1b[2mdata:\x1b[22m   {}
+  \x1b[2mconfig:\x1b[22m {}",
             APP_NAME,
             APP_VERSION,
             ui::logo::LOGO_ASCII.join("\n"),
