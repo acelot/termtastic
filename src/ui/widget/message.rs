@@ -98,8 +98,14 @@ impl<'a> Widget for MessageWidget<'a> {
         )
         .split(block_area);
 
-        let v0_h =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Length(10), Constraint::Length(17)]).split(v[0]);
+        let v0_h = Layout::horizontal([
+            Constraint::Fill(1),
+            Constraint::Length(1),
+            Constraint::Length(16),
+            Constraint::Length(1),
+            Constraint::Length(16),
+        ])
+        .split(v[0]);
 
         let v1_h = Layout::horizontal([
             Constraint::Fill(1),
@@ -126,9 +132,9 @@ impl<'a> Widget for MessageWidget<'a> {
         }
 
         if !self.data.is_my_node {
-            Line::from(hops_to_spans(self.data.message, false)).render(v0_h[1], buf);
+            Line::from(hops_to_spans(self.data.message, false)).render(v0_h[2], buf);
         } else {
-            routing_error_to_span(self.data.message.routing_error).render(v0_h[1], buf);
+            routing_error_to_span(self.data.message.routing_error).render(v0_h[2], buf);
         }
 
         Line::from(
@@ -138,7 +144,7 @@ impl<'a> Widget for MessageWidget<'a> {
             .dark_gray(),
         )
         .right_aligned()
-        .render(v0_h[2], buf);
+        .render(v0_h[4], buf);
 
         // second line
         self.message_paragraph.render(v1_h[0], buf);

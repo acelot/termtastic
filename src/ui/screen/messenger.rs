@@ -174,10 +174,10 @@ impl<'a> Screen for Messenger<'a> {
                                         emoji,
                                         reply_id: Some(message_id),
                                     });
-
-                                    self.is_follow = true;
                                 }
                                 None => {
+                                    self.is_follow = true;
+
                                     emit(UiEvent::ChatMessageSubmitted {
                                         text: input_widget.trimmed_lines().join("\n"),
                                         reply_id: Some(message_id),
@@ -254,14 +254,14 @@ impl<'a> Screen for Messenger<'a> {
                     }
 
                     if VALID_INPUT_LENGTH.contains(&input_widget.trimmed_len()) {
+                        self.is_follow = true;
+
                         emit(UiEvent::ChatMessageSubmitted {
                             text: input_widget.trimmed_lines().join("\n"),
                             reply_id: None,
                         });
 
                         input_widget.clear();
-
-                        self.is_follow = true;
                     }
 
                     return true;
