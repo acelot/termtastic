@@ -205,6 +205,7 @@ impl<'a> Screen for Messenger<'a> {
                 },
                 Event::Paste(text) => {
                     input_widget.insert_as_lines(text);
+                    return true;
                 }
                 _ => {
                     input_widget.input(event.clone());
@@ -229,7 +230,7 @@ impl<'a> Screen for Messenger<'a> {
                     emit(UiEvent::ChatMessageSelected(*active_chat, selected_id));
                 }
 
-                self.is_follow = false;
+                self.is_follow = list_state.selected == messages_ids.len().checked_sub(1);
             }
 
             return true;
@@ -329,13 +330,16 @@ impl<'a> Screen for Messenger<'a> {
             },
             Event::Paste(text) => {
                 input_widget.insert_as_lines(text);
+                return true;
             }
             Event::FocusLost => {
                 self.is_follow = false;
+                return true;
             }
             Event::FocusGained => {
                 if list_state.selected == messages_ids.len().checked_sub(1) {
                     self.is_follow = true;
+                    return true;
                 }
             }
             _ => {}
@@ -375,10 +379,10 @@ impl<'a> Screen for Messenger<'a> {
         .split(area);
 
         // list
-        list_state.fix_selection(chat_state.ids.len());
-
-        if list_state.selected == chat_state.ids.len().checked_sub(1) {
-            self.is_follow = true;
+        if list_state.fix_selection(chat_state.ids.len()) {
+            if list_state.selected == chat_state.ids.len().checked_sub(1) {
+                self.is_follow = true;
+            }
         }
 
         if self.is_follow {

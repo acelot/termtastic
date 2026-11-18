@@ -458,7 +458,7 @@ pub fn routing_error_to_span<'a>(error: Option<routing::Error>) -> Span<'a> {
 pub trait ListStateExt {
     fn handle_navigation_events(&mut self, event: &Event, items_count: Option<usize>) -> bool;
 
-    fn fix_selection(&mut self, items_count: usize);
+    fn fix_selection(&mut self, items_count: usize) -> bool;
 }
 
 impl ListStateExt for ListState {
@@ -513,13 +513,17 @@ impl ListStateExt for ListState {
         false
     }
 
-    fn fix_selection(&mut self, items_count: usize) {
+    fn fix_selection(&mut self, items_count: usize) -> bool {
         if self.selected.map(|i| i >= items_count).unwrap_or(false) {
             self.selected = None;
+            return true;
         }
 
         if self.selected.is_none() && items_count > 0 {
             self.select(Some(0));
+            return true;
         }
+
+        false
     }
 }
