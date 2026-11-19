@@ -10,9 +10,9 @@ use ratatui::{
 };
 
 use crate::{
-    types::{Node, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE},
+    types::{DeliveryState, Node, Traceroute, TracerouteItem, TracerouteState, UNKNOWN_NODE},
     ui::{
-        helpers::{SnrColorExt, default_scrollbar, humanize_uptime, routing_error_to_span, short_name_to_span},
+        helpers::{SnrColorExt, default_scrollbar, delivery_state_to_span, humanize_uptime, short_name_to_span},
         widget::PlaceholderWidget,
     },
 };
@@ -92,8 +92,10 @@ impl<'a> StatefulWidget for TraceroutePopupWidget<'a> {
                 PlaceholderWidget::yellow("pending...").render(popup_block_area, buf);
             }
             TracerouteState::RoutingError => {
-                PlaceholderWidget::red(routing_error_to_span(self.traceroute.routing_error))
-                    .render(popup_block_area, buf);
+                PlaceholderWidget::red(delivery_state_to_span(Some(&DeliveryState::RoutingError(
+                    self.traceroute.routing_error.expect("should be Some"),
+                ))))
+                .render(popup_block_area, buf);
             }
             TracerouteState::TimedOut => {
                 PlaceholderWidget::dark_gray("timed out").render(popup_block_area, buf);

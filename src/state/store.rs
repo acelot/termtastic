@@ -19,7 +19,7 @@ use crate::service::{
 };
 use crate::state::ChatState;
 use crate::types::{
-    Chat, DbLoadState, Message, Node, NodeLastTelemetry, NodeTelemetry, NodeTelemetryTyped, Traceroute,
+    Chat, DbLoadState, DeliveryState, Message, Node, NodeLastTelemetry, NodeTelemetry, NodeTelemetryTyped, Traceroute,
     TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
@@ -817,7 +817,72 @@ impl Store {
 
                 true
             }
-            StateAction::MessageErrorSet {
+            StateAction::MessageSending { packet_id } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
+                    return false;
+                };
+
+                if let Some(message) = state.messages.get_mut(&message_id) {
+                    message.delivery_state = Some(DeliveryState::Sending);
+
+                    return true;
+                }
+
+                false
+            }),
+            StateAction::MessageDeliveredToRecipient { packet_id } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
+                    return false;
+                };
+
+                if let Some(message) = state.messages.get_mut(&message_id) {
+                    message.delivery_state = Some(DeliveryState::DeliveredToRecipient);
+
+                    return true;
+                }
+
+                false
+            }),
+            StateAction::MessageDeliveredToRecipientProven { packet_id } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
+                    return false;
+                };
+
+                if let Some(message) = state.messages.get_mut(&message_id) {
+                    message.delivery_state = Some(DeliveryState::DeliveredToRecipientProven);
+
+                    return true;
+                }
+
+                false
+            }),
+            StateAction::MessageDeliveryProofFailed { packet_id } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
+                    return false;
+                };
+
+                if let Some(message) = state.messages.get_mut(&message_id) {
+                    message.delivery_state = Some(DeliveryState::DeliveryProofFailed);
+
+                    return true;
+                }
+
+                false
+            }),
+            StateAction::MessageDeliveredToMesh { packet_id } => self.state_tx.send_if_modified(|state| {
+                let Some(message_id) = state.packets_id_map.get(&packet_id) else {
+                    return false;
+                };
+
+                if let Some(message) = state.messages.get_mut(&message_id) {
+                    message.delivery_state = Some(DeliveryState::DeliveredToMesh);
+
+                    return true;
+                }
+
+                false
+            }),
+            StateAction::MessageRoutingError {
                 packet_id,
                 error,
                 datetime,
@@ -827,16 +892,16 @@ impl Store {
                 };
 
                 if let Some(message) = state.messages.get_mut(&message_id) {
-                    message.routing_error = error;
+                    message.delivery_state = Some(DeliveryState::RoutingError(error));
 
                     return true;
                 }
 
                 if let Some(traceroute) = state.traceroutes.get_mut(&packet_id) {
-                    traceroute.routing_error = error;
+                    traceroute.routing_error = Some(error);
                     traceroute.duration = datetime.duration_since(traceroute.datetime);
 
-                    if !matches!(error, Some(routing::Error::None)) {
+                    if !matches!(error, routing::Error::None) {
                         traceroute.state = TracerouteState::RoutingError;
 
                         state.active_traceroutes.remove(&packet_id);

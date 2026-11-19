@@ -15,7 +15,8 @@ use uuid::Uuid;
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
 use crate::types::{
-    DbLoadState, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped, TelemetryKind, Traceroute,
+    DbLoadState, DeliveryState, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped, TelemetryKind,
+    Traceroute,
 };
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
@@ -312,7 +313,12 @@ impl PersistenceService {
                         .send(StateAction::Toast(Toast::error("DB error: see logs")));
                 }
             }
-            StateAction::MessageErrorSet { packet_id, error, .. } if is_db_loaded => {
+            StateAction::MessageDeliveredToRecipient { packet_id }
+            | StateAction::MessageDeliveredToRecipientProven { packet_id }
+            | StateAction::MessageDeliveryProofFailed { packet_id }
+            | StateAction::MessageDeliveredToMesh { packet_id }
+                if is_db_loaded =>
+            {
                 let Some(repository) = &self.repository else {
                     return;
                 };
@@ -322,7 +328,38 @@ impl PersistenceService {
                 };
 
                 if let Err(e) = repository
-                    .message_update_routing_error(message_id.clone(), error.map(|e| e as i32))
+                    .message_update_delivery_state(
+                        message_id.clone(),
+                        match action {
+                            StateAction::MessageDeliveredToRecipient { .. } => DeliveryState::DeliveredToRecipient,
+                            StateAction::MessageDeliveredToRecipientProven { .. } => {
+                                DeliveryState::DeliveredToRecipientProven
+                            }
+                            StateAction::MessageDeliveryProofFailed { .. } => DeliveryState::DeliveryProofFailed,
+                            StateAction::MessageDeliveredToMesh { .. } => DeliveryState::DeliveredToMesh,
+                            _ => unreachable!(),
+                        },
+                    )
+                    .await
+                {
+                    tracing::error!("message update failed: {}", e);
+
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
+                }
+            }
+            StateAction::MessageRoutingError { packet_id, error, .. } if is_db_loaded => {
+                let Some(repository) = &self.repository else {
+                    return;
+                };
+
+                let Some(message_id) = self.state_rx.borrow().packets_id_map.get(&packet_id).cloned() else {
+                    return;
+                };
+
+                if let Err(e) = repository
+                    .message_update_delivery_state(message_id.clone(), DeliveryState::RoutingError(error))
                     .await
                 {
                     tracing::error!("message update failed: {}", e);

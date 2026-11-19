@@ -9,8 +9,8 @@ use ratatui::{
 };
 
 use crate::{
-    types::{Traceroute, TracerouteState},
-    ui::helpers::{hops_to_spans, humanize_time_delta, humanize_uptime, routing_error_to_span},
+    types::{DeliveryState, Traceroute, TracerouteState},
+    ui::helpers::{delivery_state_to_span, hops_to_spans, humanize_time_delta, humanize_uptime},
 };
 
 pub struct TracerouteWidget<'a> {
@@ -53,7 +53,9 @@ impl<'a> Widget for TracerouteWidget<'a> {
         // state
         (match &self.item.state {
             TracerouteState::Started => Span::from("pending...").yellow(),
-            TracerouteState::RoutingError => routing_error_to_span(self.item.routing_error),
+            TracerouteState::RoutingError => delivery_state_to_span(Some(&DeliveryState::RoutingError(
+                self.item.routing_error.expect("should be Some"),
+            ))),
             TracerouteState::TimedOut => Span::from("timed out").dark_gray(),
             TracerouteState::Finished => Span::from("finished").green(),
         })

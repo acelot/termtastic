@@ -184,8 +184,6 @@ impl<'a> Widget for ChannelWidget<'a> {
     where
         Self: Sized,
     {
-        let unread_message_count_length = self.unread_messages_count.checked_ilog10().unwrap_or(0) as u16 + 1;
-
         let area = Rect {
             x: area.x,
             y: area.y,
@@ -210,28 +208,27 @@ impl<'a> Widget for ChannelWidget<'a> {
         block.render(area, buf);
 
         let v = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).split(block_area);
-        let v0_h = Layout::horizontal([Constraint::Fill(3), Constraint::Fill(1), Constraint::Fill(1)]).split(v[0]);
-        let v1_h = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Length(if unread_message_count_length > 0 {
-                unread_message_count_length + 4
-            } else {
-                0
-            }),
-        ])
-        .split(v[1]);
+        let v0_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(11)]).split(v[0]);
+        let v1_h = Layout::horizontal([Constraint::Fill(1), Constraint::Length(17)]).split(v[1]);
 
         // first line
-        Line::from(self.chat_name_spans).render(v0_h[0], buf);
-        Line::from(self.chat_type).magenta().render(v0_h[1], buf);
+        let mut chat_name_line = Line::from(self.chat_name_spans);
 
-        Line::from(if let Some(message) = self.last_message {
-            Span::from(humanize_datetime(to_local(message.datetime)))
-        } else {
-            Span::from("no messages").dark_gray()
-        })
-        .right_aligned()
-        .render(v0_h[2], buf);
+        if self.unread_messages_count > 0 {
+            chat_name_line.push_span(Span::from(" "));
+            chat_name_line.push_span(
+                Span::from(format!(" {} ", self.unread_messages_count))
+                    .white()
+                    .on_blue(),
+            );
+        }
+
+        chat_name_line.render(v0_h[0], buf);
+
+        Line::from(self.chat_type)
+            .magenta()
+            .right_aligned()
+            .render(v0_h[1], buf);
 
         // second line
         let message_color = if self.unread_messages_count > 0 {
@@ -240,7 +237,7 @@ impl<'a> Widget for ChannelWidget<'a> {
             Color::DarkGray
         };
 
-        let second_line_spans = match (self.chat, self.last_message_node, self.last_message) {
+        let message_spans = match (self.chat, self.last_message_node, self.last_message) {
             (crate::types::Chat::Direct(_), _, Some(message)) => {
                 vec![Span::from(message.text_oneline()).fg(message_color)]
             }
@@ -263,16 +260,18 @@ impl<'a> Widget for ChannelWidget<'a> {
             }
         };
 
-        Line::from(second_line_spans).render(v1_h[0], buf);
+        Line::from(message_spans).render(v1_h[0], buf);
 
-        if self.unread_messages_count > 0 {
-            Line::from(
-                Span::from(format!(" {} ", self.unread_messages_count))
-                    .white()
-                    .on_blue(),
-            )
-            .right_aligned()
-            .render(v1_h[1], buf);
-        }
+        Line::from(if let Some(message) = self.last_message {
+            Span::from(humanize_datetime(to_local(message.datetime))).fg(if self.unread_messages_count > 0 {
+                Color::Reset
+            } else {
+                Color::DarkGray
+            })
+        } else {
+            Span::from("no messages").dark_gray()
+        })
+        .right_aligned()
+        .render(v1_h[1], buf);
     }
 }

@@ -885,7 +885,7 @@ pub struct Message {
     pub hops: u32,
     pub snr: f32,
     pub rssi: i32,
-    pub routing_error: Option<routing::Error>,
+    pub delivery_state: Option<DeliveryState>,
 }
 
 impl Message {
@@ -933,9 +933,19 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
             hops: packet.hop_start.saturating_sub(packet.hop_limit),
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
-            routing_error: None,
+            delivery_state: None,
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum DeliveryState {
+    Sending,
+    DeliveredToRecipient,
+    DeliveredToRecipientProven,
+    DeliveryProofFailed,
+    DeliveredToMesh,
+    RoutingError(routing::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Default)]

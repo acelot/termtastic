@@ -1,7 +1,9 @@
 use jiff::Timestamp;
+use meshtastic::protobufs::routing;
+use rusqlite::{ToSql, types::ToSqlOutput};
 use uuid::Uuid;
 
-use crate::repository::domain::message::Message;
+use crate::{repository::domain::message::Message, types::DeliveryState};
 
 impl From<crate::types::Message> for Message {
     fn from(value: crate::types::Message) -> Self {
@@ -19,7 +21,7 @@ impl From<crate::types::Message> for Message {
             hops: value.hops,
             snr: value.snr,
             rssi: value.rssi,
-            routing_error: value.routing_error.map(|e| e as i32),
+            delivery_state: value.delivery_state.map(Into::into),
         }
     }
 }
@@ -43,10 +45,43 @@ impl TryFrom<Message> for crate::types::Message {
             hops: value.hops,
             snr: value.snr,
             rssi: value.rssi,
-            routing_error: value
-                .routing_error
-                .map(meshtastic::protobufs::routing::Error::try_from)
-                .transpose()?,
+            delivery_state: value.delivery_state.map(DeliveryState::try_from).transpose()?,
         })
+    }
+}
+
+impl TryFrom<i32> for DeliveryState {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::Sending),
+            1 => Ok(Self::DeliveredToRecipient),
+            2 => Ok(Self::DeliveredToRecipientProven),
+            3 => Ok(Self::DeliveryProofFailed),
+            4 => Ok(Self::DeliveredToMesh),
+            32.. => Ok(Self::RoutingError(routing::Error::try_from(value - 32)?)),
+            _ => Err(anyhow::anyhow!("invalid DeliveryState")),
+        }
+    }
+}
+
+impl Into<i32> for DeliveryState {
+    fn into(self) -> i32 {
+        match self {
+            Self::Sending => 0,
+            Self::DeliveredToRecipient => 1,
+            Self::DeliveredToRecipientProven => 2,
+            Self::DeliveryProofFailed => 3,
+            Self::DeliveredToMesh => 4,
+            Self::RoutingError(e) => e as i32 + 32,
+        }
+    }
+}
+
+impl ToSql for DeliveryState {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let value: i32 = Into::into(self.clone());
+        Ok(ToSqlOutput::Owned(rusqlite::types::Value::Integer(value as i64)))
     }
 }

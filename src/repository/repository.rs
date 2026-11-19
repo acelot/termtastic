@@ -10,6 +10,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0002.sql"),
     include_str!("migrations/0003.sql"),
     include_str!("migrations/0004.sql"),
+    include_str!("migrations/0005.sql"),
 ];
 
 pub async fn create_sqlite_repository<'a>(

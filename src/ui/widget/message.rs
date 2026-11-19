@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     state::State,
     types::{Message, Node, UNKNOWN_NODE},
-    ui::helpers::{StringExt, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span, to_local},
+    ui::helpers::{StringExt, delivery_state_to_span, hops_to_spans, humanize_datetime, short_name_to_span, to_local},
 };
 
 const REACTIONS_LINE_MAX_WIDTH: usize = 20;
@@ -99,9 +99,9 @@ impl<'a> Widget for MessageWidget<'a> {
         .split(block_area);
 
         let v0_h = Layout::horizontal([
-            Constraint::Fill(1),
+            Constraint::Fill(2),
             Constraint::Length(1),
-            Constraint::Length(16),
+            Constraint::Fill(1),
             Constraint::Length(1),
             Constraint::Length(16),
         ])
@@ -134,7 +134,7 @@ impl<'a> Widget for MessageWidget<'a> {
         if !self.data.is_my_node {
             Line::from(hops_to_spans(self.data.message, false)).render(v0_h[2], buf);
         } else {
-            routing_error_to_span(self.data.message.routing_error).render(v0_h[2], buf);
+            delivery_state_to_span(self.data.message.delivery_state.as_ref()).render(v0_h[2], buf);
         }
 
         Line::from(Span::from(humanize_datetime(to_local(self.data.message.datetime))).dark_gray())

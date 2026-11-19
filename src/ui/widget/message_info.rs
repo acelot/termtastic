@@ -13,7 +13,7 @@ use crate::{
     state::State,
     types::{Message, Node, UNKNOWN_NODE},
     ui::helpers::{
-        DEFAULT_SCROLLBAR_SET, StringExt, hops_to_spans, humanize_datetime, routing_error_to_span, short_name_to_span,
+        DEFAULT_SCROLLBAR_SET, StringExt, delivery_state_to_span, hops_to_spans, humanize_datetime, short_name_to_span,
         to_local,
     },
 };
@@ -201,7 +201,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
 
         // message
         let message_header_area_h =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Length(10), Constraint::Length(17)])
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(14), Constraint::Length(17)])
                 .split(message_header_area);
 
         scroll_view.render_widget(
@@ -215,7 +215,7 @@ impl<'a> StatefulWidget for MessageInfoWidget<'a> {
 
         scroll_view.render_widget(
             Line::from(if self.data.is_my_node {
-                vec![routing_error_to_span(self.data.message.routing_error)]
+                vec![delivery_state_to_span(self.data.message.delivery_state.as_ref())]
             } else {
                 hops_to_spans(self.data.message, self.data.is_my_node)
             }),
@@ -344,7 +344,7 @@ impl<'a> Widget for ReactionWidget<'a> {
         let [emoji_area, node_area, hops_area, date_area] = Layout::horizontal([
             Constraint::Length(5),
             Constraint::Fill(1),
-            Constraint::Length(10),
+            Constraint::Length(14),
             Constraint::Length(17),
         ])
         .areas(area);
@@ -362,7 +362,7 @@ impl<'a> Widget for ReactionWidget<'a> {
 
         // hops, routing error
         Line::from(if self.item.is_my_node {
-            vec![routing_error_to_span(self.item.message.routing_error)]
+            vec![delivery_state_to_span(self.item.message.delivery_state.as_ref())]
         } else {
             hops_to_spans(self.item.message, self.item.is_my_node)
         })

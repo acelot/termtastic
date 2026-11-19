@@ -64,9 +64,26 @@ pub enum StateAction {
         node_key: u32,
     },
     MessageAdd(Message),
-    MessageErrorSet {
+    MessageSending {
         packet_id: u32,
-        error: Option<routing::Error>,
+    },
+    MessageDeliveredToRecipient {
+        packet_id: u32,
+    },
+    #[allow(dead_code)]
+    MessageDeliveredToRecipientProven {
+        packet_id: u32,
+    },
+    #[allow(dead_code)]
+    MessageDeliveryProofFailed {
+        packet_id: u32,
+    },
+    MessageDeliveredToMesh {
+        packet_id: u32,
+    },
+    MessageRoutingError {
+        packet_id: u32,
+        error: routing::Error,
         datetime: Timestamp,
     },
     PreviousMessagesLoadPending(Chat),

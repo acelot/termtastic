@@ -1,6 +1,6 @@
 use crate::repository::domain::message::Message;
 use crate::repository::{Repository, RepositoryError};
-use crate::types::Chat;
+use crate::types::{Chat, DeliveryState};
 use rusqlite::named_params;
 use serde_rusqlite::{from_rows, to_params_named};
 use uuid::Uuid;
@@ -120,7 +120,7 @@ impl Repository {
                         hops,
                         snr,
                         rssi,
-                        routing_error
+                        delivery_state
                     )
                     VALUES (
                         :id,
@@ -136,7 +136,7 @@ impl Repository {
                         :hops,
                         :snr,
                         :rssi,
-                        :routing_error
+                        :delivery_state
                     )
                     ON CONFLICT(id) DO UPDATE SET
                         reply_id = excluded.reply_id,
@@ -151,7 +151,7 @@ impl Repository {
                         hops = excluded.hops,
                         snr = excluded.snr,
                         rssi = excluded.rssi,
-                        routing_error = excluded.routing_error
+                        delivery_state = excluded.delivery_state
                     "#,
                 )?;
 
@@ -164,18 +164,18 @@ impl Repository {
         Ok(())
     }
 
-    pub async fn message_update_routing_error(
+    pub async fn message_update_delivery_state(
         &self,
         id: Uuid,
-        routing_error: Option<i32>,
+        delivery_state: DeliveryState,
     ) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
                 let mut statement =
-                    conn.prepare("UPDATE messages SET routing_error = :routing_error WHERE id = :id")?;
+                    conn.prepare("UPDATE messages SET delivery_state = :delivery_state WHERE id = :id")?;
 
                 statement
-                    .execute(named_params! { ":id": id, ":routing_error": routing_error })
+                    .execute(named_params! { ":id": id, ":delivery_state": delivery_state })
                     .map_err(Into::into)
             })
             .await?;

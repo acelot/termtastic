@@ -3,7 +3,7 @@ use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, Mouse
 use emojis::Emoji;
 use itertools::Itertools;
 use jiff::{SignedDuration, Timestamp, Zoned, tz::TimeZone};
-use meshtastic::protobufs::{config, routing};
+use meshtastic::protobufs::config;
 use ratatui::{
     style::{Color, Modifier, Style, Stylize},
     symbols::scrollbar::Set as ScrollbarSet,
@@ -16,8 +16,8 @@ use std::ops::Add;
 use std::sync::LazyLock;
 use tui_widget_list::ListState;
 
-use crate::state::State;
 use crate::types::{ChannelRole, Chat, HopsSnrRssiAware, Node};
+use crate::{state::State, types::DeliveryState};
 
 static NEWLINE_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\r?\n|\r").unwrap());
 
@@ -454,11 +454,15 @@ pub fn last_heard_to_spans(node: &Node, my: bool) -> Vec<Span<'_>> {
     }
 }
 
-pub fn routing_error_to_span<'a>(error: Option<routing::Error>) -> Span<'a> {
-    match error {
-        Some(routing::Error::None) => Span::from("ACK").green(),
-        Some(e) => Span::from(e.as_str_name()).red(),
-        None => Span::from("sent").dark_gray(),
+pub fn delivery_state_to_span<'a>(state: Option<&DeliveryState>) -> Span<'a> {
+    match state {
+        Some(DeliveryState::Sending) => Span::from("sending...").dark_gray(),
+        Some(DeliveryState::DeliveredToRecipient) => Span::from("delivered").green(),
+        Some(DeliveryState::DeliveredToRecipientProven) => Span::from("delivered ✔").bold().green(),
+        Some(DeliveryState::DeliveryProofFailed) => Span::from("proof failed ✘").bold().red(),
+        Some(DeliveryState::DeliveredToMesh) => Span::from("ack").green(),
+        Some(DeliveryState::RoutingError(e)) => Span::from(e.as_str_name()).red(),
+        None => Span::default(),
     }
 }
 

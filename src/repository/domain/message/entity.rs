@@ -15,5 +15,5 @@ pub struct Message {
     pub hops: u32,
     pub snr: f32,
     pub rssi: i32,
-    pub routing_error: Option<i32>,
+    pub delivery_state: Option<i32>,
 }

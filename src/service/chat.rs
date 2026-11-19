@@ -3,7 +3,12 @@ use std::time::Instant;
 use jiff::Timestamp;
 use meshtastic::{
     Message as _,
-    protobufs::{PortNum, Routing, from_radio::PayloadVariant, mesh_packet, routing},
+    protobufs::{
+        PortNum, Routing,
+        from_radio::PayloadVariant,
+        mesh_packet::{self, TransportMechanism},
+        routing,
+    },
 };
 use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
@@ -187,6 +192,11 @@ impl ChatService {
 
     fn handle_meshtastic_packet(&mut self, payload_variant: PayloadVariant) {
         match payload_variant {
+            PayloadVariant::QueueStatus(status) => {
+                let _ = self.state_action_tx.send(StateAction::MessageSending {
+                    packet_id: status.mesh_packet_id,
+                });
+            }
             PayloadVariant::Packet(packet) => match &packet.payload_variant {
                 Some(mesh_packet::PayloadVariant::Decoded(data)) => match data.portnum() {
                     PortNum::RoutingApp => match Routing::decode(&*data.payload) {
@@ -197,10 +207,27 @@ impl ChatService {
 
                             if Some(packet.to) == my_node_key {
                                 match routing::Error::try_from(e) {
+                                    Ok(routing::Error::None) => match packet.transport_mechanism() {
+                                        TransportMechanism::TransportInternal => {
+                                            let _ = self.state_action_tx.send(StateAction::MessageDeliveredToMesh {
+                                                packet_id: data.request_id,
+                                            });
+                                        }
+                                        TransportMechanism::TransportLora
+                                        | TransportMechanism::TransportLoraAlt1
+                                        | TransportMechanism::TransportLoraAlt2
+                                        | TransportMechanism::TransportLoraAlt3 => {
+                                            let _ =
+                                                self.state_action_tx.send(StateAction::MessageDeliveredToRecipient {
+                                                    packet_id: data.request_id,
+                                                });
+                                        }
+                                        _ => {}
+                                    },
                                     Ok(error) => {
-                                        let _ = self.state_action_tx.send(StateAction::MessageErrorSet {
+                                        let _ = self.state_action_tx.send(StateAction::MessageRoutingError {
                                             packet_id: data.request_id,
-                                            error: Some(error),
+                                            error,
                                             datetime: packet
                                                 .rx_time
                                                 .timestamp_to_datetime()
