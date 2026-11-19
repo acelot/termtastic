@@ -410,16 +410,13 @@ impl<'a> Screen for Messenger<'a> {
                         .highlighted(replying_to.map(|(_, msg_key)| message_id == msg_key).unwrap_or(false)),
                 );
 
-                let (mut height, _) = item.height(area.width);
-
-                if context.index < chat_state.ids.len() - 1 {
-                    height += 1;
-                }
+                let (height, _) = item.height(area.width);
 
                 (item, height)
             });
 
             let list = ListView::new(list_builder, chat_state.ids.len())
+                .gap_size(1)
                 .infinite_scrolling(false)
                 .scroll_direction(ScrollDirection::Backward)
                 .scrollbar(default_scrollbar())

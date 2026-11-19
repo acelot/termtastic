@@ -162,17 +162,17 @@ impl<'a> Screen for Layout<'a> {
 
         let area = container.inner(frame.area());
 
-        let v = RatatuiLayout::vertical([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Fill(1),
-            Constraint::Length(1),
+        let [header_area, _, tabs_area, _, content_area, hotkeys_area] = RatatuiLayout::vertical([
+            Constraint::Length(1), // header
+            Constraint::Length(1), // gap
+            Constraint::Length(1), // tabs
+            Constraint::Length(1), // gap
+            Constraint::Fill(1),   // content
+            Constraint::Length(1), // hotkeys
         ])
-        .split(area);
+        .areas(area);
 
-        HeaderWidget::new(HeaderContext::from(state)).render(v[0], frame.buffer_mut());
+        HeaderWidget::new(HeaderContext::from(state)).render(header_area, frame.buffer_mut());
 
         TabsWidget::new(
             Tab::iter()
@@ -190,24 +190,24 @@ impl<'a> Screen for Layout<'a> {
                 .collect(),
             state.active_tab as usize,
         )
-        .render(v[2], frame.buffer_mut());
+        .render(tabs_area, frame.buffer_mut());
 
         if self.last_tab != state.active_tab {
-            Clear.render(v[4], frame.buffer_mut());
+            Clear.render(content_area, frame.buffer_mut());
             self.last_tab = state.active_tab;
         }
 
         match state.active_tab {
-            Tab::Chat => self.chat_screen.render(state, frame, v[4], emit),
-            Tab::Nodes => self.nodes_screen.render(state, frame, v[4], emit),
-            Tab::Settings => self.settings_screen.render(state, frame, v[4], emit),
-            Tab::Connection => self.connection_screen.render(state, frame, v[4], emit),
-            Tab::Dashboard => self.dashboard_screen.render(state, frame, v[4], emit),
-            Tab::Logs => self.logs_screen.render(state, frame, v[4], emit),
+            Tab::Chat => self.chat_screen.render(state, frame, content_area, emit),
+            Tab::Nodes => self.nodes_screen.render(state, frame, content_area, emit),
+            Tab::Settings => self.settings_screen.render(state, frame, content_area, emit),
+            Tab::Connection => self.connection_screen.render(state, frame, content_area, emit),
+            Tab::Dashboard => self.dashboard_screen.render(state, frame, content_area, emit),
+            Tab::Logs => self.logs_screen.render(state, frame, content_area, emit),
         }
 
         // hotkeys
-        HotkeysWidget::new(&self.get_hotkeys(state)).render(v[5], frame.buffer_mut());
+        HotkeysWidget::new(&self.get_hotkeys(state)).render(hotkeys_area, frame.buffer_mut());
 
         // node info popup
         if let Some(node_key) = state.nodeinfo_key {

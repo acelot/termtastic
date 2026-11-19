@@ -319,10 +319,11 @@ impl<'a> Screen for Nodes<'a> {
                     is_selected: context.is_selected,
                 };
 
-                (item, 3)
+                (item, 2)
             });
 
             let list = ListView::new(list_builder, state.nodes_view.len())
+                .gap_size(1)
                 .infinite_scrolling(false)
                 .scrollbar(default_scrollbar())
                 .add_modifier(if is_popup_visible {

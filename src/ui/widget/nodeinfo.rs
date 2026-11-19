@@ -504,10 +504,11 @@ impl<'a> NodeInfoWidget<'a> {
                 is_selected: context.is_selected,
             };
 
-            (widget, 3)
+            (widget, 2)
         });
 
         let list = ListView::new(list_builder, traceroutes.len())
+            .gap_size(1)
             .infinite_scrolling(false)
             .scrollbar(default_scrollbar())
             .add_modifier(dim_modifier);
@@ -554,10 +555,11 @@ impl<'a> NodeInfoWidget<'a> {
                 is_selected: context.is_selected,
             };
 
-            (widget, 3)
+            (widget, 2)
         });
 
         let list = ListView::new(list_builder, position.len())
+            .gap_size(1)
             .infinite_scrolling(false)
             .scrollbar(default_scrollbar())
             .add_modifier(dim_modifier);

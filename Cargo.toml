@@ -39,10 +39,10 @@ emojis = { version = "0.9.1" }
 etcetera = { version = "0.11.0" }
 fastrand = { version = "2.5" }
 futures = { version = "0.3.34" }
-hostaddr = { version = "1.0", features = ["serde"] }
+hostaddr = { version = "1.1", features = ["serde"] }
 itertools = { version = "0.15.0" }
 jiff = { version = "0.2.46", features = ["serde"] }
-mdns-sd = { version = "0.21.7" }
+mdns-sd = { version = "0.22.0" }
 meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "1741a83", features = [
     "bluetooth-le",
 ] }
@@ -74,6 +74,7 @@ tracing-appender = { version = "0.2.5" }
 tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0.1" }
 tui-scrollview = { git = "https://github.com/acelot/tui-widgets.git", rev = "831e6a9" }
-tui-widget-list = { version = "0.15.4" }
+#tui-widget-list = { version = "0.15.4" }
+tui-widget-list = { git = "https://github.com/acelot/tui-widget-list.git", rev = "f4c3c13" }
 unicode-width = { version = "0.2.3" }
 uuid = { version = "1.29", features = ["serde", "v7"] }
