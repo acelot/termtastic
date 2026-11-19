@@ -1,3 +1,4 @@
+mod chat_position;
 mod message;
 mod node;
 mod position;

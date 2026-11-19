@@ -106,8 +106,9 @@ impl Repository {
     pub async fn telemetry_remove_by_node_key(&self, node_key: u32) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare("DELETE FROM telemetry WHERE node_key = :node_key")?;
-                statement.execute(params![node_key]).map_err(Into::into)
+                conn.execute("DELETE FROM telemetry WHERE node_key = ?1", [node_key])?;
+
+                Ok(())
             })
             .await?;
 

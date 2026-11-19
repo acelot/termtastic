@@ -6,8 +6,9 @@ use strum::EnumProperty;
 use uuid::Uuid;
 
 use crate::types::{
-    AppConfig, Channel, Chat, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node, NodePosition,
-    NodeTelemetry, NodeTelemetryTyped, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem, UiConfig,
+    AppConfig, Channel, Chat, ChatPosition, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node,
+    NodePosition, NodeTelemetry, NodeTelemetryTyped, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem,
+    UiConfig,
 };
 
 #[derive(Debug, Clone, EnumProperty)]
@@ -40,6 +41,8 @@ pub enum StateAction {
     DbNodesLastTelemetryLoad(Vec<NodeTelemetry>),
     #[strum(props(rebroadcast = false))]
     DbNodesLastPositionLoad(HashMap<u32, NodePosition>),
+    #[strum(props(rebroadcast = false))]
+    DbChatPositionLoad(HashMap<Chat, ChatPosition>),
     #[strum(props(rebroadcast = false))]
     DbMessagesLoad(Vec<Message>),
     #[strum(props(rebroadcast = false))]

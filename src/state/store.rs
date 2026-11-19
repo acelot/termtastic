@@ -19,8 +19,8 @@ use crate::service::{
 };
 use crate::state::ChatState;
 use crate::types::{
-    Chat, DbLoadState, DeliveryState, Message, Node, NodeLastTelemetry, NodeTelemetry, NodeTelemetryTyped, Traceroute,
-    TracerouteIndicatorState, TracerouteItem, TracerouteState,
+    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeLastTelemetry, NodeTelemetry,
+    NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -226,6 +226,7 @@ impl Store {
                     state.db_load_transaction_nodes = None;
                     state.db_load_transaction_nodes_last_telemetry = None;
                     state.db_load_transaction_nodes_last_position = None;
+                    state.db_load_transaction_chat_position = None;
                     state.db_load_transaction_messages = None;
                     state.db_load_transaction_traceroutes = None;
                     state.db_load_transaction_my_node_device_metrics = None;
@@ -274,8 +275,16 @@ impl Store {
                             add_message(message, state);
                         }
 
-                        for (_, chat_state) in state.chats.iter_mut() {
-                            chat_state.select_last();
+                        let chat_position = state.db_load_transaction_chat_position.take().unwrap_or_default();
+
+                        for (chat, chat_state) in state.chats.iter_mut() {
+                            if let Some(ChatPosition { selected_id, max_id }) = chat_position.get(chat).cloned()
+                                && chat_state.ids.contains(&selected_id)
+                            {
+                                chat_state.position = ChatPosition { selected_id, max_id };
+                            } else {
+                                chat_state.select_last();
+                            }
                         }
                     }
 
@@ -324,6 +333,13 @@ impl Store {
             StateAction::DbNodesLastPositionLoad(position) => {
                 self.state_tx.send_modify(|state| {
                     state.db_load_transaction_nodes_last_position = Some(position);
+                });
+
+                true
+            }
+            StateAction::DbChatPositionLoad(chat_position) => {
+                self.state_tx.send_modify(|state| {
+                    state.db_load_transaction_chat_position = Some(chat_position);
                 });
 
                 true
@@ -1401,7 +1417,7 @@ fn add_message(message: Message, state: &mut State) {
                 entry.get_mut().ids.insert(message.id);
             }
             Vacant(entry) => {
-                entry.insert_sorted(ChatState::new([message.id], None));
+                entry.insert_sorted(ChatState::new([message.id]));
             }
         };
     }

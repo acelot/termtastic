@@ -132,8 +132,9 @@ impl Repository {
     pub async fn position_remove_by_node_key(&self, node_key: u32) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare("DELETE FROM positions WHERE node_key = :node_key")?;
-                statement.execute(params![node_key]).map_err(Into::into)
+                conn.execute("DELETE FROM positions WHERE node_key = ?1", [node_key])?;
+
+                Ok(())
             })
             .await?;
 

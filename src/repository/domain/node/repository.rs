@@ -1,6 +1,5 @@
 use super::Node;
 use crate::repository::{Repository, RepositoryError};
-use rusqlite::params;
 use serde_rusqlite::{from_rows, to_params_named};
 
 impl Repository {
@@ -94,8 +93,9 @@ impl Repository {
     pub async fn node_remove(&self, key: u32) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
-                let mut statement = conn.prepare("DELETE FROM nodes WHERE key = :key")?;
-                statement.execute(params![key]).map_err(|e| e.into())
+                conn.execute("DELETE FROM nodes WHERE key = ?1", [key])?;
+
+                Ok(())
             })
             .await?;
 

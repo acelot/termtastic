@@ -787,6 +787,12 @@ impl From<(&Message, u32)> for Chat {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct ChatPosition {
+    pub selected_id: Uuid,
+    pub max_id: Uuid,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Channel {
     pub key: u32,

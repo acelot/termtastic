@@ -360,8 +360,8 @@ impl<'a> Screen for Messenger<'a> {
         let list_state = self.list_states.entry(*active_chat).or_insert_with(|| {
             let mut list_state = ListState::default();
 
-            if let Some(selected_id) = chat_state.selected_id() {
-                list_state.select(chat_state.ids.get_index_of(&selected_id));
+            if !chat_state.position.selected_id.is_nil() {
+                list_state.select(chat_state.ids.get_index_of(&chat_state.position.selected_id));
             }
 
             list_state
@@ -501,7 +501,7 @@ impl<'a> Screen for Messenger<'a> {
                 .white()
                 .on_blue();
 
-            let unread_popup_area = Rect::new(area.x, area.y + area.height - 4, area.width, 1)
+            let unread_popup_area = Rect::new(area.x, area.y + area.height - 5, area.width, 1)
                 .centered_horizontally(Constraint::Length(unread_span.width() as u16));
 
             unread_span.render(unread_popup_area, frame.buffer_mut());

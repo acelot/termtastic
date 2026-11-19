@@ -11,6 +11,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0003.sql"),
     include_str!("migrations/0004.sql"),
     include_str!("migrations/0005.sql"),
+    include_str!("migrations/0006.sql"),
 ];
 
 pub async fn create_sqlite_repository<'a>(
@@ -58,11 +59,11 @@ pub async fn create_sqlite_repository<'a>(
 pub enum RepositoryError {
     #[error("connection closed")]
     ConnectionClosed,
-    #[error("connection is closing: {1}")]
+    #[error("connection is closing: {1:#}")]
     Close(Connection, rusqlite::Error),
-    #[error("db error: {0}")]
+    #[error("db error: {0:#}")]
     DbError(#[from] rusqlite::Error),
-    #[error("serialization error: {0}")]
+    #[error("serialization error: {0:#}")]
     SerializationError(#[from] serde_rusqlite::Error),
 }
 

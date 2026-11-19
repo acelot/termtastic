@@ -15,8 +15,8 @@ use uuid::Uuid;
 use crate::repository::{Repository, create_sqlite_repository};
 use crate::state::State;
 use crate::types::{
-    DbLoadState, DeliveryState, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped, TelemetryKind,
-    Traceroute,
+    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped,
+    TelemetryKind, Traceroute,
 };
 use crate::{APP_NAME, state::StateAction, types::Toast};
 
@@ -329,7 +329,7 @@ impl PersistenceService {
 
                 if let Err(e) = repository
                     .message_update_delivery_state(
-                        message_id.clone(),
+                        message_id,
                         match action {
                             StateAction::MessageDeliveredToRecipient { .. } => DeliveryState::DeliveredToRecipient,
                             StateAction::MessageDeliveredToRecipientProven { .. } => {
@@ -359,7 +359,7 @@ impl PersistenceService {
                 };
 
                 if let Err(e) = repository
-                    .message_update_delivery_state(message_id.clone(), DeliveryState::RoutingError(error))
+                    .message_update_delivery_state(message_id, DeliveryState::RoutingError(error))
                     .await
                 {
                     tracing::error!("message update failed: {}", e);
@@ -451,12 +451,35 @@ impl PersistenceService {
                     };
                 }));
             }
+            StateAction::ChatSelectMessage(chat, _) => {
+                let Some(repository) = &self.repository else {
+                    return;
+                };
+
+                let data = {
+                    let state = self.state_rx.borrow();
+
+                    let Some(chat_state) = state.chats.get(&chat) else {
+                        return;
+                    };
+
+                    (chat, chat_state.position.clone())
+                };
+
+                if let Err(e) = repository.chat_position_upsert(data.try_into().unwrap()).await {
+                    tracing::error!("chat position save failed: {}", e);
+
+                    let _ = self
+                        .state_action_tx
+                        .send(StateAction::Toast(Toast::error("DB error: see logs")));
+                }
+            }
             StateAction::ChatPurge(chat) if is_db_loaded => {
                 let Some(repository) = &self.repository else {
                     return;
                 };
 
-                if let Err(e) = repository.message_remove_by_chat(chat).await {
+                if let Err(e) = repository.message_remove_all_by_chat(chat).await {
                     tracing::error!("chat purge failed: {}", e);
 
                     let _ = self
@@ -501,6 +524,18 @@ async fn load_data(
     tracing::info!("nodes loaded from DB: {}", nodes.len());
 
     let _ = state_action_tx.send(StateAction::DbNodesLoad(nodes));
+
+    // chat position
+    let chat_position: HashMap<Chat, ChatPosition> = repository
+        .chat_position_find_all()
+        .await?
+        .into_iter()
+        .map(|entity| Into::<(Chat, ChatPosition)>::into(entity))
+        .collect();
+
+    tracing::info!("chat position loaded from DB: {}", chat_position.len());
+
+    let _ = state_action_tx.send(StateAction::DbChatPositionLoad(chat_position));
 
     // messages
     let messages: Vec<Message> = repository

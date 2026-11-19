@@ -183,7 +183,7 @@ impl Repository {
         Ok(())
     }
 
-    pub async fn message_remove_by_chat(&self, chat: Chat) -> Result<(), RepositoryError> {
+    pub async fn message_remove_all_by_chat(&self, chat: Chat) -> Result<(), RepositoryError> {
         self.conn
             .call(move |conn| -> Result<_, RepositoryError> {
                 let chat_id = match chat {
@@ -191,15 +191,12 @@ impl Repository {
                     Chat::Direct(node_key) => node_key,
                 };
 
-                let mut statement = conn.prepare(
-                    r#"
-                    DELETE FROM messages WHERE chat_id = :chat_id
-                    "#,
-                )?;
+                let tx = conn.transaction()?;
+                tx.execute("DELETE FROM messages WHERE chat_id = ?1", [chat_id])?;
+                tx.execute("DELETE FROM chat_position WHERE chat_id = ?1", [chat_id])?;
+                tx.commit()?;
 
-                statement
-                    .execute(named_params! { ":chat_id": chat_id })
-                    .map_err(Into::into)
+                Ok(())
             })
             .await?;
 
