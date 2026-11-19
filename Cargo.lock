@@ -3353,7 +3353,7 @@ dependencies = [
 [[package]]
 name = "tui-widget-list"
 version = "0.15.4"
-source = "git+https://github.com/acelot/tui-widget-list.git?rev=f4c3c13#f4c3c13f168e76cadd708cd393e4c341e3ab49fd"
+source = "git+https://github.com/acelot/tui-widget-list.git?rev=cb57b26#cb57b26f3bfa60235bcacca4833866b0aaa03d59"
 dependencies = [
  "ratatui-core",
  "ratatui-widgets",

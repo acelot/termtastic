@@ -28,6 +28,7 @@ mod telemetry_item;
 mod terminal_size;
 mod traceroute;
 mod traceroute_popup;
+mod unread_messages;
 mod uptime;
 
 pub use clock::*;
@@ -60,4 +61,5 @@ pub use telemetry_item::*;
 pub use terminal_size::*;
 pub use traceroute::*;
 pub use traceroute_popup::*;
+pub use unread_messages::*;
 pub use uptime::*;

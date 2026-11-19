@@ -497,14 +497,17 @@ impl<'a> Screen for Messenger<'a> {
         let unread_messages_count = state.unread_messages_count_by_chat(*active_chat);
 
         if unread_messages_count > 0 {
-            let unread_span = Span::from(format!(" ↓ unread: {} ", unread_messages_count))
-                .white()
-                .on_blue();
+            let unread_widget = UnreadMessagesWidget::new(unread_messages_count).dim(is_any_popup_visible);
 
-            let unread_popup_area = Rect::new(area.x, area.y + area.height - 5, area.width, 1)
-                .centered_horizontally(Constraint::Length(unread_span.width() as u16));
+            let unread_popup_area = Rect::new(
+                area.x + area.width - unread_widget.width() - 2,
+                area.y + area.height - unread_widget.height() - 3,
+                unread_widget.width(),
+                unread_widget.height(),
+            );
 
-            unread_span.render(unread_popup_area, frame.buffer_mut());
+            Clear.render(unread_popup_area, frame.buffer_mut());
+            unread_widget.render(unread_popup_area, frame.buffer_mut());
         }
 
         // emoji selector

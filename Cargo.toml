@@ -75,6 +75,6 @@ tracing-subscriber = { version = "0.3.23", features = ["fmt", "env-filter"] }
 tracing-unwrap = { version = "1.0.1" }
 tui-scrollview = { git = "https://github.com/acelot/tui-widgets.git", rev = "831e6a9" }
 #tui-widget-list = { version = "0.15.4" }
-tui-widget-list = { git = "https://github.com/acelot/tui-widget-list.git", rev = "f4c3c13" }
+tui-widget-list = { git = "https://github.com/acelot/tui-widget-list.git", rev = "cb57b26" }
 unicode-width = { version = "0.2.3" }
 uuid = { version = "1.29", features = ["serde", "v7"] }

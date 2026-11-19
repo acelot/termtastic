@@ -124,7 +124,7 @@ pub fn update_terminal_title(state: &mut State) {
                 let node = state.nodes.get(&node_key);
 
                 match node {
-                    Some(node) => Some(format!("[{}] {}", node.short_name(), node.long_name())),
+                    Some(node) => Some(format!("[{}]", node.short_name())),
                     None => Some(format!("!{:x}", node_key)),
                 }
             }
@@ -133,9 +133,7 @@ pub fn update_terminal_title(state: &mut State) {
         tab => Some(tab.to_string()),
     };
 
-    let node_name = state
-        .get_my_node()
-        .and_then(|n| Some(format!(" · [{}]", n.short_name())));
+    let node_name = state.get_my_node().and_then(|n| Some(format!(" · {}", n.short_name())));
 
     state.terminal_title = Some(format!(
         "{}{}",
