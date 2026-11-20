@@ -128,7 +128,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
         items.push(TelemetryItem::item(
             "IAQ",
             environment_metrics.data.iaq,
-            environment_metrics.data.iaq.map(|v| v),
+            environment_metrics.data.iaq,
         ));
 
         items.push(TelemetryItem::item(

@@ -30,7 +30,7 @@ impl<'a> Settings<'a> {
 
     fn render_form(
         &mut self,
-        items: &Vec<FormItem>,
+        items: &[FormItem],
         data: &FormData,
         original_data: &FormData,
         area: Rect,

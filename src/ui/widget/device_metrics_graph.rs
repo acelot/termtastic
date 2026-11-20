@@ -50,6 +50,7 @@ impl<'a> Widget for DeviceMetricsGraphWidget<'a> {
             Timestamp::now(),
         );
 
+        #[allow(clippy::type_complexity)]
         let (ch_util, air_util_tx, util_max): (Vec<(f64, f64)>, Vec<(f64, f64)>, f64) = self.data.iter().fold(
             (Vec::new(), Vec::new(), 0.0),
             |(mut ch_util, mut air_util_tx, mut util_max), item| {

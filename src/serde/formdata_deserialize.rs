@@ -19,7 +19,7 @@ pub enum FormDataDeserializerError {
     UnsupportedType(&'static str),
 }
 
-impl<'a> Error for FormDataDeserializerError {
+impl Error for FormDataDeserializerError {
     fn custom<T>(msg: T) -> Self
     where
         T: Display,

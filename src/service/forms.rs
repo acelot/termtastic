@@ -1019,7 +1019,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         60 => "1 minute".to_string(),
                         61..3600 => format!("{} minutes", secs / 60),
                         3600 => "1 hour".to_string(),
-                        3600..=u32::MAX => format!("{} hours", secs / 3600),
+                        3601..=u32::MAX => format!("{} hours", secs / 3600),
                     }
                 },
                 |_| Ok(()),
@@ -1091,7 +1091,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         1..120 => format!("{} seconds", secs),
                         120..3600 => format!("{} minutes", secs / 60),
                         3600 => "1 hour".to_string(),
-                        3600..=u32::MAX => format!("{} hours", secs / 3600),
+                        3601..=u32::MAX => format!("{} hours", secs / 3600),
                     }
                 },
                 |_| Ok(()),
@@ -1227,11 +1227,12 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| {
                     let secs = v.as_u32();
 
+                    #[allow(clippy::match_overlapping_arm)]
                     match secs {
                         0 => "Unset".to_string(),
                         1 => "1 second".to_string(),
                         60 => "1 minute".to_string(),
-                        1..=u32::MAX => format!("{} seconds", secs),
+                        _ => format!("{} seconds", secs),
                     }
                 },
                 |_| Ok(()),
@@ -1274,11 +1275,12 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| {
                     let secs = v.as_u32();
 
+                    #[allow(clippy::match_overlapping_arm)]
                     match secs {
                         0 => "Unset".to_string(),
                         1 => "1 second".to_string(),
                         60 => "1 minute".to_string(),
-                        1..=u32::MAX => format!("{} seconds", secs),
+                        _ => format!("{} seconds", secs),
                     }
                 },
                 |_| Ok(()),

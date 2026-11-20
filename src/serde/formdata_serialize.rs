@@ -204,7 +204,7 @@ struct FormDataStructSerializer {
     pub data: FormData,
 }
 
-impl<'a> SerializeStruct for FormDataStructSerializer {
+impl SerializeStruct for FormDataStructSerializer {
     type Ok = FormData;
 
     type Error = FormDataSerializerError;
@@ -233,7 +233,7 @@ struct FormDataMapSerializer {
     pub current_key: String,
 }
 
-impl<'a> SerializeMap for FormDataMapSerializer {
+impl SerializeMap for FormDataMapSerializer {
     type Ok = FormData;
 
     type Error = FormDataSerializerError;
@@ -268,7 +268,7 @@ impl<'a> SerializeMap for FormDataMapSerializer {
 
 struct KeySerializer {}
 
-impl<'a> Serializer for KeySerializer {
+impl Serializer for KeySerializer {
     type Ok = String;
 
     type Error = FormDataSerializerError;
@@ -542,7 +542,9 @@ impl<'a> Serializer for FieldSerializer<'a> {
 
         value.serialize(serializer)?;
 
-        let nested_value = temp_map.get(temp_key).map(|serialized_value| Box::new(serialized_value.clone()));
+        let nested_value = temp_map
+            .get(temp_key)
+            .map(|serialized_value| Box::new(serialized_value.clone()));
 
         self.data.insert(self.key.to_owned(), FormValue::Option(nested_value));
         Ok(())

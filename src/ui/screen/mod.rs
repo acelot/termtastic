@@ -5,6 +5,7 @@ mod layout;
 mod logs;
 mod messenger;
 mod nodes;
+#[allow(clippy::module_inception)]
 mod screen;
 mod settings;
 

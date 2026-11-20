@@ -190,7 +190,7 @@ impl DateTimeExt for u32 {
 }
 
 pub trait TextAreaExt {
-    fn insert_as_lines(&mut self, text: &String);
+    fn insert_as_lines(&mut self, text: &str);
 
     fn trimmed_lines(&self) -> Vec<String>;
 
@@ -200,7 +200,7 @@ pub trait TextAreaExt {
 }
 
 impl TextAreaExt for TextArea<'_> {
-    fn insert_as_lines(&mut self, text: &String) {
+    fn insert_as_lines(&mut self, text: &str) {
         for line in trim_lines(NEWLINE_REGEX.split(text)).into_iter() {
             self.insert_str(line);
             self.insert_newline();
@@ -396,7 +396,7 @@ pub fn humanize_time_delta<'a>(delta: SignedDuration) -> Vec<Span<'a>> {
     ]
 }
 
-pub fn humanize_uptime<'a>(secs: u32) -> String {
+pub fn humanize_uptime(secs: u32) -> String {
     match secs {
         0..60 => format!("{}s", secs),
         60..3600 => format!("{}m", secs / 60),

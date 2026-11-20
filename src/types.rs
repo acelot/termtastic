@@ -116,7 +116,7 @@ pub enum UiEvent {
     QuitRequested,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Device {
     Ble {
         name: Option<String>,
@@ -176,6 +176,12 @@ impl Device {
                 address: address.clone(),
             },
         }
+    }
+}
+
+impl PartialOrd for Device {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -752,7 +758,7 @@ impl From<channel::Role> for ChannelRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Hash, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum Chat {
     Channel(u32),
     Direct(u32),
@@ -761,6 +767,12 @@ pub enum Chat {
 impl Chat {
     pub fn is_direct(&self) -> bool {
         matches!(self, Chat::Direct(_))
+    }
+}
+
+impl PartialOrd for Chat {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -846,9 +858,8 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
 
 impl From<&Channel> for meshtastic::protobufs::Channel {
     fn from(val: &Channel) -> Self {
-        let settings = val
-            .is_enabled
-            .then_some(Some(meshtastic::protobufs::ChannelSettings {
+        let settings = if val.is_enabled {
+            Some(meshtastic::protobufs::ChannelSettings {
                 name: val.name.clone(),
                 psk: val.psk.clone(),
                 #[allow(deprecated)]
@@ -860,8 +871,10 @@ impl From<&Channel> for meshtastic::protobufs::Channel {
                     position_precision: val.position_precision,
                     is_muted: val.is_muted,
                 }),
-            }))
-            .unwrap_or(None);
+            })
+        } else {
+            None
+        };
 
         meshtastic::protobufs::Channel {
             index: val.key as i32,
@@ -954,7 +967,7 @@ pub enum DeliveryState {
     RoutingError(routing::Error),
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Traceroute {
     pub message_id: u32,
     pub node_key: u32,
@@ -964,6 +977,12 @@ pub struct Traceroute {
     pub route_towards: Vec<TracerouteItem>,
     pub route_back: Vec<TracerouteItem>,
     pub state: TracerouteState,
+}
+
+impl PartialOrd for Traceroute {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl Ord for Traceroute {

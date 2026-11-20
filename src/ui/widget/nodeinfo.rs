@@ -66,6 +66,7 @@ impl NodeInfoTab {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum NodeInfoWidgetEvent {
     CloseRequested,
     CopyToClipboardRequested(String),
@@ -474,7 +475,7 @@ impl<'a> NodeInfoWidget<'a> {
 
     fn render_traceroutes(
         &self,
-        traceroutes: &Vec<&Traceroute>,
+        traceroutes: &[&Traceroute],
         area: Rect,
         buf: &mut Buffer,
         state: &mut NodeInfoWidgetState,
@@ -531,7 +532,7 @@ impl<'a> NodeInfoWidget<'a> {
 
     fn render_position(
         &self,
-        position: &Vec<NodePosition>,
+        position: &[NodePosition],
         area: Rect,
         buf: &mut Buffer,
         state: &mut NodeInfoWidgetState,
@@ -574,7 +575,7 @@ impl<'a> NodeInfoWidget<'a> {
 
     fn render_telemetry(
         &self,
-        telemetry: &Vec<TelemetryItem>,
+        telemetry: &[TelemetryItem],
         area: Rect,
         buf: &mut Buffer,
         state: &mut NodeInfoWidgetState,

@@ -290,10 +290,7 @@ impl<'a> MessageInfoWidgetData<'a> {
             .reactions
             .iter()
             .filter_map(|message_id| {
-                let Some(reaction) = state.messages.get(message_id) else {
-                    return None;
-                };
-
+                let reaction = state.messages.get(message_id)?;
                 let node = state.nodes.get(&reaction.from).unwrap_or(&UNKNOWN_NODE);
 
                 Some(ReactionItem {

@@ -217,15 +217,7 @@ impl PersistenceService {
                     return;
                 };
 
-                let position_entity = match node_position.try_into() {
-                    Ok(e) => e,
-                    Err(e) => {
-                        tracing::error!("can't convert NodePosition into DB entity: {}", e);
-                        return;
-                    }
-                };
-
-                match repository.position_insert(position_entity).await {
+                match repository.position_insert(node_position.into()).await {
                     Ok(_) => {}
                     Err(e) => {
                         tracing::error!("position insert failed: {}", e);
@@ -584,7 +576,9 @@ async fn load_data(
     // telemetry
     let last_telemetry: Vec<NodeTelemetry> = repository
         .telemetry_find_last_for_each_node()
-        .await?.values().flat_map(|telemetry| {
+        .await?
+        .values()
+        .flat_map(|telemetry| {
             telemetry
                 .iter()
                 .filter_map(|entity| match NodeTelemetry::try_from(entity) {

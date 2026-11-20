@@ -3,6 +3,7 @@ pub mod logo;
 pub mod screen;
 pub mod widget;
 
+#[allow(clippy::module_inception)]
 mod ui;
 pub use ui::*;
 

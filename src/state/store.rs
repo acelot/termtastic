@@ -19,8 +19,8 @@ use crate::service::{
 };
 use crate::state::ChatState;
 use crate::types::{
-    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeTelemetry,
-    NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
+    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeTelemetry, NodeTelemetryTyped, Traceroute,
+    TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -1271,10 +1271,7 @@ fn node_init(node: Node, state: &mut State) -> bool {
 }
 
 fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
-    let telemetry = state
-        .nodes_last_telemetry
-        .entry(node_telemetry.node_key)
-        .or_default();
+    let telemetry = state.nodes_last_telemetry.entry(node_telemetry.node_key).or_default();
 
     match node_telemetry.variant {
         telemetry::Variant::DeviceMetrics(metrics) => {
@@ -1376,7 +1373,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
     };
 }
 
-fn get_traceroute_unknown_nodes(traceroute: &Vec<TracerouteItem>, nodes: &HashMap<u32, Node>) -> Vec<Node> {
+fn get_traceroute_unknown_nodes(traceroute: &[TracerouteItem], nodes: &HashMap<u32, Node>) -> Vec<Node> {
     traceroute
         .iter()
         .filter_map(|item| match item {

@@ -14,7 +14,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("migrations/0006.sql"),
 ];
 
-pub async fn create_sqlite_repository<'a>(
+pub async fn create_sqlite_repository(
     file_path: PathBuf,
     node_key: u32,
     db_tx: mpsc::Sender<()>,
@@ -86,7 +86,7 @@ pub struct Repository {
     pub conn: Connection,
 }
 
-impl<'a> Repository {
+impl Repository {
     pub fn new(conn: Connection) -> Self {
         Self { conn }
     }
