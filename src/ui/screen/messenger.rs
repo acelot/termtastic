@@ -119,8 +119,8 @@ impl<'a> Screen for Messenger<'a> {
         let is_replying_to = self.replying_to.contains_key(active_chat);
 
         // emoji selector
-        if self.is_emoji_selector_visible {
-            if self
+        if self.is_emoji_selector_visible
+            && self
                 .emoji_selector_state
                 .handle_event(event.clone(), &mut |ev| match ev {
                     EmojiSelectorWidgetEvent::EmojiSubmitted(emoji) => {
@@ -134,18 +134,16 @@ impl<'a> Screen for Messenger<'a> {
             {
                 return true;
             }
-        }
 
         // message info
-        if self.message_info.is_some() {
-            if self.message_info_state.handle_event(event.clone(), &mut |ev| match ev {
+        if self.message_info.is_some()
+            && self.message_info_state.handle_event(event.clone(), &mut |ev| match ev {
                 MessageInfoWidgetEvent::CloseRequested => {
                     self.message_info = None;
                 }
             }) {
                 return true;
             }
-        }
 
         // replying
         if is_replying_to {
@@ -336,12 +334,11 @@ impl<'a> Screen for Messenger<'a> {
                 self.is_follow = false;
                 return true;
             }
-            Event::FocusGained => {
-                if list_state.selected == messages_ids.len().checked_sub(1) {
+            Event::FocusGained
+                if list_state.selected == messages_ids.len().checked_sub(1) => {
                     self.is_follow = true;
                     return true;
                 }
-            }
             _ => {}
         }
 
@@ -379,11 +376,10 @@ impl<'a> Screen for Messenger<'a> {
         .split(area);
 
         // list
-        if list_state.fix_selection(chat_state.ids.len()) {
-            if list_state.selected == chat_state.ids.len().checked_sub(1) {
+        if list_state.fix_selection(chat_state.ids.len())
+            && list_state.selected == chat_state.ids.len().checked_sub(1) {
                 self.is_follow = true;
             }
-        }
 
         if self.is_follow {
             let index = chat_state.ids.len().checked_sub(1);

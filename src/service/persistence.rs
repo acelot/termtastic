@@ -466,7 +466,7 @@ impl PersistenceService {
                     (chat, chat_state.position.clone())
                 };
 
-                if let Err(e) = repository.chat_position_upsert(data.try_into().unwrap()).await {
+                if let Err(e) = repository.chat_position_upsert(data.into()).await {
                     tracing::error!("chat position save failed: {}", e);
 
                     let _ = self
@@ -530,7 +530,7 @@ async fn load_data(
         .chat_position_find_all()
         .await?
         .into_iter()
-        .map(|entity| Into::<(Chat, ChatPosition)>::into(entity))
+        .map(Into::<(Chat, ChatPosition)>::into)
         .collect();
 
     tracing::info!("chat position loaded from DB: {}", chat_position.len());
@@ -584,9 +584,7 @@ async fn load_data(
     // telemetry
     let last_telemetry: Vec<NodeTelemetry> = repository
         .telemetry_find_last_for_each_node()
-        .await?
-        .iter()
-        .map(|(_, telemetry)| {
+        .await?.values().flat_map(|telemetry| {
             telemetry
                 .iter()
                 .filter_map(|entity| match NodeTelemetry::try_from(entity) {
@@ -604,7 +602,6 @@ async fn load_data(
                 })
                 .collect::<Vec<NodeTelemetry>>()
         })
-        .flatten()
         .collect();
 
     tracing::info!("telemetry data loaded from DB: {}", last_telemetry.len());
@@ -620,7 +617,7 @@ async fn load_data(
         )
         .await?
         .iter()
-        .map(|entity| match NodeTelemetry::try_from(entity) {
+        .filter_map(|entity| match NodeTelemetry::try_from(entity) {
             Ok(NodeTelemetry {
                 datetime,
                 variant: meshtastic::protobufs::telemetry::Variant::DeviceMetrics(data),
@@ -638,7 +635,6 @@ async fn load_data(
                 None
             }
         })
-        .flatten()
         .collect();
 
     tracing::info!(

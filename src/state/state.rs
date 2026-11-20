@@ -207,7 +207,7 @@ impl ChatState {
 
     pub fn select_last(&mut self) -> bool {
         if let Some(last_id) = self.ids.last() {
-            return self.select(last_id.clone());
+            return self.select(*last_id);
         }
 
         false

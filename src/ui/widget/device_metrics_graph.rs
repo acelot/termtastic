@@ -132,7 +132,7 @@ impl<'a> Deref for DeviceMetricsGraphWidgetData<'a> {
     type Target = VecDeque<NodeTelemetryTyped<DeviceMetrics>>;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0
     }
 }
 

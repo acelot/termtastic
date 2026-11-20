@@ -19,7 +19,7 @@ use crate::service::{
 };
 use crate::state::ChatState;
 use crate::types::{
-    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeLastTelemetry, NodeTelemetry,
+    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeTelemetry,
     NodeTelemetryTyped, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
@@ -711,7 +711,7 @@ impl Store {
                     .iter()
                     .filter_map(|(id, m)| {
                         if chat == Chat::from((m, my_node_key)) {
-                            Some(iter::once(id.clone()).chain(m.reactions.clone()).collect::<Vec<Uuid>>())
+                            Some(iter::once(*id).chain(m.reactions.clone()).collect::<Vec<Uuid>>())
                         } else {
                             None
                         }
@@ -721,7 +721,7 @@ impl Store {
 
                 let packet_ids: Vec<u32> = message_ids
                     .iter()
-                    .filter_map(|id| state.messages.get(id).and_then(|m| Some(m.packet_id)))
+                    .filter_map(|id| state.messages.get(id).map(|m| m.packet_id))
                     .collect();
 
                 for message_id in message_ids {
@@ -838,7 +838,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::Sending);
 
                     return true;
@@ -851,7 +851,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::DeliveredToRecipient);
 
                     return true;
@@ -864,7 +864,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::DeliveredToRecipientProven);
 
                     return true;
@@ -877,7 +877,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::DeliveryProofFailed);
 
                     return true;
@@ -890,7 +890,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::DeliveredToMesh);
 
                     return true;
@@ -907,7 +907,7 @@ impl Store {
                     return false;
                 };
 
-                if let Some(message) = state.messages.get_mut(&message_id) {
+                if let Some(message) = state.messages.get_mut(message_id) {
                     message.delivery_state = Some(DeliveryState::RoutingError(error));
 
                     return true;
@@ -1274,7 +1274,7 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
     let telemetry = state
         .nodes_last_telemetry
         .entry(node_telemetry.node_key)
-        .or_insert(NodeLastTelemetry::default());
+        .or_default();
 
     match node_telemetry.variant {
         telemetry::Variant::DeviceMetrics(metrics) => {

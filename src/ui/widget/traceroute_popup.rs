@@ -65,7 +65,7 @@ impl<'a> StatefulWidget for TraceroutePopupWidget<'a> {
 
         let route_span_mapper = |item: &TracerouteItem| match item {
             TracerouteItem::Node(node_key) => {
-                let node = self.nodes.get(&node_key).unwrap_or(&UNKNOWN_NODE);
+                let node = self.nodes.get(node_key).unwrap_or(&UNKNOWN_NODE);
                 short_name_to_span(node, node_key == &self.my_node_key)
             }
             TracerouteItem::Snr(snr) => Span::from(format!("{:.2}dB", snr)).style(Style::new().fg(snr.snr_to_color())),

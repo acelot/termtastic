@@ -13,16 +13,16 @@ impl From<(Chat, crate::types::ChatPosition)> for ChatPosition {
     }
 }
 
-impl Into<(Chat, crate::types::ChatPosition)> for ChatPosition {
-    fn into(self) -> (Chat, crate::types::ChatPosition) {
+impl From<ChatPosition> for (Chat, crate::types::ChatPosition) {
+    fn from(val: ChatPosition) -> Self {
         (
-            match self.chat_id {
-                0..=7 => Chat::Channel(self.chat_id),
-                _ => Chat::Direct(self.chat_id),
+            match val.chat_id {
+                0..=7 => Chat::Channel(val.chat_id),
+                _ => Chat::Direct(val.chat_id),
             },
             crate::types::ChatPosition {
-                selected_id: self.selected_id,
-                max_id: self.max_id,
+                selected_id: val.selected_id,
+                max_id: val.max_id,
             },
         )
     }

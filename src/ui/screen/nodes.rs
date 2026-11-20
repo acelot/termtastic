@@ -158,8 +158,8 @@ impl<'a> Screen for Nodes<'a> {
     }
 
     fn handle_event(&mut self, state: &State, event: &Event, emit: &impl Fn(UiEvent)) -> bool {
-        if self.is_emoji_selector_visible {
-            if self
+        if self.is_emoji_selector_visible
+            && self
                 .emoji_selector_state
                 .handle_event(event.clone(), &mut |ev| match ev {
                     EmojiSelectorWidgetEvent::EmojiSubmitted(emoji) => {
@@ -177,7 +177,6 @@ impl<'a> Screen for Nodes<'a> {
             {
                 return true;
             }
-        }
 
         if self.is_filter_help_visible {
             match event {

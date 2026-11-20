@@ -144,7 +144,7 @@ pub fn update_terminal_title(state: &mut State) {
         tab => Some(tab.to_string()),
     };
 
-    let node_name = state.get_my_node().and_then(|n| Some(format!(" · {}", n.short_name())));
+    let node_name = state.get_my_node().map(|n| format!(" · {}", n.short_name()));
 
     state.terminal_title = Some(format!(
         "{}{}",

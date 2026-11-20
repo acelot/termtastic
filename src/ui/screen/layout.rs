@@ -181,8 +181,8 @@ impl<'a> Screen for Layout<'a> {
                         t as usize,
                         format!(
                             "{}{}",
-                            t.to_string(),
-                            state.has_unread_messages().then_some("*").unwrap_or_default()
+                            t,
+                            if state.has_unread_messages() { "*" } else { Default::default() }
                         ),
                     ),
                     _ => (t as usize, t.to_string()),

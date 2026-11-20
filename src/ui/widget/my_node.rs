@@ -102,15 +102,11 @@ impl<'a> From<&'a State> for MyNodeWidgetData<'a> {
         Self {
             node: value.my_node_key.and_then(|key| value.nodes.get(&key)),
             device: value.active_device.as_ref(),
-            hw_model: device_metadata.and_then(|m| {
-                Some(
-                    HardwareModel::try_from(m.hw_model)
+            hw_model: device_metadata.map(|m| HardwareModel::try_from(m.hw_model)
                         .ok()
                         .map(|h| h.as_str_name())
-                        .unwrap_or("UNKNOWN"),
-                )
-            }),
-            firmware_version: device_metadata.and_then(|m| Some(&m.firmware_version)),
+                        .unwrap_or("UNKNOWN")),
+            firmware_version: device_metadata.map(|m| &m.firmware_version),
             battery_level: value
                 .my_node_key
                 .and_then(|my_node_key| value.nodes_last_telemetry.get(&my_node_key))

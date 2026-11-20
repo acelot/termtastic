@@ -108,8 +108,7 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id))
-                                    .and_then(|msg| Some(msg.packet_id)),
+                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
                                 text: TextMessage::Text(text),
                             });
                     }
@@ -120,8 +119,7 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id))
-                                    .and_then(|msg| Some(msg.packet_id)),
+                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
                                 text: TextMessage::Text(text),
                             });
                     }
@@ -135,8 +133,7 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id))
-                                    .and_then(|msg| Some(msg.packet_id)),
+                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }
@@ -147,8 +144,7 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id))
-                                    .and_then(|msg| Some(msg.packet_id)),
+                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }

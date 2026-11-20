@@ -345,8 +345,7 @@ pub fn update_nodes_view(state: &mut State) {
 
             let traceroute_token = if state
                 .nodes_traceroutes
-                .get(&node.key)
-                .and_then(|nt| Some(!nt.is_empty()))
+                .get(&node.key).map(|nt| !nt.is_empty())
                 .unwrap_or(false)
             {
                 "$traceroute"

@@ -117,8 +117,7 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
 
         let Some(my_coords) = value
             .nodes_last_position
-            .get(&my_node_key)
-            .and_then(|pos| Some(pos.coordinates()))
+            .get(&my_node_key).map(|pos| pos.coordinates())
         else {
             return Self::default();
         };
@@ -151,8 +150,8 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
         }
 
         Self {
-            nearest: nearest_node.and_then(|n| Some((n, nearest_distance))),
-            farthest: farthest_node.and_then(|n| Some((n, farthest_distance))),
+            nearest: nearest_node.map(|n| (n, nearest_distance)),
+            farthest: farthest_node.map(|n| (n, farthest_distance)),
         }
     }
 }

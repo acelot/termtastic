@@ -94,7 +94,7 @@ impl Widget for UptimeWidget {
         Line::from(
             [
                 Some(Span::from(measure)),
-                addition.and_then(|add| Some(Span::from(format!(" {}", add)).dark_gray())),
+                addition.map(|add| Span::from(format!(" {}", add)).dark_gray()),
             ]
             .into_iter()
             .flatten()

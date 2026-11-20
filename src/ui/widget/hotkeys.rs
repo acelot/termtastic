@@ -23,11 +23,11 @@ impl<'a> Widget for HotkeysWidget<'a> {
         let spans: Vec<Span> = self
             .items
             .iter()
-            .map(|Hotkey { key, alt, label }| {
+            .flat_map(|Hotkey { key, alt, label }| {
                 [
                     Some(Span::from(key.clone())),
                     alt.is_some().then_some(Span::from("/").dark_gray()),
-                    alt.as_ref().and_then(|a| Some(Span::from(a))),
+                    alt.as_ref().map(Span::from),
                     Some(Span::from("\u{00A0}")),
                     Some(Span::from(label.clone()).dark_gray()),
                     Some(Span::from("  ")),
@@ -35,7 +35,6 @@ impl<'a> Widget for HotkeysWidget<'a> {
                 .into_iter()
                 .flatten()
             })
-            .flatten()
             .collect();
 
         Paragraph::new(Line::from(spans))

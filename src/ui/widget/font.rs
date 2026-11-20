@@ -152,7 +152,7 @@ impl<'a> Widget for FontWidget<'a> {
                     .chars()
                     .map(|c| {
                         let x = FONT_MAP[&c] * self.font_width;
-                        let chunk: String = self.font_lines[y][x..(x + self.font_width)].into_iter().collect();
+                        let chunk: String = self.font_lines[y][x..(x + self.font_width)].iter().collect();
 
                         chunk
                     })

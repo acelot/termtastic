@@ -159,7 +159,7 @@ fn set_terminal_title(title: Option<&String>) -> io::Result<()> {
         stdout(),
         SetTitle(format!(
             "{}{} {}",
-            title.and_then(|t| Some(format!("{} · ", t))).unwrap_or_default(),
+            title.map(|t| format!("{} · ", t)).unwrap_or_default(),
             APP_NAME,
             APP_VERSION
         ))

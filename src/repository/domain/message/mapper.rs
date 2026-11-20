@@ -66,15 +66,15 @@ impl TryFrom<i32> for DeliveryState {
     }
 }
 
-impl Into<i32> for DeliveryState {
-    fn into(self) -> i32 {
-        match self {
-            Self::Sending => 0,
-            Self::DeliveredToRecipient => 1,
-            Self::DeliveredToRecipientProven => 2,
-            Self::DeliveryProofFailed => 3,
-            Self::DeliveredToMesh => 4,
-            Self::RoutingError(e) => e as i32 + 32,
+impl From<DeliveryState> for i32 {
+    fn from(val: DeliveryState) -> Self {
+        match val {
+            DeliveryState::Sending => 0,
+            DeliveryState::DeliveredToRecipient => 1,
+            DeliveryState::DeliveredToRecipientProven => 2,
+            DeliveryState::DeliveryProofFailed => 3,
+            DeliveryState::DeliveredToMesh => 4,
+            DeliveryState::RoutingError(e) => e as i32 + 32,
         }
     }
 }
