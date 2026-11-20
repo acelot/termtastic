@@ -1,4 +1,4 @@
-use crate::service::ONLINE_NODE_THRESHOLD_SECS;
+use crate::service::{FORMS, ONLINE_NODE_THRESHOLD_SECS};
 use crate::state::State;
 use anyhow::anyhow;
 use btleplug::api::BDAddr;
@@ -1178,6 +1178,29 @@ pub enum FormId {
     AppUi,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SettingsActiveFormItems(Vec<&'static FormItem>);
+
+impl PartialEq for SettingsActiveFormItems {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
+impl std::ops::Deref for SettingsActiveFormItems {
+    type Target = [&'static FormItem];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl SettingsActiveFormItems {
+    pub fn new(id: &FormId, data: &FormData) -> Self {
+        Self(FORMS[id].iter().filter(|item| item.is_visible(data)).collect())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum SettingsFormState {
     #[default]
@@ -1191,6 +1214,7 @@ pub enum SettingsFormState {
     },
     Loaded {
         id: FormId,
+        active_form_items: SettingsActiveFormItems,
     },
     Saving {
         id: FormId,
@@ -1406,6 +1430,7 @@ pub struct FormItem {
     pub kind: FormItemKind,
     pub formatter: fn(&FormValue) -> String,
     pub validator: fn(&FormValue) -> anyhow::Result<()>,
+    pub is_visible: Option<fn(&FormData) -> bool>,
 }
 
 impl FormItem {
@@ -1424,6 +1449,21 @@ impl FormItem {
             kind,
             formatter,
             validator,
+            is_visible: None,
+        }
+    }
+
+    pub fn with_visibility(self, is_visible: fn(&FormData) -> bool) -> Self {
+        Self {
+            is_visible: Some(is_visible),
+            ..self
+        }
+    }
+
+    pub fn is_visible(&self, data: &FormData) -> bool {
+        match self.is_visible {
+            Some(visibility_func) => visibility_func(data),
+            None => true,
         }
     }
 }

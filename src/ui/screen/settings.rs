@@ -30,7 +30,7 @@ impl<'a> Settings<'a> {
 
     fn render_form(
         &mut self,
-        items: &[FormItem],
+        items: &[&'static FormItem],
         data: &FormData,
         original_data: &FormData,
         area: Rect,
@@ -73,7 +73,7 @@ impl<'a> Settings<'a> {
         Span::from("VALUE").magenta().render(v0_h[2], buf);
 
         let list_builder = ListBuilder::new(|context| {
-            let form_item = &items[context.index];
+            let form_item = items[context.index];
 
             let (original_value, current_value) = match form_item.key {
                 FormItemKey::Simple(k) => (
@@ -365,10 +365,10 @@ impl<'a> Screen for Settings<'a> {
             return true;
         }
 
-        if let SettingsFormState::Loaded { id } = &state.settings_form_state
+        if let SettingsFormState::Loaded { active_form_items, .. } = &state.settings_form_state
             && self
                 .form_list_state
-                .handle_navigation_events(event, Some(FORMS[id].len()))
+                .handle_navigation_events(event, Some(active_form_items.len()))
         {
             return true;
         }
@@ -395,7 +395,7 @@ impl<'a> Screen for Settings<'a> {
                     emit(UiEvent::SettingsFormCancelRequested);
                     return true;
                 }
-                (KeyCode::Enter, SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
+                (KeyCode::Enter, SettingsFormState::Loaded { id, active_form_items }) if modifiers.is_empty() => {
                     if self.is_exit_confirm_visible {
                         emit(UiEvent::SettingsFormCancelRequested);
                         self.is_exit_confirm_visible = false;
@@ -405,7 +405,7 @@ impl<'a> Screen for Settings<'a> {
 
                     let index = self.form_list_state.selected.expect("should be Some");
                     let data = state.settings_form_data.as_ref().expect("should be Some");
-                    let form_item = &FORMS[id][index];
+                    let form_item = active_form_items[index];
 
                     let value = match form_item.key {
                         FormItemKey::Simple(k) => data
@@ -436,16 +436,16 @@ impl<'a> Screen for Settings<'a> {
                     emit(UiEvent::SettingsFormResetRequested);
                     return true;
                 }
-                (KeyCode::Char('s'), SettingsFormState::Loaded { id })
+                (KeyCode::Char('s'), SettingsFormState::Loaded { id, .. })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
                     emit(UiEvent::SettingsFormSaveRequested(id.clone()));
                     return true;
                 }
-                (KeyCode::Char('c'), SettingsFormState::Loaded { id }) if modifiers.is_empty() => {
+                (KeyCode::Char('c'), SettingsFormState::Loaded { id, active_form_items }) if modifiers.is_empty() => {
                     let index = self.form_list_state.selected.expect("should be Some");
                     let data = state.settings_form_data.as_ref().expect("should be Some");
-                    let form_item = &FORMS[id][index];
+                    let form_item = active_form_items[index];
                     let form_value = match form_item.key {
                         FormItemKey::Simple(k) => data.get(k).cloned(),
                         FormItemKey::Custom { getter, .. } => Some(getter(data)),
@@ -545,11 +545,17 @@ impl<'a> Screen for Settings<'a> {
                 )
                 .render(form_block_area, frame.buffer_mut());
             }
-            SettingsFormState::Loaded { id } => {
+            SettingsFormState::Loaded { active_form_items, .. } => {
                 let data = state.settings_form_data.as_ref().expect("should be Some");
                 let original_data = state.settings_form_original_data.as_ref().expect("should be Some");
 
-                self.render_form(&FORMS[id], data, original_data, form_block_area, frame.buffer_mut());
+                self.render_form(
+                    active_form_items,
+                    data,
+                    original_data,
+                    form_block_area,
+                    frame.buffer_mut(),
+                );
 
                 // active input popup
                 if let Some(state) = self.popup_input_state.as_mut() {
