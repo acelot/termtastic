@@ -213,7 +213,7 @@ impl<'a> Screen for Messenger<'a> {
                 }
             };
 
-            false;
+            return false;
         }
 
         let list_state = self.list_states.get_mut(active_chat).expect("should exists");
