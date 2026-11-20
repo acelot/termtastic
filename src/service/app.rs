@@ -11,13 +11,19 @@ use crate::ui::prelude::UiEvent;
 pub struct AppService {
     ui_event_rx: broadcast::Receiver<UiEvent>,
     state_action_tx: mpsc::UnboundedSender<StateAction>,
+    clipboard: Option<Clipboard>,
 }
 
 impl AppService {
     pub fn new(ui_event_rx: broadcast::Receiver<UiEvent>, state_action_tx: mpsc::UnboundedSender<StateAction>) -> Self {
+        let clipboard = Clipboard::new();
+        if let Err(err) = &clipboard {
+            tracing::warn!("Failed to acquire clipboard: {err}");
+        }
         Self {
             ui_event_rx,
             state_action_tx,
+            clipboard: clipboard.ok(),
         }
     }
 
@@ -47,18 +53,28 @@ impl AppService {
                 UiEvent::TabPreviousRequested => {
                     let _ = self.state_action_tx.send(StateAction::TabSwitchToPrevious);
                 }
-                UiEvent::CopyToClipboardRequested(text) => match copy_to_clipboard(text) {
-                    Ok(_) => {
-                        let _ = self.state_action_tx.send(StateAction::Toast(Toast::normal("copied")));
-                    }
-                    Err(e) => {
+                UiEvent::CopyToClipboardRequested(text) => {
+                    if let Some(clipboard) = self.clipboard.as_mut() {
+                        match clipboard.set_text(text) {
+                            Ok(_) => {
+                                let _ = self.state_action_tx.send(StateAction::Toast(Toast::normal("copied")));
+                            }
+                            Err(e) => {
+                                let _ = self
+                                    .state_action_tx
+                                    .send(StateAction::Toast(Toast::error("copy failed")));
+
+                                tracing::error!("copy failed: {:?}", e);
+                            }
+                        }
+                    } else {
                         let _ = self
                             .state_action_tx
-                            .send(StateAction::Toast(Toast::error("copy failed")));
+                            .send(StateAction::Toast(Toast::error("clipboard is not available")));
 
-                        tracing::error!("copy failed: {:?}", e);
+                        tracing::error!("copy failed: clipboard is not available");
                     }
-                },
+                }
                 UiEvent::TryingToQuit => {
                     let _ = self
                         .state_action_tx
@@ -75,11 +91,6 @@ impl AppService {
             _ => {}
         }
     }
-}
-
-fn copy_to_clipboard(text: String) -> anyhow::Result<()> {
-    Clipboard::new()?.set_text(text)?;
-    Ok(())
 }
 
 pub fn update_terminal_title(state: &mut State) {
