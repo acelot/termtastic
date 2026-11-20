@@ -28,8 +28,8 @@ use strum::IntoEnumIterator;
 
 use crate::serde::to_formdata;
 use crate::types::{
-    UiEvent, Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem, FormItemKey, FormItemKind,
-    FormValue, UiConfig,
+    Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem, FormItemKey, FormItemKind, FormValue,
+    UiConfig, UiEvent,
 };
 use nameof::name_of;
 
@@ -207,6 +207,36 @@ macro_rules! channel_form {
                         FormItemKind::Switch,
                         |v| v.to_string(),
                         |_| Ok(()),
+                    )
+                );
+
+                vec.push(
+                    FormItem::new(
+                        FormItemKey::Custom {
+                            getter: |data| {
+                                data.get($x)
+                                    .expect("should exists")
+                                    .as_nested()
+                                    .get(name_of!(position_precision in Channel))
+                                    .cloned()
+                                    .expect("should exists")
+                            },
+                            setter: |data, value| {
+                                data.get_mut($x)
+                                    .expect("should exists")
+                                    .as_nested_mut()
+                                    .insert(name_of!(position_precision in Channel).to_owned(), value);
+                            },
+                        },
+                        concat!("  #", $x, " Position Precision Bits"),
+                        Some("Bits of precision for the location sent in position packets."),
+                        FormItemKind::InputOfUnsignedInt32,
+                        |v| v.to_string(),
+                        |v| if v.as_u32() <= 32 {
+                            Ok(())
+                        } else {
+                            Err(anyhow::anyhow!("should be between 0 and 32"))
+                        },
                     )
                 );
             )*
