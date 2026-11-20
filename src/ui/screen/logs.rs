@@ -247,7 +247,7 @@ fn get_record_paragraph(record: &'_ LogRecord, is_selected: bool, with_source: b
                     Level::ERROR => Style::default().red(),
                 }),
             ),
-            with_source.then_some(format!("[{}]", &record.source).magenta()),
+            with_source.then_some(format!("[{}]", record.source).magenta()),
             with_source.then_some(Span::from(" ")),
             Some(Span::from(&record.message)),
         ]

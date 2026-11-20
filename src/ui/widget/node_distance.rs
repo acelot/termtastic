@@ -115,10 +115,7 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
             return Self::default();
         };
 
-        let Some(my_coords) = value
-            .nodes_last_position
-            .get(&my_node_key).map(|pos| pos.coordinates())
-        else {
+        let Some(my_coords) = value.nodes_last_position.get(&my_node_key).map(|pos| pos.coordinates()) else {
             return Self::default();
         };
 
@@ -127,7 +124,7 @@ impl<'a> From<&'a State> for NodeDistanceWidgetData<'a> {
         let mut farthest_node: Option<&Node> = None;
         let mut farthest_distance: f32 = 0.0;
 
-        for (_, node) in value.nodes.iter() {
+        for node in value.nodes.values() {
             if node.key == my_node_key {
                 continue;
             }

@@ -229,7 +229,7 @@ impl TracerouteService {
 
                 let _ = self.state_action_tx.send(StateAction::Toast(Toast::error(format!(
                     "[{}] traceroute timed out",
-                    &node_short_name
+                    node_short_name
                 ))));
             };
 

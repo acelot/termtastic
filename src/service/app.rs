@@ -108,7 +108,7 @@ pub fn update_terminal_title(state: &mut State) {
                     Some(channel) => match channel.role {
                         ChannelRole::Primary => Some(format!(
                             "#{} {}",
-                            &channel.key,
+                            channel.key,
                             if !channel.name.is_empty() {
                                 channel.name.clone()
                             } else if let Some(preset_name) = radio_preset_name {

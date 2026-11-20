@@ -249,7 +249,7 @@ pub fn chat_to_spans<'a>(chat: &'a Chat, state: &'a State) -> Vec<Span<'a>> {
 
             match channel.role {
                 ChannelRole::Primary => vec![
-                    Span::from(format!("#{}", &channel.key)).dark_gray(),
+                    Span::from(format!("#{}", channel.key)).dark_gray(),
                     Span::from(" "),
                     Span::from(if !channel.name.is_empty() {
                         channel.name.clone()

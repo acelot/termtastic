@@ -313,7 +313,7 @@ impl<'a> Screen for Settings<'a> {
                 _ => {}
             }
 
-            let _ = popup_dropdown_state.handle_event(event.clone());
+            popup_dropdown_state.handle_event(event.clone());
 
             return true;
         }

@@ -267,7 +267,7 @@ pub struct LogRecord {
 
 impl From<LogRecord> for String {
     fn from(val: LogRecord) -> Self {
-        format!("{} {} {}: {}", val.datetime, val.level, &val.source, val.message)
+        format!("{} {} {}: {}", val.datetime, val.level, val.source, val.message)
     }
 }
 

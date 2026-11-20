@@ -432,7 +432,7 @@ impl<'a> Screen for Connection<'a> {
                                     .unwrap_or("UNKNOWN"),
                             )
                             .magenta(),
-                            Span::from(format!(" [v{}]", &metadata.firmware_version)).dark_gray(),
+                            Span::from(format!(" [v{}]", metadata.firmware_version)).dark_gray(),
                         ])
                     }),
                 ]

@@ -40,15 +40,9 @@ impl<'a> PopupDropdownState<'a> {
         None
     }
 
-    pub fn handle_event(&mut self, event: Event) -> anyhow::Result<bool> {
-        if self
-            .list_state
+    pub fn handle_event(&mut self, event: Event) -> bool {
+        self.list_state
             .handle_navigation_events(&event, Some(self.variants.len()))
-        {
-            return Ok(true);
-        }
-
-        Ok(false)
     }
 }
 
