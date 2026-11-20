@@ -17,9 +17,28 @@ env:
   GIT_SHA: ${{ github.sha }}
 
 jobs:
+  clippy:
+    name: Check code by Clippy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
   build:
     name: Build for ${{ matrix.target }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: clippy
     if: github.ref != 'refs/heads/docker-image'
     permissions:
       id-token: write
@@ -209,6 +228,7 @@ jobs:
   docker-build:
     name: Build Docker image for ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
+    needs: clippy
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/docker-image'
     permissions:
       contents: read
