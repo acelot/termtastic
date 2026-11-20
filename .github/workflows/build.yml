@@ -23,7 +23,6 @@ jobs:
     if: github.ref != 'refs/heads/docker-image'
     permissions:
       id-token: write
-      attestations: write
       contents: write
     env:
       BINARY_NAME: ${{ matrix.binary_name }}
@@ -100,11 +99,6 @@ jobs:
         shell: bash
         run: tar czf ${{ env.ARCHIVE_NAME }} ${{ env.BINARY_NAME }}
 
-      - name: Attest archive
-        uses: actions/attest@v4
-        with:
-          subject-path: ${{ env.ARCHIVE_NAME }}
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -118,7 +112,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
-      attestations: write
       contents: write
     steps:
       - name: Download all artifacts
