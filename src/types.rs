@@ -641,7 +641,7 @@ impl TryFrom<&meshtastic::protobufs::NodeInfo> for Node {
             key: value.num,
             user: value.user.as_ref().map(|u| u.into()),
             hops: value.hops_away,
-            last_heard: timestamp_to_datetime(value.last_heard),
+            last_heard: timestamp_to_datetime(Some(value.last_heard)),
             snr: value.snr,
             rssi: None,
             is_favorite: value.is_favorite,
@@ -664,7 +664,7 @@ impl From<&meshtastic::protobufs::MeshPacket> for Node {
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
             last_heard: timestamp_to_datetime(packet.rx_time),
             snr: packet.rx_snr,
-            rssi: Some(packet.rx_rssi),
+            rssi: packet.rx_rssi,
             is_favorite: false,
             is_ignored: false,
             is_muted: false,
@@ -699,7 +699,7 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::User)>
             hops: Some(packet.hop_start.saturating_sub(packet.hop_limit)),
             last_heard: timestamp_to_datetime(packet.rx_time),
             snr: packet.rx_snr,
-            rssi: Some(packet.rx_rssi),
+            rssi: packet.rx_rssi,
             is_favorite: false,
             is_ignored: false,
             is_muted: false,
@@ -817,6 +817,7 @@ pub struct Channel {
     pub position_precision: u32,
     pub is_muted: bool,
     pub is_enabled: bool,
+    pub use_aead: bool,
 }
 
 impl Channel {
@@ -832,6 +833,7 @@ impl Channel {
             position_precision: 0,
             is_muted: false,
             is_enabled: false,
+            use_aead: false,
         }
     }
 }
@@ -850,6 +852,7 @@ impl From<&meshtastic::protobufs::Channel> for Channel {
                 position_precision: settings.module_settings.map(|ms| ms.position_precision).unwrap_or(0),
                 is_muted: settings.module_settings.map(|ms| ms.is_muted).unwrap_or(false),
                 is_enabled: value.role() != channel::Role::Disabled,
+                use_aead: settings.use_aead,
             },
             None => Channel::disabled(value.index as u32),
         }
@@ -871,6 +874,7 @@ impl From<&Channel> for meshtastic::protobufs::Channel {
                     position_precision: val.position_precision,
                     is_muted: val.is_muted,
                 }),
+                use_aead: val.use_aead,
             })
         } else {
             None
@@ -903,7 +907,7 @@ pub struct Message {
     pub reactions: Vec<Uuid>,
     pub hops: u32,
     pub snr: f32,
-    pub rssi: i32,
+    pub rssi: Option<i32>,
     pub delivery_state: Option<DeliveryState>,
 }
 
@@ -923,7 +927,7 @@ impl HopsSnrRssiAware for Message {
     }
 
     fn rssi(&self) -> Option<i32> {
-        Some(self.rssi)
+        self.rssi
     }
 }
 
@@ -1048,6 +1052,7 @@ pub struct NodeLastTelemetry {
     pub health_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::HealthMetrics>>,
     pub host_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::HostMetrics>>,
     pub traffic_management_stats: Option<NodeTelemetryTyped<meshtastic::protobufs::TrafficManagementStats>>,
+    pub soil_water_metrics: Option<NodeTelemetryTyped<meshtastic::protobufs::SoilWaterMetrics>>,
 }
 
 #[derive(Debug, Clone)]
@@ -1075,6 +1080,7 @@ pub enum TelemetryKind {
     HealthMetrics,
     HostMetrics,
     TrafficManagementStats,
+    SoilWaterMetrics,
 }
 
 impl rusqlite::types::ToSql for TelemetryKind {
@@ -1175,6 +1181,8 @@ pub enum FormId {
     ModuleAmbientLighting,
     ModuleDetectionSensor,
     ModuleTrafficManagement,
+    ModuleTak,
+    ModuleMeshBeacon,
     AppUi,
 }
 
@@ -1553,12 +1561,13 @@ pub struct DeviceModuleConfig {
     pub telemetry: Option<module_config::TelemetryConfig>,
     pub traffic_management: Option<module_config::TrafficManagementConfig>,
     pub tak: Option<module_config::TakConfig>,
+    pub mesh_beacon: Option<module_config::MeshBeaconConfig>,
 }
 
-fn timestamp_to_datetime(timestamp: u32) -> Option<Timestamp> {
-    if timestamp == 0 {
-        return None;
+pub fn timestamp_to_datetime(timestamp: Option<u32>) -> Option<Timestamp> {
+    match timestamp {
+        Some(0) => None,
+        Some(t) => Timestamp::from_second(t as i64).ok(),
+        None => None,
     }
-
-    Timestamp::from_second(timestamp as i64).ok()
 }

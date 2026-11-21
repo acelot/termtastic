@@ -18,7 +18,7 @@ use tokio::{
 };
 use tokio_graceful_shutdown::SubsystemHandle;
 
-use crate::types::{NodePosition, NodeTelemetry, NodesSortBy, Toast};
+use crate::types::{NodePosition, NodeTelemetry, NodesSortBy, Toast, timestamp_to_datetime};
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::StateAction,
@@ -247,7 +247,7 @@ impl NodesService {
                             }) => {
                                 let node_telemetry = NodeTelemetry {
                                     node_key: mesh_packet.from,
-                                    datetime: time.timestamp_to_datetime().unwrap_or_else(Timestamp::now),
+                                    datetime: timestamp_to_datetime(Some(time)).unwrap_or_else(Timestamp::now),
                                     variant: data.clone(),
                                 };
 
@@ -345,7 +345,8 @@ pub fn update_nodes_view(state: &mut State) {
 
             let traceroute_token = if state
                 .nodes_traceroutes
-                .get(&node.key).map(|nt| !nt.is_empty())
+                .get(&node.key)
+                .map(|nt| !nt.is_empty())
                 .unwrap_or(false)
             {
                 "$traceroute"

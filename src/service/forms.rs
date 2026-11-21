@@ -5,7 +5,6 @@ use std::sync::LazyLock;
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use hostaddr::HostAddr;
-use meshtastic::protobufs::User;
 use meshtastic::protobufs::config::bluetooth_config::PairingMode;
 use meshtastic::protobufs::config::device_config::{RebroadcastMode, Role};
 use meshtastic::protobufs::config::display_config::{CompassOrientation, DisplayMode, DisplayUnits, OledType};
@@ -18,12 +17,14 @@ use meshtastic::protobufs::config::{
 };
 use meshtastic::protobufs::module_config::canned_message_config::InputEventChar;
 use meshtastic::protobufs::module_config::detection_sensor_config::TriggerType;
+use meshtastic::protobufs::module_config::mesh_beacon_config::Flags;
 use meshtastic::protobufs::module_config::serial_config::{SerialBaud, SerialMode};
 use meshtastic::protobufs::module_config::{
     AmbientLightingConfig, CannedMessageConfig, DetectionSensorConfig, ExternalNotificationConfig, MapReportSettings,
-    MqttConfig, NeighborInfoConfig, RangeTestConfig, SerialConfig, StoreForwardConfig, TelemetryConfig,
-    TrafficManagementConfig,
+    MeshBeaconConfig, MqttConfig, NeighborInfoConfig, RangeTestConfig, SerialConfig, StoreForwardConfig, TakConfig,
+    TelemetryConfig, TrafficManagementConfig,
 };
+use meshtastic::protobufs::{ChannelSettings, MemberRole, Team, User};
 use strum::IntoEnumIterator;
 
 use crate::serde::to_formdata;
@@ -39,6 +40,9 @@ static DEFAULT_MAP_REPORT_SETTINGS: LazyLock<FormData> =
     LazyLock::new(|| to_formdata(&MapReportSettings::default()).unwrap());
 
 static DEFAULT_IPV4_CONFIG: LazyLock<FormData> = LazyLock::new(|| to_formdata(&IpV4Config::default()).unwrap());
+
+static DEFAULT_CHANNEL_SETTINGS: LazyLock<FormData> =
+    LazyLock::new(|| to_formdata(&ChannelSettings::default()).unwrap());
 
 macro_rules! channel_simple_key {
     ($channel:expr, $name:expr) => {
@@ -1788,14 +1792,6 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(json_enabled in MqttConfig)),
-                "JSON Output Enabled",
-                Some("Whether to send / consume json packets on MQTT."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
-            ),
-            FormItem::new(
                 FormItemKey::Simple(name_of!(tls_enabled in MqttConfig)),
                 "TLS Enabled",
                 Some("If true, we attempt to establish a secure connection using TLS."),
@@ -2963,35 +2959,6 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
         FormId::ModuleTrafficManagement,
         Vec::from([
             FormItem::new(
-                FormItemKey::Simple(name_of!(enabled in TrafficManagementConfig)),
-                "Traffic Management Enabled",
-                Some("Master enable for traffic management module."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
-            ),
-            FormItem::new(
-                FormItemKey::Simple(name_of!(position_dedup_enabled in TrafficManagementConfig)),
-                "Position Deduplication Enabled",
-                Some("Drop redundant position broadcasts from the same node."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
-            ),
-            FormItem::new(
-                FormItemKey::Simple(name_of!(position_precision_bits in TrafficManagementConfig)),
-                "Position Precision Bits",
-                Some("Number of bits of precision for position deduplication (0-32)."),
-                FormItemKind::InputOfUnsignedInt32,
-                |v| v.to_string(),
-                |v| {
-                    (0..=32)
-                        .contains(&v.as_u32())
-                        .then_some(())
-                        .ok_or(anyhow::anyhow!("Must be between 0 and 32"))
-                },
-            ),
-            FormItem::new(
                 FormItemKey::Simple(name_of!(position_min_interval_secs in TrafficManagementConfig)),
                 "Min Position Interval",
                 Some("Minimum interval in seconds between position updates from the same node."),
@@ -3005,14 +2972,6 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(nodeinfo_direct_response in TrafficManagementConfig)),
-                "NodeInfo Direct Response",
-                Some("Enable direct responses to NodeInfo requests from local cache."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
-            ),
-            FormItem::new(
                 FormItemKey::Simple(name_of!(nodeinfo_direct_response_max_hops in TrafficManagementConfig)),
                 "NodeInfo Response Max Hops",
                 Some("Minimum hop distance from requestor before responding to NodeInfo requests."),
@@ -3024,14 +2983,6 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .then_some(())
                         .ok_or(anyhow::anyhow!("Must be between 0 and 255"))
                 },
-            ),
-            FormItem::new(
-                FormItemKey::Simple(name_of!(rate_limit_enabled in TrafficManagementConfig)),
-                "Rate Limit Enabled",
-                Some("Enable per-node rate limiting to throttle chatty nodes."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
             ),
             FormItem::new(
                 FormItemKey::Simple(name_of!(rate_limit_window_secs in TrafficManagementConfig)),
@@ -3060,14 +3011,6 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(drop_unknown_enabled in TrafficManagementConfig)),
-                "Drop Unknown Packets",
-                Some("Enable dropping of unknown/undecryptable packets per rate limit window."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
-                |_| Ok(()),
-            ),
-            FormItem::new(
                 FormItemKey::Simple(name_of!(unknown_packet_threshold in TrafficManagementConfig)),
                 "Unknown Packet Threshold",
                 Some("Number of unknown packets before dropping from a node."),
@@ -3080,28 +3023,265 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .ok_or(anyhow::anyhow!("Must be a valid packet count"))
                 },
             ),
+        ]),
+    );
+
+    forms.insert(
+        FormId::ModuleTak,
+        Vec::from([
             FormItem::new(
-                FormItemKey::Simple(name_of!(exhaust_hop_telemetry in TrafficManagementConfig)),
-                "Exhaust Hop Telemetry",
-                Some("Set hop_limit to 0 for relayed telemetry broadcasts (own packets unaffected)."),
-                FormItemKind::Switch,
-                |v| v.to_string(),
+                FormItemKey::Simple(name_of!(team in TakConfig)),
+                "Team",
+                Some("Team color. Default is Cyan when not specified."),
+                FormItemKind::Enum(
+                    Team::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    Team::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(exhaust_hop_position in TrafficManagementConfig)),
-                "Exhaust Hop Position",
-                Some("Set hop_limit to 0 for relayed position broadcasts (own packets unaffected)."),
-                FormItemKind::Switch,
+                FormItemKey::Simple(name_of!(role in TakConfig)),
+                "Role",
+                Some("Member role. Default is Team Member when not specified."),
+                FormItemKind::Enum(
+                    MemberRole::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    MemberRole::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
+            ),
+        ]),
+    );
+
+    forms.insert(
+        FormId::ModuleMeshBeacon,
+        Vec::from([
+            FormItem::new(
+                FormItemKey::Simple(name_of!(flags in MeshBeaconConfig)),
+                "Flags",
+                Some("Bitwise-OR of the listen, broadcast and legacy split options."),
+                FormItemKind::BitMask(
+                    Flags::iter()
+                        .filter(|v| v != &Flags::FlagNone)
+                        .map(|v| FormBitMaskVariant::new(v.as_str_name(), v as u32))
+                        .collect(),
+                ),
                 |v| v.to_string(),
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(broadcast_offer_frequency_slot in MeshBeaconConfig))
+                            .and_then(|v| v.as_option())
+                            .cloned()
+                            .unwrap_or(FormValue::UnsignedInt32(0))
+                    },
+                    setter: |data, value| {
+                        let slot = value.as_u32();
+
+                        data.insert(
+                            name_of!(broadcast_offer_frequency_slot in MeshBeaconConfig).to_owned(),
+                            if slot == 0 {
+                                FormValue::Option(None)
+                            } else {
+                                FormValue::Option(Some(Box::new(FormValue::UnsignedInt32(slot))))
+                            },
+                        );
+                    },
+                },
+                "Broadcast Offer Frequency Slot",
+                Some(
+                    "Frequency slot to advertise, 1-based. Set to 0 to derive it from the advertised region, \
+                    channel name and preset.",
+                ),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| {
+                    if v.as_u32() == 0 {
+                        "Auto".to_owned()
+                    } else {
+                        v.to_string()
+                    }
+                },
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(router_preserve_hops in TrafficManagementConfig)),
-                "Router Preserve Hops",
-                Some("Preserve hop_limit for router-to-router traffic."),
-                FormItemKind::Switch,
+                FormItemKey::Simple(name_of!(broadcast_message in MeshBeaconConfig)),
+                "Broadcast Message",
+                Some("Message to include in each beacon broadcast. Maximum 60 bytes."),
+                FormItemKind::InputOfString,
                 |v| v.to_string(),
+                |v| {
+                    (0..=60)
+                        .contains(&v.as_string().len())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Max length is 60"))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(broadcast_offer_channel in MeshBeaconConfig))
+                            .and_then(|v| v.as_option())
+                            .and_then(|v| v.as_nested().get(name_of!(name in ChannelSettings)))
+                            .cloned()
+                            .unwrap_or(FormValue::String(String::new()))
+                    },
+                    setter: |data, value| {
+                        let channel = data
+                            .get_mut(name_of!(broadcast_offer_channel in MeshBeaconConfig))
+                            .expect("should exists");
+
+                        if channel.as_option_mut().is_none() {
+                            *channel =
+                                FormValue::Option(Some(Box::new(FormValue::Nested(DEFAULT_CHANNEL_SETTINGS.clone()))));
+                        }
+
+                        channel
+                            .as_option_mut()
+                            .expect("should be Some")
+                            .as_nested_mut()
+                            .insert(name_of!(name in ChannelSettings).to_owned(), value);
+                    },
+                },
+                "Broadcast Offer Channel: Name",
+                Some("Short channel name to advertise in the MeshBeacon offer."),
+                FormItemKind::InputOfString,
+                |v| v.to_string(),
+                |v| {
+                    (0..=10)
+                        .contains(&v.as_string().len())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Max length is 10"))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(broadcast_offer_channel in MeshBeaconConfig))
+                            .and_then(|v| v.as_option())
+                            .and_then(|v| v.as_nested().get(name_of!(psk in ChannelSettings)))
+                            .cloned()
+                            .unwrap_or(FormValue::Vec(vec![]))
+                    },
+                    setter: |data, value| {
+                        let channel = data
+                            .get_mut(name_of!(broadcast_offer_channel in MeshBeaconConfig))
+                            .expect("should exists");
+
+                        if channel.as_option_mut().is_none() {
+                            *channel =
+                                FormValue::Option(Some(Box::new(FormValue::Nested(DEFAULT_CHANNEL_SETTINGS.clone()))));
+                        }
+
+                        channel
+                            .as_option_mut()
+                            .expect("should be Some")
+                            .as_nested_mut()
+                            .insert(name_of!(psk in ChannelSettings).to_owned(), value);
+                    },
+                },
+                "Broadcast Offer Channel: PSK",
+                Some("Base64 encoded string. Leave empty to advertise the channel without encryption."),
+                FormItemKind::MaskedInputOfBase64,
+                |v| BASE64_STANDARD.encode(v.as_vec().iter().map(|v| v.as_u8()).collect::<Vec<u8>>()),
+                |v| {
+                    (0..=32)
+                        .contains(&v.as_vec().len())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Max length is 32"))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(broadcast_offer_region in MeshBeaconConfig)),
+                "Broadcast Offer Region",
+                Some("Region to advertise in the MeshBeacon offer."),
+                FormItemKind::Enum(
+                    RegionCode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    RegionCode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(broadcast_offer_preset in MeshBeaconConfig))
+                            .and_then(|v| v.as_option())
+                            .cloned()
+                            .unwrap_or(FormValue::Int32(-1))
+                    },
+                    setter: |data, value| {
+                        let preset = value.as_i32();
+
+                        data.insert(
+                            name_of!(broadcast_offer_preset in MeshBeaconConfig).to_owned(),
+                            if preset == -1 {
+                                FormValue::Option(None)
+                            } else {
+                                FormValue::Option(Some(Box::new(FormValue::Int32(preset))))
+                            },
+                        );
+                    },
+                },
+                "Broadcast Offer Preset",
+                Some("Modem preset to advertise. Set to \"Unset\" to derive it from the region, channel and preset."),
+                FormItemKind::Enum(
+                    std::iter::once(FormEnumVariant::new("Unset", -1i32))
+                        .chain(ModemPreset::iter().map(|v| FormEnumVariant::new(v.as_str_name(), v as i32)))
+                        .collect(),
+                ),
+                |v| match v.as_i32() {
+                    -1 => "Unset".to_owned(),
+                    preset => ModemPreset::try_from(preset)
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned()),
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(broadcast_interval_secs in MeshBeaconConfig)),
+                "Broadcast Interval",
+                Some("How often to broadcast, in seconds. Minimum 3600 (1 hour)."),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| format!("{} seconds", v.as_u32()),
+                |v| {
+                    (3600..=u32::MAX)
+                        .contains(&v.as_u32())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be at least 3600 seconds (1 hour)"))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(broadcast_targets in MeshBeaconConfig)),
+                "Broadcast Targets",
+                Some("Broadcast destination list. Preserved as-is; when empty a single beacon is sent."),
+                FormItemKind::ReadOnly,
+                |v| match v.as_vec().len() {
+                    0 => "None (single beacon)".to_owned(),
+                    n => format!("{} target(s)", n),
+                },
                 |_| Ok(()),
             ),
         ]),

@@ -5,8 +5,9 @@ use meshtastic::protobufs::config::{
     SecurityConfig,
 };
 use meshtastic::protobufs::module_config::{
-    AmbientLightingConfig, CannedMessageConfig, DetectionSensorConfig, ExternalNotificationConfig, MqttConfig,
-    NeighborInfoConfig, RangeTestConfig, SerialConfig, StoreForwardConfig, TelemetryConfig, TrafficManagementConfig,
+    AmbientLightingConfig, CannedMessageConfig, DetectionSensorConfig, ExternalNotificationConfig, MeshBeaconConfig,
+    MqttConfig, NeighborInfoConfig, RangeTestConfig, SerialConfig, StoreForwardConfig, TakConfig, TelemetryConfig,
+    TrafficManagementConfig,
 };
 use meshtastic::protobufs::{
     AdminMessage, Channel as MeshtasticChannel, Config, ModuleConfig, PortNum, admin_message, from_radio, mesh_packet,
@@ -449,6 +450,12 @@ impl SettingsService {
                         "Traffic Management config not loaded or it's not supported by the device firmware"
                     ))?,
             )?,
+            FormId::ModuleTak => to_formdata(state.device_module_config.tak.as_ref().ok_or(anyhow::anyhow!(
+                "TAK config not loaded or it's not supported by the device firmware"
+            ))?)?,
+            FormId::ModuleMeshBeacon => to_formdata(state.device_module_config.mesh_beacon.as_ref().ok_or(
+                anyhow::anyhow!("Mesh Beacon config not loaded or it's not supported by the device firmware"),
+            )?)?,
         };
 
         Ok(data)
@@ -653,6 +660,20 @@ impl SettingsService {
                     )?),
                 });
             }
+            FormId::ModuleTak => {
+                let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
+                    form_id: id.clone(),
+                    my_node_num: state.my_node_key.expect("should be Some"),
+                    config: module_config::PayloadVariant::Tak(from_formdata::<TakConfig>(form_data)?),
+                });
+            }
+            FormId::ModuleMeshBeacon => {
+                let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
+                    form_id: id.clone(),
+                    my_node_num: state.my_node_key.expect("should be Some"),
+                    config: module_config::PayloadVariant::MeshBeacon(from_formdata::<MeshBeaconConfig>(form_data)?),
+                });
+            }
         };
 
         Ok(())
@@ -692,5 +713,7 @@ fn build_settings() -> Vec<SettingsItem> {
         SettingsItem::form("Ambient Lighting", FormId::ModuleAmbientLighting),
         SettingsItem::form("Detection Sensor", FormId::ModuleDetectionSensor),
         SettingsItem::form("Traffic Management", FormId::ModuleTrafficManagement),
+        SettingsItem::form("TAK", FormId::ModuleTak),
+        SettingsItem::form("Mesh Beacon", FormId::ModuleMeshBeacon),
     ])
 }

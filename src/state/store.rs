@@ -500,6 +500,9 @@ impl Store {
                     module_config::PayloadVariant::Tak(cfg) => {
                         state.device_module_config.tak = Some(cfg);
                     }
+                    module_config::PayloadVariant::MeshBeacon(cfg) => {
+                        state.device_module_config.mesh_beacon = Some(cfg);
+                    }
                 });
 
                 true
@@ -583,7 +586,7 @@ impl Store {
 
                 if hops == 0 {
                     node.snr = snr;
-                    node.rssi = Some(rssi);
+                    node.rssi = rssi;
                 }
 
                 node.update_fulltext();
@@ -1383,6 +1386,18 @@ fn set_last_telemetry(node_telemetry: NodeTelemetry, state: &mut State) {
                 .is_none_or(|m| node_telemetry.datetime > m.datetime)
             {
                 telemetry.traffic_management_stats = Some(NodeTelemetryTyped {
+                    data: metrics,
+                    datetime: node_telemetry.datetime,
+                });
+            }
+        }
+        telemetry::Variant::SoilWaterMetrics(metrics) => {
+            if telemetry
+                .soil_water_metrics
+                .as_ref()
+                .is_none_or(|m| node_telemetry.datetime > m.datetime)
+            {
+                telemetry.soil_water_metrics = Some(NodeTelemetryTyped {
                     data: metrics,
                     datetime: node_telemetry.datetime,
                 });
