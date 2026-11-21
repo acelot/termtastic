@@ -464,7 +464,7 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             serde_json::to_string_pretty(&power_metrics.data).unwrap_or("serialize failed".to_owned()),
         ));
 
-        power_metrics!(items, power_metrics, "1", "2", "3", "4", "5", "6", "7", "8");
+        power_metrics!(items, power_metrics, "1", "2", "3");
     }
 
     // local stats
@@ -641,6 +641,120 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             "router hops preserved",
             Some(traffic_management_stats.data.router_hops_preserved),
             Some(format!("{}", traffic_management_stats.data.router_hops_preserved)),
+        ));
+    }
+
+    // soil water metrics
+    if let Some(soil_water_metrics) = &last_telemetry.soil_water_metrics {
+        items.push(TelemetryItem::group(
+            "Soil Water Metrics",
+            soil_water_metrics.datetime,
+            serde_json::to_string_pretty(&soil_water_metrics.data).unwrap_or("serialize failed".to_owned()),
+        ));
+
+        items.push(TelemetryItem::item(
+            "soil pH, 0-14",
+            soil_water_metrics.data.soil_ph,
+            soil_water_metrics.data.soil_ph.map(|v| format!("{:.2}", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "water pH, 0-14",
+            soil_water_metrics.data.ph,
+            soil_water_metrics.data.ph.map(|v| format!("{:.2}", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "electrical conductivity",
+            soil_water_metrics.data.electrical_conductivity,
+            soil_water_metrics
+                .data
+                .electrical_conductivity
+                .map(|v| format!("{:.2}mS/cm", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "salinity",
+            soil_water_metrics.data.salinity,
+            soil_water_metrics.data.salinity.map(|v| format!("{:.2}mg/l", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "nitrogen",
+            soil_water_metrics.data.nitrogen,
+            soil_water_metrics.data.nitrogen.map(|v| format!("{:.2}mg/kg", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "phosphorus",
+            soil_water_metrics.data.phosphorus,
+            soil_water_metrics.data.phosphorus.map(|v| format!("{:.2}mg/kg", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "potassium",
+            soil_water_metrics.data.potassium,
+            soil_water_metrics.data.potassium.map(|v| format!("{:.2}mg/kg", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "dissolved oxygen",
+            soil_water_metrics.data.dissolved_oxygen,
+            soil_water_metrics
+                .data
+                .dissolved_oxygen
+                .map(|v| format!("{:.2}mg/l", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "ORP",
+            soil_water_metrics.data.orp,
+            soil_water_metrics.data.orp.map(|v| format!("{:.2}mV", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "chemical oxygen demand",
+            soil_water_metrics.data.chemical_oxygen_demand,
+            soil_water_metrics
+                .data
+                .chemical_oxygen_demand
+                .map(|v| format!("{:.2}mg/l", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "turbidity",
+            soil_water_metrics.data.turbidity,
+            soil_water_metrics.data.turbidity.map(|v| format!("{:.2}NTU", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "nitrate",
+            soil_water_metrics.data.nitrate,
+            soil_water_metrics.data.nitrate.map(|v| format!("{:.2}ppm", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "ammonium",
+            soil_water_metrics.data.ammonium,
+            soil_water_metrics.data.ammonium.map(|v| format!("{:.2}ppm", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "biochemical oxygen demand",
+            soil_water_metrics.data.biochemical_oxygen_demand,
+            soil_water_metrics
+                .data
+                .biochemical_oxygen_demand
+                .map(|v| format!("{:.2}mg/l", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "solar irradiance",
+            soil_water_metrics.data.solar_irradiance,
+            soil_water_metrics
+                .data
+                .solar_irradiance
+                .map(|v| format!("{:.2}W/m²", v)),
         ));
     }
 

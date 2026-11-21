@@ -21,6 +21,9 @@ impl TryFrom<NodeTelemetry> for Telemetry {
             telemetry::Variant::TrafficManagementStats(v) => {
                 (TelemetryKind::TrafficManagementStats, serde_sqlite_jsonb::to_vec(&v)?)
             }
+            telemetry::Variant::SoilWaterMetrics(v) => {
+                (TelemetryKind::SoilWaterMetrics, serde_sqlite_jsonb::to_vec(&v)?)
+            }
         };
 
         Ok(Self {
@@ -70,6 +73,9 @@ impl TryFrom<&Telemetry> for NodeTelemetry {
                     meshtastic::protobufs::TrafficManagementStats,
                 >(slice)?)
             }
+            TelemetryKind::SoilWaterMetrics => telemetry::Variant::SoilWaterMetrics(serde_sqlite_jsonb::from_slice::<
+                meshtastic::protobufs::SoilWaterMetrics,
+            >(slice)?),
         };
 
         Ok(Self {

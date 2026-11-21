@@ -1552,7 +1552,7 @@ dependencies = [
 [[package]]
 name = "meshtastic"
 version = "0.1.9"
-source = "git+https://github.com/acelot/rust-meshtastic.git?rev=1741a83#1741a8353fff79495214f9258a7a14a04734439d"
+source = "git+https://github.com/acelot/rust-meshtastic.git?rev=f4bb73d#f4bb73dbb7fe85068ff0a8fa7c1f85656b0b9c4d"
 dependencies = [
  "btleplug",
  "futures",

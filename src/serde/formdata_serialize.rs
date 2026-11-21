@@ -712,7 +712,7 @@ impl<'a> Serializer for VecElementSerializer<'a> {
 
     type SerializeMap = Impossible<Self::Ok, Self::Error>;
 
-    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = VecStructElementSerializer<'a>;
 
     type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
 
@@ -862,7 +862,10 @@ impl<'a> Serializer for VecElementSerializer<'a> {
     }
 
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct, Self::Error> {
-        Err(Self::Error::UnsupportedType("struct"))
+        Ok(VecStructElementSerializer {
+            vec: self.vec,
+            data: FormData::new(),
+        })
     }
 
     fn serialize_struct_variant(
@@ -904,6 +907,36 @@ impl<'a> SerializeStruct for NestedStructSerializer<'a> {
     fn end(self) -> Result<Self::Ok, Self::Error> {
         self.parent_data
             .insert(self.key.to_owned(), FormValue::Nested(self.nested_data));
+        Ok(())
+    }
+}
+
+struct VecStructElementSerializer<'a> {
+    vec: &'a mut Vec<FormValue>,
+    data: FormData,
+}
+
+impl<'a> SerializeStruct for VecStructElementSerializer<'a> {
+    type Ok = ();
+
+    type Error = FormDataSerializerError;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        let serializer = FieldSerializer {
+            data: &mut self.data,
+            key,
+        };
+
+        value.serialize(serializer)?;
+
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        self.vec.push(FormValue::Nested(self.data));
         Ok(())
     }
 }

@@ -112,7 +112,7 @@ pub enum StateAction {
         node_key: u32,
         hops: u32,
         snr: f32,
-        rssi: i32,
+        rssi: Option<i32>,
     },
     NodeDelete {
         node_key: u32,

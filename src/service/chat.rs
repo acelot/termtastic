@@ -108,7 +108,8 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
+                                    .and_then(|id| state.messages.get(&id))
+                                    .map(|msg| msg.packet_id),
                                 text: TextMessage::Text(text),
                             });
                     }
@@ -119,7 +120,8 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
+                                    .and_then(|id| state.messages.get(&id))
+                                    .map(|msg| msg.packet_id),
                                 text: TextMessage::Text(text),
                             });
                     }
@@ -133,7 +135,8 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 channel_id,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
+                                    .and_then(|id| state.messages.get(&id))
+                                    .map(|msg| msg.packet_id),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }
@@ -144,7 +147,8 @@ impl ChatService {
                                 my_node_num: state.my_node_key.expect_or_log("my node key should exists"),
                                 node_num,
                                 reply_packet_id: reply_id
-                                    .and_then(|id| state.messages.get(&id)).map(|msg| msg.packet_id),
+                                    .and_then(|id| state.messages.get(&id))
+                                    .map(|msg| msg.packet_id),
                                 text: TextMessage::Emoji(emoji),
                             });
                     }
@@ -198,6 +202,7 @@ impl ChatService {
                     PortNum::RoutingApp => match Routing::decode(&*data.payload) {
                         Ok(Routing {
                             variant: Some(routing::Variant::ErrorReason(e)),
+                            ack_proof,
                         }) => {
                             let my_node_key = self.state_rx.borrow().my_node_key;
 
@@ -213,6 +218,8 @@ impl ChatService {
                                         | TransportMechanism::TransportLoraAlt1
                                         | TransportMechanism::TransportLoraAlt2
                                         | TransportMechanism::TransportLoraAlt3 => {
+                                            tracing::debug!(from = packet.from, "ack proof: {:?}", ack_proof);
+
                                             let _ =
                                                 self.state_action_tx.send(StateAction::MessageDeliveredToRecipient {
                                                     packet_id: data.request_id,
@@ -270,7 +277,7 @@ impl ChatService {
                             node_from = packet.from,
                             node_to = packet.to,
                             channel = packet.channel,
-                            "RANGE TEST from [{}] {} ({}), text: \"{}\", hops: {}, snr: {}, rssi: {}",
+                            "RANGE TEST from [{}] {} ({}), text: \"{}\", hops: {}, snr: {}, rssi: {:?}",
                             node.short_name(),
                             node.long_name(),
                             node.hw_model(),

@@ -20,7 +20,7 @@ impl From<crate::types::Message> for Message {
             is_emoji: value.is_emoji,
             hops: value.hops,
             snr: value.snr,
-            rssi: value.rssi,
+            rssi: value.rssi.unwrap_or_default(),
             delivery_state: value.delivery_state.map(Into::into),
         }
     }
@@ -44,7 +44,7 @@ impl TryFrom<Message> for crate::types::Message {
             reactions: Vec::default(),
             hops: value.hops,
             snr: value.snr,
-            rssi: value.rssi,
+            rssi: if value.rssi != 0 { Some(value.rssi) } else { None },
             delivery_state: value.delivery_state.map(DeliveryState::try_from).transpose()?,
         })
     }

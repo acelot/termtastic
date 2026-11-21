@@ -179,13 +179,9 @@ pub trait DateTimeExt {
     fn timestamp_to_datetime(self) -> Option<Timestamp>;
 }
 
-impl DateTimeExt for u32 {
+impl DateTimeExt for Option<u32> {
     fn timestamp_to_datetime(self) -> Option<Timestamp> {
-        if self == 0 {
-            return None;
-        }
-
-        Timestamp::from_second(self as i64).ok()
+        crate::types::timestamp_to_datetime(self)
     }
 }
 
