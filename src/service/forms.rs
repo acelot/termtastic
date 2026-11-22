@@ -6,11 +6,12 @@ use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use hostaddr::HostAddr;
 use meshtastic::protobufs::config::bluetooth_config::PairingMode;
-use meshtastic::protobufs::config::device_config::{RebroadcastMode, Role};
+use meshtastic::protobufs::config::device_config::{BuzzerMode, RebroadcastMode, Role};
 use meshtastic::protobufs::config::display_config::{CompassOrientation, DisplayMode, DisplayUnits, OledType};
-use meshtastic::protobufs::config::lo_ra_config::{ModemPreset, RegionCode};
+use meshtastic::protobufs::config::lo_ra_config::{FemLnaMode, ModemPreset, RegionCode};
 use meshtastic::protobufs::config::network_config::{AddressMode, IpV4Config, ProtocolFlags};
 use meshtastic::protobufs::config::position_config::{GpsMode, PositionFlags};
+use meshtastic::protobufs::config::security_config::PacketSignaturePolicy;
 use meshtastic::protobufs::config::{
     BluetoothConfig, DeviceConfig, DisplayConfig, LoRaConfig, NetworkConfig, PositionConfig, PowerConfig,
     SecurityConfig,
@@ -177,6 +178,61 @@ macro_rules! channel_form {
                             Err(anyhow::anyhow!("should be between 0 and 32"))
                         },
                     ).with_visibility(is_channel_enabled)
+                );
+
+                vec.push(
+                    FormItem::new(
+                        FormItemKey::Custom {
+                            getter: |data| {
+                                data.get($x)
+                                    .expect("should exists")
+                                    .as_nested()
+                                    .get(name_of!(use_aead in Channel))
+                                    .cloned()
+                                    .expect("should exists")
+                            },
+                            setter: |data, value| {
+                                data.get_mut($x)
+                                    .expect("should exists")
+                                    .as_nested_mut()
+                                    .insert(name_of!(use_aead in Channel).to_owned(), value);
+                            },
+                        },
+                        concat!("  #", $x, " Use AEAD"),
+                        Some(
+                            "Enable authenticated encryption (AES-CCM) for this channel. All nodes on the channel \
+                            must have this enabled."
+                        ),
+                        FormItemKind::Switch,
+                        |v| v.to_string(),
+                        |_| Ok(()),
+                    )
+                );
+
+                vec.push(
+                    FormItem::new(
+                        FormItemKey::Custom {
+                            getter: |data| {
+                                data.get($x)
+                                    .expect("should exists")
+                                    .as_nested()
+                                    .get(name_of!(is_muted in Channel))
+                                    .cloned()
+                                    .expect("should exists")
+                            },
+                            setter: |data, value| {
+                                data.get_mut($x)
+                                    .expect("should exists")
+                                    .as_nested_mut()
+                                    .insert(name_of!(is_muted in Channel).to_owned(), value);
+                            },
+                        },
+                        concat!("  #", $x, " Muted"),
+                        Some("Mute notifications for this channel."),
+                        FormItemKind::Switch,
+                        |v| v.to_string(),
+                        |_| Ok(()),
+                    )
                 );
             )*
 
@@ -443,6 +499,111 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
                 },
             ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(frequency_offset in LoRaConfig)),
+                "Frequency Offset",
+                Some(
+                    "A frequency offset (in MHz) that is added to the calculated band center frequency. Used to \
+                    correct for crystal calibration errors. For advanced users only.",
+                ),
+                FormItemKind::InputOfFloat32,
+                |v| format!("{} MHz", v),
+                |v| {
+                    (-100.0..=100.0)
+                        .contains(&v.as_f32())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(pa_fan_disabled in LoRaConfig)),
+                "Disable PA Fan",
+                Some("If true, disables the built-in PA fan using the pin defined in RF95_FAN_EN."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(ignore_incoming in LoRaConfig))
+                            .expect("should exists")
+                            .as_vec()
+                            .iter()
+                            .map(|v| v.as_u32().to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                            .into()
+                    },
+                    setter: |data, value| {
+                        let Ok(nodes) = value
+                            .as_string()
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|v| !v.is_empty())
+                            .map(|v| v.parse::<u32>().map(FormValue::from))
+                            .collect::<Result<Vec<_>, _>>()
+                        else {
+                            return;
+                        };
+
+                        data.insert(
+                            name_of!(ignore_incoming in LoRaConfig).to_owned(),
+                            FormValue::Vec(nodes),
+                        );
+                    },
+                },
+                "Ignore Incoming Nodes",
+                Some("Comma-separated list of node numbers whose packets will be dropped on receive."),
+                FormItemKind::InputOfString,
+                |v| v.to_string(),
+                |v| {
+                    v.as_string()
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|v| !v.is_empty())
+                        .try_for_each(|v| {
+                            v.parse::<u32>()
+                                .map(|_| ())
+                                .map_err(|_| anyhow::anyhow!("Invalid node number: {}", v))
+                        })
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(fem_lna_mode in LoRaConfig)),
+                "FEM LNA Mode",
+                Some("Whether the LoRa FEM LNA is enabled, disabled, automatic, or not present."),
+                FormItemKind::Enum(
+                    FemLnaMode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    FemLnaMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(serial_hal_only in LoRaConfig)),
+                "Serial HAL Only",
+                Some("Don't use RadioLib to initialize the radio, instead listen for a serialHal connection."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(transparent_mode in LoRaConfig)),
+                "Transparent Mode",
+                Some(
+                    "Act as a transparent LoRa modem: no encryption, decryption, or mesh routing. The client sets \
+                    the PHY settings and supplies fully-formed frames to transmit.",
+                ),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
         ]),
     );
 
@@ -697,6 +858,32 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(packet_signature_policy in SecurityConfig)),
+                "Packet Signature Policy",
+                Some(
+                    "Determines whether this device signs the packets it sends and which received packets it accepts.",
+                ),
+                FormItemKind::Enum(
+                    PacketSignaturePolicy::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    PacketSignaturePolicy::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(is_managed in SecurityConfig)),
+                "Managed Device",
+                Some("If true, the device is considered to be managed by a mesh administrator."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
         ]),
     );
 
@@ -879,6 +1066,22 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .then_some(())
                         .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
                 },
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(buzzer_mode in DeviceConfig)),
+                "Buzzer Mode",
+                Some("Controls buzzer behavior for audio feedback."),
+                FormItemKind::Enum(
+                    BuzzerMode::iter()
+                        .map(|v| FormEnumVariant::new(v.as_str_name(), v as i32))
+                        .collect(),
+                ),
+                |v| {
+                    BuzzerMode::try_from(v.as_i32())
+                        .map(|r| r.as_str_name().to_owned())
+                        .unwrap_or("?".to_owned())
+                },
+                |_| Ok(()),
             ),
         ]),
     );
@@ -1237,6 +1440,54 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
                 },
             ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(ls_secs in PowerConfig)),
+                "Light Sleep Duration",
+                Some(
+                    "In light sleep the CPU is suspended, LoRa radio is on, BLE is off and GPS is on. \
+                    ESP32 only. 0 for default of 300 seconds.",
+                ),
+                FormItemKind::InputOfUnsignedInt32,
+                |v| match v.as_u32() {
+                    0 => "Default".to_owned(),
+                    _ => format!("{} secs", v),
+                },
+                |v| {
+                    (0..=u32::MAX)
+                        .contains(&v.as_u32())
+                        .then_some(())
+                        .ok_or(anyhow::anyhow!("Must be between 0 and {}", u32::MAX))
+                },
+            ),
+            FormItem::new(
+                FormItemKey::Custom {
+                    getter: |data| {
+                        data.get(name_of!(powermon_enables in PowerConfig))
+                            .expect("should exists")
+                            .as_u64()
+                            .to_string()
+                            .into()
+                    },
+                    setter: |data, value| {
+                        let Ok(v) = value.as_string().trim().parse::<u64>() else {
+                            return;
+                        };
+
+                        data.insert(name_of!(powermon_enables in PowerConfig).to_owned(), FormValue::from(v));
+                    },
+                },
+                "Power Monitoring Enables",
+                Some("If non-zero, enables powermon log outputs for the given (bitfield) sources."),
+                FormItemKind::InputOfString,
+                |v| v.to_string(),
+                |v| {
+                    v.as_string()
+                        .trim()
+                        .parse::<u64>()
+                        .map(|_| ())
+                        .map_err(|_| anyhow::anyhow!("Invalid bitfield value"))
+                },
+            ),
         ]),
     );
 
@@ -1393,6 +1644,22 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .map(|r| r.as_str_name().to_owned())
                         .unwrap_or("?".to_owned())
                 },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(use_long_node_name in DisplayConfig)),
+                "Use Long Node Names",
+                Some("If enabled, node names will be shown in long format on various display screens."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(enable_message_bubbles in DisplayConfig)),
+                "Enable Message Bubbles",
+                Some("If enabled, the device will display message bubbles on screen."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
                 |_| Ok(()),
             ),
         ]),
@@ -2249,6 +2516,25 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(active in ExternalNotificationConfig)),
+                "Output Active High",
+                Some("If true, the output pin will be pulled active high, otherwise active low."),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(use_pwm in ExternalNotificationConfig)),
+                "Use PWM Output",
+                Some(
+                    "Use a PWM output instead of a simple on/off output. This ignores the output, output_ms and \
+                    active settings and uses the device buzzer GPIO.",
+                ),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
         ]),
     );
 
@@ -2367,6 +2653,14 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKey::Simple(name_of!(save in RangeTestConfig)),
                 "Save .CSV in storage",
                 Some("ESP32 only"),
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(clear_on_reboot in RangeTestConfig)),
+                "Clear on Reboot",
+                Some("Clean up the RangeTest.csv file on reboot. ESP32 only."),
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
@@ -2511,6 +2805,62 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         _ => format!("{} hours", secs / 3600),
                     }
                 },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(air_quality_screen_enabled in TelemetryConfig)),
+                "Air Quality Metrics On-Screen Enabled",
+                None,
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(health_measurement_enabled in TelemetryConfig)),
+                "Health Metrics Module Enabled",
+                None,
+                FormItemKind::Switch,
+                |v| v.to_string(),
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(health_update_interval in TelemetryConfig)),
+                "Health Metrics Update Interval",
+                None,
+                FormItemKind::Enum(vec![
+                    FormEnumVariant::new("Unset", 0u32),
+                    FormEnumVariant::new("30 minutes", 1800u32),
+                    FormEnumVariant::new("1 hour", 3600u32),
+                    FormEnumVariant::new("2 hours", 2 * 3600u32),
+                    FormEnumVariant::new("3 hours", 3 * 3600u32),
+                    FormEnumVariant::new("4 hours", 4 * 3600u32),
+                    FormEnumVariant::new("5 hours", 5 * 3600u32),
+                    FormEnumVariant::new("6 hours", 6 * 3600u32),
+                    FormEnumVariant::new("12 hours", 12 * 3600u32),
+                    FormEnumVariant::new("18 hours", 18 * 3600u32),
+                    FormEnumVariant::new("24 hours", 24 * 3600u32),
+                    FormEnumVariant::new("36 hours", 36 * 3600u32),
+                    FormEnumVariant::new("48 hours", 48 * 3600u32),
+                    FormEnumVariant::new("72 hours", 72 * 3600u32),
+                ]),
+                |v| {
+                    let secs = v.as_u32();
+
+                    match secs {
+                        0 => "Unset".to_owned(),
+                        1800 => "30 minutes".to_owned(),
+                        3600 => "1 hour".to_owned(),
+                        _ => format!("{} hours", secs / 3600),
+                    }
+                },
+                |_| Ok(()),
+            ),
+            FormItem::new(
+                FormItemKey::Simple(name_of!(health_screen_enabled in TelemetryConfig)),
+                "Health Metrics On-Screen Enabled",
+                None,
+                FormItemKind::Switch,
+                |v| v.to_string(),
                 |_| Ok(()),
             ),
             FormItem::new(
@@ -3288,4 +3638,53 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
     );
 
     forms
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::serde::from_formdata;
+    use meshtastic::protobufs::config::{LoRaConfig, PowerConfig};
+
+    fn custom_item(form: FormId, title: &str) -> &'static FormItem {
+        FORMS[&form]
+            .iter()
+            .find(|i| matches!(i.key, FormItemKey::Custom { .. }) && i.title == title)
+            .expect("item not found")
+    }
+
+    #[test]
+    fn ignore_incoming_roundtrip() {
+        let mut data = to_formdata(&LoRaConfig::default()).unwrap();
+        let item = custom_item(FormId::RadioLora, "Ignore Incoming Nodes");
+
+        let FormItemKey::Custom { getter, setter } = item.key else {
+            unreachable!()
+        };
+
+        assert_eq!(getter(&data).as_string(), "");
+
+        setter(&mut data, FormValue::from("1, 3000000000".to_owned()));
+
+        let lora: LoRaConfig = from_formdata(&data).unwrap();
+
+        assert_eq!(lora.ignore_incoming, vec![1, 3_000_000_000]);
+    }
+
+    #[test]
+    fn powermon_enables_roundtrip() {
+        let mut data = to_formdata(&PowerConfig::default()).unwrap();
+        let item = custom_item(FormId::DevicePower, "Power Monitoring Enables");
+
+        let FormItemKey::Custom { getter, setter } = item.key else {
+            unreachable!()
+        };
+
+        setter(&mut data, FormValue::from("1234567890123".to_owned()));
+
+        let power: PowerConfig = from_formdata(&data).unwrap();
+
+        assert_eq!(power.powermon_enables, 1_234_567_890_123);
+        assert_eq!(getter(&data).as_string(), "1234567890123");
+    }
 }
