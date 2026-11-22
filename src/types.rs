@@ -1187,15 +1187,15 @@ pub enum FormId {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SettingsActiveFormItems(Vec<&'static FormItem>);
+pub struct SettingsFormItems(Vec<&'static FormItem>);
 
-impl PartialEq for SettingsActiveFormItems {
+impl PartialEq for SettingsFormItems {
     fn eq(&self, _: &Self) -> bool {
         true
     }
 }
 
-impl std::ops::Deref for SettingsActiveFormItems {
+impl std::ops::Deref for SettingsFormItems {
     type Target = [&'static FormItem];
 
     fn deref(&self) -> &Self::Target {
@@ -1203,7 +1203,7 @@ impl std::ops::Deref for SettingsActiveFormItems {
     }
 }
 
-impl From<(&FormId, &FormData)> for SettingsActiveFormItems {
+impl From<(&FormId, &FormData)> for SettingsFormItems {
     fn from((id, data): (&FormId, &FormData)) -> Self {
         Self(FORMS[id].iter().filter(|item| item.is_visible(data)).collect())
     }
@@ -1222,7 +1222,7 @@ pub enum SettingsFormState {
     },
     Loaded {
         id: FormId,
-        form_items: SettingsActiveFormItems,
+        form_items: SettingsFormItems,
     },
     Saving {
         id: FormId,

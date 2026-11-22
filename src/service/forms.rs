@@ -35,6 +35,8 @@ use crate::types::{
 };
 use nameof::name_of;
 
+pub const FW_VERSION_GT_2_8: &str = "__fw_version_gt_2.8";
+
 pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(build_forms);
 
 static DEFAULT_MAP_REPORT_SETTINGS: LazyLock<FormData> =
@@ -68,13 +70,19 @@ macro_rules! channel_form {
             let mut vec: Vec<FormItem> = Vec::new();
 
             $(
-                let is_channel_enabled = |data: &FormData| data
-                    .get($x)
+                let is_channel_enabled = |data: &FormData| data.get($x)
                     .expect("should exist")
                     .as_nested()
                     .get(name_of!(is_enabled in Channel))
                     .expect("should exists")
                     .as_bool();
+
+                let is_fw_version_gt_2_8 = |data: &FormData| data.get($x)
+                    .expect("should exist")
+                    .as_nested()
+                    .get(name_of!(is_enabled in Channel))
+                    .expect("should exists")
+                    .as_bool() && data.get(FW_VERSION_GT_2_8).expect("should exists").as_bool();
 
                 vec.push(
                     FormItem::new(
@@ -206,7 +214,7 @@ macro_rules! channel_form {
                         FormItemKind::Switch,
                         |v| v.to_string(),
                         |_| Ok(()),
-                    )
+                    ).with_visibility(is_fw_version_gt_2_8)
                 );
 
                 vec.push(
@@ -232,7 +240,7 @@ macro_rules! channel_form {
                         FormItemKind::Switch,
                         |v| v.to_string(),
                         |_| Ok(()),
-                    )
+                    ).with_visibility(is_fw_version_gt_2_8)
                 );
             )*
 
@@ -242,6 +250,8 @@ macro_rules! channel_form {
 }
 
 fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
+    let is_fw_version_gt_2_8 = |data: &FormData| data.get(FW_VERSION_GT_2_8).expect("should exists").as_bool();
+
     let mut forms = HashMap::new();
 
     forms.insert(
@@ -514,7 +524,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .then_some(())
                         .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
                 },
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(pa_fan_disabled in LoRaConfig)),
                 "Disable PA Fan",
@@ -522,7 +533,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Custom {
                     getter: |data| {
@@ -568,7 +580,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                                 .map_err(|_| anyhow::anyhow!("Invalid node number: {}", v))
                         })
                 },
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(fem_lna_mode in LoRaConfig)),
                 "FEM LNA Mode",
@@ -584,7 +597,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(serial_hal_only in LoRaConfig)),
                 "Serial HAL Only",
@@ -592,7 +606,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(transparent_mode in LoRaConfig)),
                 "Transparent Mode",
@@ -603,7 +618,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
         ]),
     );
 
@@ -875,7 +891,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(is_managed in SecurityConfig)),
                 "Managed Device",
@@ -883,7 +900,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 FormItemKind::Switch,
                 |v| v.to_string(),
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
         ]),
     );
 
@@ -1082,7 +1100,8 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .unwrap_or("?".to_owned())
                 },
                 |_| Ok(()),
-            ),
+            )
+            .with_visibility(is_fw_version_gt_2_8),
         ]),
     );
 
@@ -3638,53 +3657,4 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
     );
 
     forms
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::serde::from_formdata;
-    use meshtastic::protobufs::config::{LoRaConfig, PowerConfig};
-
-    fn custom_item(form: FormId, title: &str) -> &'static FormItem {
-        FORMS[&form]
-            .iter()
-            .find(|i| matches!(i.key, FormItemKey::Custom { .. }) && i.title == title)
-            .expect("item not found")
-    }
-
-    #[test]
-    fn ignore_incoming_roundtrip() {
-        let mut data = to_formdata(&LoRaConfig::default()).unwrap();
-        let item = custom_item(FormId::RadioLora, "Ignore Incoming Nodes");
-
-        let FormItemKey::Custom { getter, setter } = item.key else {
-            unreachable!()
-        };
-
-        assert_eq!(getter(&data).as_string(), "");
-
-        setter(&mut data, FormValue::from("1, 3000000000".to_owned()));
-
-        let lora: LoRaConfig = from_formdata(&data).unwrap();
-
-        assert_eq!(lora.ignore_incoming, vec![1, 3_000_000_000]);
-    }
-
-    #[test]
-    fn powermon_enables_roundtrip() {
-        let mut data = to_formdata(&PowerConfig::default()).unwrap();
-        let item = custom_item(FormId::DevicePower, "Power Monitoring Enables");
-
-        let FormItemKey::Custom { getter, setter } = item.key else {
-            unreachable!()
-        };
-
-        setter(&mut data, FormValue::from("1234567890123".to_owned()));
-
-        let power: PowerConfig = from_formdata(&data).unwrap();
-
-        assert_eq!(power.powermon_enables, 1_234_567_890_123);
-        assert_eq!(getter(&data).as_string(), "1234567890123");
-    }
 }

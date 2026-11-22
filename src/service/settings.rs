@@ -19,6 +19,7 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
+use crate::service::FW_VERSION_GT_2_8;
 use crate::types::{
     Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig, UiEvent,
 };
@@ -28,6 +29,8 @@ use crate::{
 };
 
 pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(build_settings);
+
+static VERSION_REQ_GT_2_8: LazyLock<semver::VersionReq> = LazyLock::new(|| semver::VersionReq::parse("^2.8").unwrap());
 
 pub struct SettingsService {
     ui_event_rx: broadcast::Receiver<UiEvent>,
@@ -290,7 +293,7 @@ impl SettingsService {
     fn load_config(&self, id: &FormId) -> anyhow::Result<FormData> {
         let state = self.state_rx.borrow();
 
-        let data = match id {
+        let mut data = match id {
             FormId::AppUi => to_formdata(&state.ui_config)?,
             FormId::RadioLora => to_formdata(
                 state
@@ -457,6 +460,20 @@ impl SettingsService {
                 anyhow::anyhow!("Mesh Beacon config not loaded or it's not supported by the device firmware"),
             )?)?,
         };
+
+        // inject FW version data
+        let fw_version = state.device_metadata.as_ref().and_then(|metadata| {
+            semver::Version::parse(&metadata.firmware_version)
+                .inspect_err(|e| {
+                    tracing::error!("can't parse firmware version \"{}\": {}", metadata.firmware_version, e)
+                })
+                .ok()
+        });
+
+        data.insert(
+            FW_VERSION_GT_2_8.to_owned(),
+            FormValue::Bool(fw_version.map(|v| VERSION_REQ_GT_2_8.matches(&v)).unwrap_or(false)),
+        );
 
         Ok(data)
     }
@@ -662,14 +679,14 @@ impl SettingsService {
             }
             FormId::ModuleTak => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: id.clone(),
+                    form_id: *id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::Tak(from_formdata::<TakConfig>(form_data)?),
                 });
             }
             FormId::ModuleMeshBeacon => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: id.clone(),
+                    form_id: *id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::MeshBeacon(from_formdata::<MeshBeaconConfig>(form_data)?),
                 });
