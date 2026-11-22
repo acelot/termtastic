@@ -387,7 +387,7 @@ impl<'a> Screen for Settings<'a> {
                     if let Some(index) = self.settings_list_state.selected
                         && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
                     {
-                        emit(UiEvent::SettingsFormSelected(id.clone()));
+                        emit(UiEvent::SettingsFormSelected(*id));
                         return true;
                     }
                 }
@@ -442,7 +442,7 @@ impl<'a> Screen for Settings<'a> {
                 (KeyCode::Char('s'), SettingsFormState::Loaded { id, .. })
                     if modifiers.is_empty() && state.settings_form_is_changed =>
                 {
-                    emit(UiEvent::SettingsFormSaveRequested(id.clone()));
+                    emit(UiEvent::SettingsFormSaveRequested(*id));
                     return true;
                 }
                 (KeyCode::Char('c'), SettingsFormState::Loaded { id, form_items }) if modifiers.is_empty() => {
