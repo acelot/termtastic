@@ -40,30 +40,33 @@ static DEFAULT_MAP_REPORT_SETTINGS: LazyLock<FormData> =
 
 static DEFAULT_IPV4_CONFIG: LazyLock<FormData> = LazyLock::new(|| to_formdata(&IpV4Config::default()).unwrap());
 
+macro_rules! channel_simple_key {
+    ($channel:expr, $name:expr) => {
+        FormItemKey::Custom {
+            getter: |data| {
+                let channel_data = data.get($channel).expect("should exist").as_nested();
+                channel_data.get($name).cloned().expect("should exist")
+            },
+            setter: |data, value| {
+                data.get_mut($channel)
+                    .expect("should exist")
+                    .as_nested_mut()
+                    .insert($name.to_owned(), value);
+            },
+        }
+    };
+}
+
 macro_rules! channel_form {
     ($($x:expr),* $(,)?) => {
         {
             let mut vec: Vec<FormItem> = Vec::new();
 
             $(
+                let is_channel_enabled = |data: &FormData| data.get($x).expect("should exist").as_nested().get(name_of!(is_enabled in Channel)).cloned().expect("should exists").as_bool();
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(is_enabled in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(is_enabled in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(is_enabled in Channel)),
                         concat!("ENABLE CHANNEL #", $x),
                         Some("All channel fields will be erased if the channel is disabled."),
                         FormItemKind::Switch,
@@ -74,22 +77,7 @@ macro_rules! channel_form {
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(name in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(name in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(name in Channel)),
                         concat!("  #", $x, " Name"),
                         Some("Short channel name. Maximum 10 characters."),
                         FormItemKind::InputOfString,
@@ -98,27 +86,12 @@ macro_rules! channel_form {
                             .contains(&v.as_string().len())
                             .then_some(())
                             .ok_or(anyhow::anyhow!("Max length is 10")),
-                    )
+                    ).with_visibility(is_channel_enabled)
                 );
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(psk in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(psk in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(psk in Channel)),
                         concat!("  #", $x, " PSK"),
                         Some("Base64 encoded string. Leave empty to disable encryption."),
                         FormItemKind::MaskedInputOfBase64,
@@ -127,7 +100,7 @@ macro_rules! channel_form {
                             .contains(&v.as_vec().len())
                             .then_some(())
                             .ok_or(anyhow::anyhow!("Max length is 32")),
-                    )
+                    ).with_visibility(is_channel_enabled)
                 );
 
                 vec.push(
@@ -149,27 +122,12 @@ macro_rules! channel_form {
                         }),
                         |_| "<GENERATE>".to_owned(),
                         |_| Ok(()),
-                    ),
+                    ).with_visibility(is_channel_enabled)
                 );
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(uplink_enabled in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(uplink_enabled in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(uplink_enabled in Channel)),
                         concat!("  #", $x, " Uplink Enabled"),
                         Some(
                             "If enabled, messages from the mesh will be sent to the public \
@@ -178,27 +136,12 @@ macro_rules! channel_form {
                         FormItemKind::Switch,
                         |v| v.to_string(),
                         |_| Ok(()),
-                    )
+                    ).with_visibility(is_channel_enabled)
                 );
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(downlink_enabled in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(downlink_enabled in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(downlink_enabled in Channel)),
                         concat!("  #", $x, " Downlink Enabled"),
                         Some(
                             "If enabled, messages captured from a public internet gateway \
@@ -207,27 +150,12 @@ macro_rules! channel_form {
                         FormItemKind::Switch,
                         |v| v.to_string(),
                         |_| Ok(()),
-                    )
+                    ).with_visibility(is_channel_enabled)
                 );
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(position_precision in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(position_precision in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(position_precision in Channel)),
                         concat!("  #", $x, " Position Precision Bits"),
                         Some("Bits of precision for the location sent in position packets."),
                         FormItemKind::InputOfUnsignedInt32,
@@ -237,7 +165,7 @@ macro_rules! channel_form {
                         } else {
                             Err(anyhow::anyhow!("should be between 0 and 32"))
                         },
-                    )
+                    ).with_visibility(is_channel_enabled)
                 );
             )*
 

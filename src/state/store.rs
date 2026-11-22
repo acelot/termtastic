@@ -19,8 +19,8 @@ use crate::service::{
 };
 use crate::state::ChatState;
 use crate::types::{
-    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeTelemetry, NodeTelemetryTyped, Traceroute,
-    TracerouteIndicatorState, TracerouteItem, TracerouteState,
+    Chat, ChatPosition, DbLoadState, DeliveryState, Message, Node, NodeTelemetry, NodeTelemetryTyped,
+    SettingsActiveFormItems, Traceroute, TracerouteIndicatorState, TracerouteItem, TracerouteState,
 };
 use crate::{
     state::{MAX_LOG_RECORDS, State, StateAction},
@@ -1005,10 +1005,11 @@ impl Store {
             }
             StateAction::SettingsFormLoadingDone { id, data } => {
                 self.state_tx.send_modify(|state| {
+                    let active_form_items = SettingsActiveFormItems::new(&id, &data);
                     state.settings_form_original_data = Some(data.clone());
                     state.settings_form_data = Some(data);
                     state.settings_form_is_changed = false;
-                    state.settings_form_state = SettingsFormState::Loaded { id };
+                    state.settings_form_state = SettingsFormState::Loaded { id, active_form_items };
                 });
 
                 true
@@ -1022,7 +1023,15 @@ impl Store {
             }
             StateAction::SettingsFormSavingFailed { id } => {
                 self.state_tx.send_modify(|state| {
-                    state.settings_form_state = SettingsFormState::Loaded { id };
+                    if let Some(data) = state.settings_form_data.as_ref() {
+                        let active_form_items = SettingsActiveFormItems::new(&id, data);
+                        state.settings_form_state = SettingsFormState::Loaded { id, active_form_items };
+                    } else {
+                        state.settings_form_state = SettingsFormState::Loaded {
+                            id,
+                            active_form_items: Default::default(),
+                        };
+                    }
                 });
 
                 true
@@ -1058,6 +1067,9 @@ impl Store {
                         setter(data, value);
                     }
                     FormItemKey::None => {}
+                }
+                if let SettingsFormState::Loaded { id, active_form_items } = &mut state.settings_form_state {
+                    *active_form_items = SettingsActiveFormItems::new(id, data);
                 }
 
                 state.settings_form_is_changed = state.settings_form_data != state.settings_form_original_data;
