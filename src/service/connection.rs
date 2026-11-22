@@ -375,14 +375,12 @@ async fn discover_tcp_devices(state_action_tx: mpsc::UnboundedSender<StateAction
         let short_name = info.txt_properties.get("shortname").map(|txt| txt.val_str().to_owned());
 
         for addr in info.addresses.iter() {
-            let ip = match addr {
-                mdns_sd::ScopedIp::V4(ipv4) => IpAddr::from(*ipv4.addr()),
-                mdns_sd::ScopedIp::V6(ipv6) => IpAddr::from(*ipv6.addr()),
-                _ => continue,
+            let mdns_sd::ScopedIp::V4(ipv4) = addr else {
+                continue;
             };
 
             if let Err(e) = state_action_tx.send(StateAction::DevicesDiscoveredAdd(Device::Tcp {
-                address: HostAddr::from_ip_addr(ip).with_port(info.port),
+                address: HostAddr::from_ip_addr(IpAddr::from(*ipv4.addr())).with_port(info.port),
                 name: short_name.clone(),
             })) {
                 break 'browse Err(e.into());
