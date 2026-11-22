@@ -1005,11 +1005,12 @@ impl Store {
             }
             StateAction::SettingsFormLoadingDone { id, data } => {
                 self.state_tx.send_modify(|state| {
-                    let active_form_items = SettingsActiveFormItems::new(&id, &data);
+                    let form_items: SettingsActiveFormItems = (&id, &data).into();
+
                     state.settings_form_original_data = Some(data.clone());
                     state.settings_form_data = Some(data);
                     state.settings_form_is_changed = false;
-                    state.settings_form_state = SettingsFormState::Loaded { id, active_form_items };
+                    state.settings_form_state = SettingsFormState::Loaded { id, form_items };
                 });
 
                 true
@@ -1024,12 +1025,13 @@ impl Store {
             StateAction::SettingsFormSavingFailed { id } => {
                 self.state_tx.send_modify(|state| {
                     if let Some(data) = state.settings_form_data.as_ref() {
-                        let active_form_items = SettingsActiveFormItems::new(&id, data);
-                        state.settings_form_state = SettingsFormState::Loaded { id, active_form_items };
+                        let form_items: SettingsActiveFormItems = (&id, data).into();
+
+                        state.settings_form_state = SettingsFormState::Loaded { id, form_items };
                     } else {
                         state.settings_form_state = SettingsFormState::Loaded {
                             id,
-                            active_form_items: Default::default(),
+                            form_items: Default::default(),
                         };
                     }
                 });
@@ -1068,8 +1070,12 @@ impl Store {
                     }
                     FormItemKey::None => {}
                 }
-                if let SettingsFormState::Loaded { id, active_form_items } = &mut state.settings_form_state {
-                    *active_form_items = SettingsActiveFormItems::new(id, data);
+
+                if let SettingsFormState::Loaded { id, .. } = &state.settings_form_state {
+                    state.settings_form_state = SettingsFormState::Loaded {
+                        id: *id,
+                        form_items: (id, &*data).into(),
+                    };
                 }
 
                 state.settings_form_is_changed = state.settings_form_data != state.settings_form_original_data;

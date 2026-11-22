@@ -63,7 +63,14 @@ macro_rules! channel_form {
             let mut vec: Vec<FormItem> = Vec::new();
 
             $(
-                let is_channel_enabled = |data: &FormData| data.get($x).expect("should exist").as_nested().get(name_of!(is_enabled in Channel)).cloned().expect("should exists").as_bool();
+                let is_channel_enabled = |data: &FormData| data
+                    .get($x)
+                    .expect("should exist")
+                    .as_nested()
+                    .get(name_of!(is_enabled in Channel))
+                    .expect("should exists")
+                    .as_bool();
+
                 vec.push(
                     FormItem::new(
                         channel_simple_key!($x, name_of!(is_enabled in Channel)),

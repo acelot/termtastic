@@ -1151,7 +1151,7 @@ impl NodePosition {
     }
 }
 
-#[derive(Debug, Display, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Display, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FormId {
     RadioLora,
     RadioChannels,
@@ -1195,8 +1195,8 @@ impl std::ops::Deref for SettingsActiveFormItems {
     }
 }
 
-impl SettingsActiveFormItems {
-    pub fn new(id: &FormId, data: &FormData) -> Self {
+impl From<(&FormId, &FormData)> for SettingsActiveFormItems {
+    fn from((id, data): (&FormId, &FormData)) -> Self {
         Self(FORMS[id].iter().filter(|item| item.is_visible(data)).collect())
     }
 }
@@ -1214,7 +1214,7 @@ pub enum SettingsFormState {
     },
     Loaded {
         id: FormId,
-        active_form_items: SettingsActiveFormItems,
+        form_items: SettingsActiveFormItems,
     },
     Saving {
         id: FormId,
@@ -1430,7 +1430,7 @@ pub struct FormItem {
     pub kind: FormItemKind,
     pub formatter: fn(&FormValue) -> String,
     pub validator: fn(&FormValue) -> anyhow::Result<()>,
-    pub is_visible: Option<fn(&FormData) -> bool>,
+    pub visibility: fn(&FormData) -> bool,
 }
 
 impl FormItem {
@@ -1449,22 +1449,16 @@ impl FormItem {
             kind,
             formatter,
             validator,
-            is_visible: None,
+            visibility: |_| true,
         }
     }
 
-    pub fn with_visibility(self, is_visible: fn(&FormData) -> bool) -> Self {
-        Self {
-            is_visible: Some(is_visible),
-            ..self
-        }
+    pub fn with_visibility(self, visibility: fn(&FormData) -> bool) -> Self {
+        Self { visibility, ..self }
     }
 
     pub fn is_visible(&self, data: &FormData) -> bool {
-        match self.is_visible {
-            Some(visibility_func) => visibility_func(data),
-            None => true,
-        }
+        (self.visibility)(data)
     }
 }
 
