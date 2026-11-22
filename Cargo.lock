@@ -2965,6 +2965,7 @@ dependencies = [
  "regex",
  "rusqlite",
  "rusqlite_migration",
+ "semver",
  "serde",
  "serde_json",
  "serde_rusqlite",

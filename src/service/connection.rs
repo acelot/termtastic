@@ -159,6 +159,8 @@ impl ConnectionService {
         match event {
             Ok(meshtastic_event) => match meshtastic_event {
                 MeshtasticEvent::ConnectionError(error) => {
+                    tracing::error!("connection error: {:?}", error);
+
                     let _ = self.state_action_tx.send(StateAction::ConnectionFail { error });
                 }
                 MeshtasticEvent::Disconnected => {
