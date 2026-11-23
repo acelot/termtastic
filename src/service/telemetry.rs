@@ -22,6 +22,26 @@ macro_rules! power_metrics {
     };
 }
 
+macro_rules! environment_channels {
+    ($items:expr, $environment_metrics:expr, $($ch:literal), * $(,)?) => {
+        $(
+            paste::paste! {
+                $items.push(TelemetryItem::item(
+                    concat!("adc voltage ch", $ch),
+                    $environment_metrics.data.[<adc_voltage_ch $ch>],
+                    $environment_metrics.data.[<adc_voltage_ch $ch>].map(|v| format!("{:.2}V", v)),
+                ));
+
+                $items.push(TelemetryItem::item(
+                    concat!("one-wire temperature ch", $ch),
+                    $environment_metrics.data.[<one_wire_temperature_ch $ch>],
+                    $environment_metrics.data.[<one_wire_temperature_ch $ch>].map(|v| format!("{:.1}°C", v)),
+                ));
+            }
+        )*
+    };
+}
+
 pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
     let Some(node_key) = state.nodeinfo_key else {
         return false;
@@ -220,6 +240,23 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             environment_metrics.data.soil_temperature,
             environment_metrics.data.soil_temperature.map(|v| format!("{:.1}°C", v)),
         ));
+
+        environment_channels!(items, environment_metrics, "0", "1", "2", "3", "4", "5", "6", "7");
+
+        items.push(TelemetryItem::item(
+            "lightning strikes 1h",
+            environment_metrics.data.lightning_strike_count_1h,
+            environment_metrics.data.lightning_strike_count_1h,
+        ));
+
+        items.push(TelemetryItem::item(
+            "lightning distance",
+            environment_metrics.data.lightning_distance_km,
+            environment_metrics
+                .data
+                .lightning_distance_km
+                .map(|v| format!("{:.1}km", v)),
+        ));
     }
 
     // air quality metrics
@@ -390,6 +427,12 @@ pub fn update_nodeinfo_telemetry(state: &mut State) -> bool {
             "typical particle size",
             air_quality_metrics.data.particles_tps,
             air_quality_metrics.data.particles_tps.map(|v| format!("{:.2}µm", v)),
+        ));
+
+        items.push(TelemetryItem::item(
+            "status flags",
+            air_quality_metrics.data.pm_status_flags,
+            air_quality_metrics.data.pm_status_flags.map(|v| format!("0x{:X}", v)),
         ));
     }
 

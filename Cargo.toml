@@ -43,7 +43,7 @@ hostaddr = { version = "1.1", features = ["serde"] }
 itertools = { version = "0.15.0" }
 jiff = { version = "0.2.46", features = ["serde"] }
 mdns-sd = { version = "0.22.0" }
-meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "f4bb73d", features = [
+meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "ed949d9", features = [
     "bluetooth-le",
 ] }
 nameof = { version = "1.3" }
