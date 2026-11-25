@@ -1,9 +1,6 @@
 use tracing_unwrap::OptionExt;
 
-use crate::{
-    service::{FORMS, SETTINGS},
-    ui::prelude::*,
-};
+use crate::{service::FORMS, ui::prelude::*};
 
 pub struct Settings<'a> {
     settings_list_state: ListState,
@@ -360,7 +357,7 @@ impl<'a> Screen for Settings<'a> {
         if let SettingsFormState::Inactive = state.settings_form_state
             && self
                 .settings_list_state
-                .handle_navigation_events(event, Some(SETTINGS.len()))
+                .handle_navigation_events(event, Some(state.settings_menu.len()))
         {
             return true;
         }
@@ -385,7 +382,7 @@ impl<'a> Screen for Settings<'a> {
             }) => match (code, &state.settings_form_state) {
                 (KeyCode::Enter | KeyCode::Right, SettingsFormState::Inactive) if modifiers.is_empty() => {
                     if let Some(index) = self.settings_list_state.selected
-                        && let Some(SettingsItem::Form { id, .. }) = SETTINGS.get(index)
+                        && let Some(SettingsItem::Form { id, .. }) = state.settings_menu.get(index)
                     {
                         emit(UiEvent::SettingsFormSelected(*id));
                         return true;
@@ -471,7 +468,7 @@ impl<'a> Screen for Settings<'a> {
     fn render(&mut self, state: &State, frame: &mut Frame, area: Rect, _emit: &impl Fn(UiEvent)) {
         let h = Layout::horizontal([Constraint::Ratio(2, 6), Constraint::Ratio(4, 6)]).split(area);
 
-        self.settings_list_state.fix_selection(SETTINGS.len());
+        self.settings_list_state.fix_selection(state.settings_menu.len());
 
         // Menu
         let menu_block = Block::bordered()
@@ -488,7 +485,7 @@ impl<'a> Screen for Settings<'a> {
         menu_block.render(h[0], frame.buffer_mut());
 
         let menu_list_builder = ListBuilder::new(|context| {
-            let settings_item = &SETTINGS[context.index];
+            let settings_item = &state.settings_menu[context.index];
 
             let item = SettingsItemWidget {
                 settings_item,
@@ -504,7 +501,7 @@ impl<'a> Screen for Settings<'a> {
             (item, 1)
         });
 
-        let menu = ListView::new(menu_list_builder, SETTINGS.len())
+        let menu = ListView::new(menu_list_builder, state.settings_menu.len())
             .infinite_scrolling(false)
             .scrollbar(default_scrollbar())
             .add_modifier(if state.settings_form_state != SettingsFormState::Inactive {

@@ -21,14 +21,13 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use crate::serde::{from_formdata, to_formdata};
 use crate::service::FW_VERSION_GT_2_8;
 use crate::types::{
-    Channel, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig, UiEvent,
+    Channel, ConnectionState, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig,
+    UiEvent,
 };
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
     state::{State, StateAction},
 };
-
-pub static SETTINGS: LazyLock<Vec<SettingsItem>> = LazyLock::new(build_settings);
 
 static VERSION_REQ_GT_2_8: LazyLock<semver::VersionReq> = LazyLock::new(|| semver::VersionReq::parse("^2.8").unwrap());
 
@@ -462,17 +461,15 @@ impl SettingsService {
         };
 
         // inject FW version data
-        let fw_version = state.device_metadata.as_ref().and_then(|metadata| {
-            semver::Version::parse(&metadata.firmware_version)
-                .inspect_err(|e| {
-                    tracing::error!("can't parse firmware version \"{}\": {}", metadata.firmware_version, e)
-                })
-                .ok()
-        });
-
         data.insert(
             FW_VERSION_GT_2_8.to_owned(),
-            FormValue::Bool(fw_version.map(|v| VERSION_REQ_GT_2_8.matches(&v)).unwrap_or(false)),
+            FormValue::Bool(
+                state
+                    .device_fw_version
+                    .as_ref()
+                    .map(|v| VERSION_REQ_GT_2_8.matches(v))
+                    .unwrap_or(false),
+            ),
         );
 
         Ok(data)
@@ -697,40 +694,57 @@ impl SettingsService {
     }
 }
 
-fn build_settings() -> Vec<SettingsItem> {
-    Vec::from([
+pub fn update_settings_menu(state: &mut State) {
+    let is_connected = matches!(state.connection_state, ConnectionState::Connected);
+
+    let is_fw_version_gt_2_8 = state
+        .device_fw_version
+        .as_ref()
+        .map(|v| VERSION_REQ_GT_2_8.matches(v))
+        .unwrap_or(false);
+
+    state.settings_menu = [
         // App
-        SettingsItem::group("App"),
-        SettingsItem::form("UI", FormId::AppUi),
+        Some(SettingsItem::group("App")),
+        Some(SettingsItem::form("UI", FormId::AppUi)),
         // Radio
-        SettingsItem::group("Radio"),
-        SettingsItem::form("LoRa", FormId::RadioLora),
-        SettingsItem::form("Channels", FormId::RadioChannels),
-        SettingsItem::form("Security", FormId::RadioSecurity),
+        is_connected.then_some(SettingsItem::group("Radio")),
+        is_connected.then_some(SettingsItem::form("LoRa", FormId::RadioLora)),
+        is_connected.then_some(SettingsItem::form("Channels", FormId::RadioChannels)),
+        is_connected.then_some(SettingsItem::form("Security", FormId::RadioSecurity)),
         // Device
-        SettingsItem::group("Device"),
-        SettingsItem::form("User", FormId::DeviceUser),
-        SettingsItem::form("Device", FormId::DeviceDevice),
-        SettingsItem::form("Position", FormId::DevicePosition),
-        SettingsItem::form("Power", FormId::DevicePower),
-        SettingsItem::form("Display", FormId::DeviceDisplay),
-        SettingsItem::form("Bluetooth", FormId::DeviceBluetooth),
-        SettingsItem::form("Network", FormId::DeviceNetwork),
-        SettingsItem::form("Administration", FormId::DeviceAdministration),
+        is_connected.then_some(SettingsItem::group("Device")),
+        is_connected.then_some(SettingsItem::form("User", FormId::DeviceUser)),
+        is_connected.then_some(SettingsItem::form("Device", FormId::DeviceDevice)),
+        is_connected.then_some(SettingsItem::form("Position", FormId::DevicePosition)),
+        is_connected.then_some(SettingsItem::form("Power", FormId::DevicePower)),
+        is_connected.then_some(SettingsItem::form("Display", FormId::DeviceDisplay)),
+        is_connected.then_some(SettingsItem::form("Bluetooth", FormId::DeviceBluetooth)),
+        is_connected.then_some(SettingsItem::form("Network", FormId::DeviceNetwork)),
+        is_connected.then_some(SettingsItem::form("Administration", FormId::DeviceAdministration)),
         // Module
-        SettingsItem::group("Module"),
-        SettingsItem::form("MQTT", FormId::ModuleMqtt),
-        SettingsItem::form("Serial", FormId::ModuleSerial),
-        SettingsItem::form("External Notification", FormId::ModuleExternalNotification),
-        SettingsItem::form("Store & Forward", FormId::ModuleStoreAndForward),
-        SettingsItem::form("Range Test", FormId::ModuleRangeTest),
-        SettingsItem::form("Telemetry", FormId::ModuleTelemetry),
-        SettingsItem::form("Canned Message", FormId::ModuleCannedMessage),
-        SettingsItem::form("Neighbor Info", FormId::ModuleNeighborInfo),
-        SettingsItem::form("Ambient Lighting", FormId::ModuleAmbientLighting),
-        SettingsItem::form("Detection Sensor", FormId::ModuleDetectionSensor),
-        SettingsItem::form("Traffic Management", FormId::ModuleTrafficManagement),
-        SettingsItem::form("TAK", FormId::ModuleTak),
-        SettingsItem::form("Mesh Beacon", FormId::ModuleMeshBeacon),
-    ])
+        is_connected.then_some(SettingsItem::group("Module")),
+        is_connected.then_some(SettingsItem::form("MQTT", FormId::ModuleMqtt)),
+        is_connected.then_some(SettingsItem::form("Serial", FormId::ModuleSerial)),
+        is_connected.then_some(SettingsItem::form(
+            "External Notification",
+            FormId::ModuleExternalNotification,
+        )),
+        is_connected.then_some(SettingsItem::form("Store & Forward", FormId::ModuleStoreAndForward)),
+        is_connected.then_some(SettingsItem::form("Range Test", FormId::ModuleRangeTest)),
+        is_connected.then_some(SettingsItem::form("Telemetry", FormId::ModuleTelemetry)),
+        is_connected.then_some(SettingsItem::form("Canned Message", FormId::ModuleCannedMessage)),
+        is_connected.then_some(SettingsItem::form("Neighbor Info", FormId::ModuleNeighborInfo)),
+        is_connected.then_some(SettingsItem::form("Ambient Lighting", FormId::ModuleAmbientLighting)),
+        is_connected.then_some(SettingsItem::form("Detection Sensor", FormId::ModuleDetectionSensor)),
+        (is_connected && is_fw_version_gt_2_8).then_some(SettingsItem::form(
+            "Traffic Management",
+            FormId::ModuleTrafficManagement,
+        )),
+        (is_connected && is_fw_version_gt_2_8).then_some(SettingsItem::form("TAK", FormId::ModuleTak)),
+        (is_connected && is_fw_version_gt_2_8).then_some(SettingsItem::form("Mesh Beacon", FormId::ModuleMeshBeacon)),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use jiff::Timestamp;
 use meshtastic::protobufs::telemetry::Variant::DeviceMetrics;
 use meshtastic::protobufs::{config, module_config, routing, telemetry};
@@ -15,7 +16,8 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use uuid::Uuid;
 
 use crate::service::{
-    DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view, update_terminal_title,
+    DEVICE_METRICS_TIME_LIMIT_HOURS, update_nodeinfo_telemetry, update_nodes_view, update_settings_menu,
+    update_terminal_title,
 };
 use crate::state::ChatState;
 use crate::types::{
@@ -172,6 +174,7 @@ impl Store {
                     state.connection_state = Default::default();
                     state.db_load_state = Default::default();
                     state.device_metadata = Default::default();
+                    state.device_fw_version = Default::default();
                     state.device_config = Default::default();
                     state.device_module_config = Default::default();
                     state.messages = Default::default();
@@ -186,6 +189,7 @@ impl Store {
                     state.online_nodes = Default::default();
                     state.packets_id_map = Default::default();
                     state.reconnection_backoff = Default::default();
+                    state.settings_menu = Default::default();
                     state.settings_form_data = Default::default();
                     state.settings_form_is_changed = Default::default();
                     state.settings_form_original_data = Default::default();
@@ -193,6 +197,7 @@ impl Store {
                     state.traceroutes = Default::default();
 
                     update_nodes_view(state);
+                    update_settings_menu(state);
                     update_terminal_title(state);
                 });
 
@@ -217,6 +222,8 @@ impl Store {
                     state.connection_state = ConnectionState::Connected;
                     state.connection_attempt = 0;
                     state.reconnection_backoff = None;
+
+                    update_settings_menu(state);
                 });
 
                 true
@@ -509,7 +516,17 @@ impl Store {
             }
             StateAction::DeviceMetadataSet(metadata) => {
                 self.state_tx.send_modify(|state| {
+                    let cleaned_version = metadata.firmware_version.split('.').take(3).join(".");
+
+                    state.device_fw_version = semver::Version::parse(&cleaned_version)
+                        .inspect_err(|e| {
+                            tracing::warn!("can't parse firmware version \"{}\": {}", metadata.firmware_version, e)
+                        })
+                        .ok();
+
                     state.device_metadata = Some(metadata);
+
+                    update_settings_menu(state);
                 });
 
                 true

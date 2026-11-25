@@ -1,6 +1,7 @@
 use crate::types::*;
 use meshtastic::protobufs::DeviceMetrics;
 use ordermap::{OrderMap, OrderSet};
+use semver::Version;
 use std::{
     collections::{BTreeSet, HashMap, HashSet, VecDeque},
     time::{Duration, Instant},
@@ -33,6 +34,7 @@ pub struct State {
     pub device_config: DeviceConfig,
     pub device_discovering_state: DeviceDiscoveringState,
     pub device_metadata: Option<meshtastic::protobufs::DeviceMetadata>,
+    pub device_fw_version: Option<Version>,
     pub device_module_config: DeviceModuleConfig,
     pub devices_discovered: BTreeSet<Device>,
     pub devices: BTreeSet<Device>,
@@ -58,6 +60,7 @@ pub struct State {
     pub reconnection_backoff: Option<Duration>,
     pub rx_indicator_t: Instant,
     pub rx_indicator: bool,
+    pub settings_menu: Vec<SettingsItem>,
     pub settings_form_data: Option<FormData>,
     pub settings_form_is_changed: bool,
     pub settings_form_original_data: Option<FormData>,
@@ -98,6 +101,7 @@ impl Default for State {
             device_discovering_state: DeviceDiscoveringState::default(),
             device_config: DeviceConfig::default(),
             device_metadata: None,
+            device_fw_version: None,
             device_module_config: DeviceModuleConfig::default(),
             device_canned_messages: None,
             devices_discovered: BTreeSet::default(),
@@ -124,6 +128,7 @@ impl Default for State {
             reconnection_backoff: None,
             rx_indicator_t: Instant::now(),
             rx_indicator: false,
+            settings_menu: Vec::default(),
             settings_form_state: SettingsFormState::default(),
             settings_form_original_data: None,
             settings_form_data: None,
