@@ -454,8 +454,8 @@ pub fn delivery_state_to_span<'a>(state: Option<&DeliveryState>) -> Span<'a> {
     match state {
         Some(DeliveryState::Sending) => Span::from("sending...").dark_gray(),
         Some(DeliveryState::DeliveredToRecipient) => Span::from("delivered").green(),
-        Some(DeliveryState::DeliveredToRecipientProven) => Span::from("delivered ✔").bold().green(),
-        Some(DeliveryState::DeliveryProofFailed) => Span::from("proof failed ✘").bold().red(),
+        Some(DeliveryState::DeliveredToRecipientProven) => Span::from("proven ✔").bold().green(),
+        Some(DeliveryState::DeliveryProofFailed) => Span::from("invalid proof ✘").bold().red(),
         Some(DeliveryState::DeliveredToMesh) => Span::from("ack").green(),
         Some(DeliveryState::RoutingError(e)) => Span::from(e.as_str_name()).red(),
         None => Span::default(),

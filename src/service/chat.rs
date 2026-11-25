@@ -6,7 +6,7 @@ use meshtastic::{
     protobufs::{
         PortNum, Routing,
         from_radio::PayloadVariant,
-        mesh_packet::{self, TransportMechanism},
+        mesh_packet::{self, AckProofStatus, TransportMechanism},
         routing,
     },
 };
@@ -202,7 +202,7 @@ impl ChatService {
                     PortNum::RoutingApp => match Routing::decode(&*data.payload) {
                         Ok(Routing {
                             variant: Some(routing::Variant::ErrorReason(e)),
-                            ack_proof,
+                            ..
                         }) => {
                             let my_node_key = self.state_rx.borrow().my_node_key;
 
@@ -218,12 +218,25 @@ impl ChatService {
                                         | TransportMechanism::TransportLoraAlt1
                                         | TransportMechanism::TransportLoraAlt2
                                         | TransportMechanism::TransportLoraAlt3 => {
-                                            tracing::debug!(from = packet.from, "ack proof: {:?}", ack_proof);
+                                            let ack_proof_status = packet.ack_proof_status();
 
-                                            let _ =
-                                                self.state_action_tx.send(StateAction::MessageDeliveredToRecipient {
-                                                    packet_id: data.request_id,
-                                                });
+                                            let _ = self.state_action_tx.send(match ack_proof_status {
+                                                AckProofStatus::AckProofValid => {
+                                                    StateAction::MessageDeliveredToRecipientProven {
+                                                        packet_id: data.request_id,
+                                                    }
+                                                }
+                                                AckProofStatus::AckProofInvalid => {
+                                                    StateAction::MessageDeliveryProofFailed {
+                                                        packet_id: data.request_id,
+                                                    }
+                                                }
+                                                AckProofStatus::AckProofAbsent | AckProofStatus::AckProofNoKey => {
+                                                    StateAction::MessageDeliveredToRecipient {
+                                                        packet_id: data.request_id,
+                                                    }
+                                                }
+                                            });
                                         }
                                         _ => {}
                                     },

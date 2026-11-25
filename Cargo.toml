@@ -3,6 +3,7 @@ name = "termtastic"
 # unused, app version propagated by git tags
 version = "0.0.0"
 edition = "2024"
+rust-version = "1.95.0"
 authors = ["acelot <provaleriy@gmail.com>"]
 description = "Feature-rich Meshtastic® console client"
 publish = false
@@ -43,7 +44,7 @@ hostaddr = { version = "1.1", features = ["serde"] }
 itertools = { version = "0.15.0" }
 jiff = { version = "0.2.46", features = ["serde"] }
 mdns-sd = { version = "0.22.0" }
-meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "ed949d9", features = [
+meshtastic = { git = "https://github.com/acelot/rust-meshtastic.git", rev = "0b51541", features = [
     "bluetooth-le",
 ] }
 nameof = { version = "1.3" }

@@ -159,6 +159,8 @@ impl Store {
                     state.settings_form_is_changed = false;
                     state.settings_form_original_data = None;
                     state.settings_form_state = Default::default();
+
+                    update_settings_menu(state);
                 });
 
                 true
