@@ -223,6 +223,16 @@ The same named option exists in other terminals too. Check your terminal docs.
 Unfortunately, some terminals such as Windows Terminal or Putty cannot display some compound emoji such as 1️⃣, 2️⃣, 3️⃣, etc.
 There is an issue in Github: <https://github.com/microsoft/terminal/issues/9708>.
 
+### The application closes when scrolling with the mouse
+
+This can happen if the terminal sends escape sequences too slowly, causing the application to misinterpret a mouse scroll as an Escape key press.
+
+You can set the delay between escape sequences for `tmux`:
+
+```sh
+tmux set -sg escape-time 50
+```
+
 <hr/>
 
 <sub>Meshtastic® is a registered trademark of Meshtastic LLC. termtastic is an independent project and is not affiliated with Meshtastic LLC.</sub>
