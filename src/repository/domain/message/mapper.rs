@@ -1,5 +1,5 @@
 use jiff::Timestamp;
-use meshtastic::protobufs::routing;
+use meshtastic::protobufs::{mesh_packet::TransportMechanism, routing};
 use rusqlite::{ToSql, types::ToSqlOutput};
 use uuid::Uuid;
 
@@ -22,6 +22,8 @@ impl From<crate::types::Message> for Message {
             snr: value.snr,
             rssi: value.rssi.unwrap_or_default(),
             delivery_state: value.delivery_state.map(Into::into),
+            transport_mechanism: value.transport_mechanism as i32,
+            via_mqtt: value.via_mqtt,
         }
     }
 }
@@ -46,6 +48,8 @@ impl TryFrom<Message> for crate::types::Message {
             snr: value.snr,
             rssi: if value.rssi != 0 { Some(value.rssi) } else { None },
             delivery_state: value.delivery_state.map(DeliveryState::try_from).transpose()?,
+            transport_mechanism: TransportMechanism::try_from(value.transport_mechanism)?,
+            via_mqtt: value.via_mqtt,
         })
     }
 }

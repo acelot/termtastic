@@ -120,7 +120,9 @@ impl Repository {
                         hops,
                         snr,
                         rssi,
-                        delivery_state
+                        delivery_state,
+                        transport_mechanism,
+                        via_mqtt
                     )
                     VALUES (
                         :id,
@@ -136,7 +138,9 @@ impl Repository {
                         :hops,
                         :snr,
                         :rssi,
-                        :delivery_state
+                        :delivery_state,
+                        :transport_mechanism,
+                        :via_mqtt
                     )
                     ON CONFLICT(id) DO UPDATE SET
                         reply_id = excluded.reply_id,
@@ -151,7 +155,9 @@ impl Repository {
                         hops = excluded.hops,
                         snr = excluded.snr,
                         rssi = excluded.rssi,
-                        delivery_state = excluded.delivery_state
+                        delivery_state = excluded.delivery_state,
+                        transport_mechanism = excluded.transport_mechanism,
+                        via_mqtt = excluded.via_mqtt
                     "#,
                 )?;
 

@@ -6,7 +6,7 @@ use emojis::Emoji;
 use hostaddr::HostAddr;
 use itertools::Itertools;
 use jiff::{SignedDuration, Timestamp};
-use meshtastic::protobufs::{Position, channel, config, module_config, routing};
+use meshtastic::protobufs::{Position, channel, config, mesh_packet::TransportMechanism, module_config, routing};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::sync::LazyLock;
@@ -909,6 +909,8 @@ pub struct Message {
     pub snr: f32,
     pub rssi: Option<i32>,
     pub delivery_state: Option<DeliveryState>,
+    pub transport_mechanism: TransportMechanism,
+    pub via_mqtt: bool,
 }
 
 impl Message {
@@ -957,6 +959,8 @@ impl TryFrom<(&meshtastic::protobufs::MeshPacket, &meshtastic::protobufs::Data)>
             snr: packet.rx_snr,
             rssi: packet.rx_rssi,
             delivery_state: None,
+            transport_mechanism: packet.transport_mechanism(),
+            via_mqtt: packet.via_mqtt,
         })
     }
 }

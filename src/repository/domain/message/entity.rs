@@ -16,4 +16,6 @@ pub struct Message {
     pub snr: f32,
     pub rssi: i32,
     pub delivery_state: Option<i32>,
+    pub transport_mechanism: i32,
+    pub via_mqtt: bool,
 }
