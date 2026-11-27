@@ -6,7 +6,7 @@ use meshtastic::{
     protobufs::{
         PortNum, Routing,
         from_radio::PayloadVariant,
-        mesh_packet::{self, AckProofStatus, TransportMechanism},
+        mesh_packet::{self, AckProofStatus},
         routing,
     },
 };
@@ -208,19 +208,15 @@ impl ChatService {
 
                             if Some(packet.to) == my_node_key {
                                 match routing::Error::try_from(e) {
-                                    Ok(routing::Error::None) => match packet.transport_mechanism() {
-                                        TransportMechanism::TransportInternal => {
-                                            let _ = self.state_action_tx.send(StateAction::MessageDeliveredToMesh {
-                                                packet_id: data.request_id,
-                                            });
-                                        }
-                                        TransportMechanism::TransportLora
-                                        | TransportMechanism::TransportLoraAlt1
-                                        | TransportMechanism::TransportLoraAlt2
-                                        | TransportMechanism::TransportLoraAlt3 => {
-                                            let ack_proof_status = packet.ack_proof_status();
+                                    Ok(routing::Error::None) => {
+                                        let is_implicit_ack = Some(packet.from) == my_node_key;
 
-                                            let _ = self.state_action_tx.send(match ack_proof_status {
+                                        let _ = self.state_action_tx.send(if is_implicit_ack {
+                                            StateAction::MessageDeliveredToMesh {
+                                                packet_id: data.request_id,
+                                            }
+                                        } else {
+                                            match packet.ack_proof_status() {
                                                 AckProofStatus::AckProofValid => {
                                                     StateAction::MessageDeliveredToRecipientProven {
                                                         packet_id: data.request_id,
@@ -236,10 +232,9 @@ impl ChatService {
                                                         packet_id: data.request_id,
                                                     }
                                                 }
-                                            });
-                                        }
-                                        _ => {}
-                                    },
+                                            }
+                                        });
+                                    }
                                     Ok(error) => {
                                         let _ = self.state_action_tx.send(StateAction::MessageRoutingError {
                                             packet_id: data.request_id,
