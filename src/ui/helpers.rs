@@ -406,6 +406,10 @@ pub fn hops_to_spans<'a>(provider: &impl HopsSnrRssiAware, my: bool) -> Vec<Span
         return vec![Span::from("my node").blue()];
     }
 
+    if provider.is_mqtt() {
+        return vec![Span::from("MQTT").yellow()];
+    }
+
     match (provider.hops(), provider.rssi()) {
         (Some(0), None) => {
             vec![Span::from(format!("{:.2}dB", provider.snr())).style(Style::new().fg(provider.snr().snr_to_color()))]

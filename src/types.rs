@@ -423,6 +423,7 @@ impl NodesSortBy {
 }
 
 pub trait HopsSnrRssiAware {
+    fn is_mqtt(&self) -> bool;
     fn hops(&self) -> Option<u32>;
     fn snr(&self) -> f32;
     fn rssi(&self) -> Option<i32>;
@@ -603,6 +604,10 @@ impl Node {
 }
 
 impl HopsSnrRssiAware for Node {
+    fn is_mqtt(&self) -> bool {
+        false
+    }
+
     fn hops(&self) -> Option<u32> {
         self.hops
     }
@@ -920,6 +925,10 @@ impl Message {
 }
 
 impl HopsSnrRssiAware for Message {
+    fn is_mqtt(&self) -> bool {
+        self.via_mqtt || self.transport_mechanism == TransportMechanism::TransportMqtt
+    }
+
     fn hops(&self) -> Option<u32> {
         Some(self.hops)
     }
@@ -1002,6 +1011,10 @@ impl Ord for Traceroute {
 impl Eq for Traceroute {}
 
 impl HopsSnrRssiAware for Vec<TracerouteItem> {
+    fn is_mqtt(&self) -> bool {
+        false
+    }
+
     fn hops(&self) -> Option<u32> {
         Some(self.iter().filter(|i| matches!(i, TracerouteItem::Node(_))).count() as u32)
     }
