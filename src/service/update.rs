@@ -223,9 +223,8 @@ impl UpdateService {
 }
 
 fn is_newer(version: &String) -> bool {
-    if let Some(parsed_version) = Version::parse(version.replacen('v', "", 1).as_str())
+    if let Ok(parsed_version) = Version::parse(version.replacen('v', "", 1).as_str())
         .inspect_err(|e| tracing::error!("can't parse version {}: {}", version, e))
-        .ok()
     {
         return PARSED_APP_VERSION.lt(&parsed_version);
     }
