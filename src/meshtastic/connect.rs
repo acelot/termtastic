@@ -8,6 +8,23 @@ use tokio::sync::mpsc;
 
 const MESHTASTIC_DEFAULT_TCP_PORT: u16 = 4403;
 
+fn generate_want_config_id() -> u32 {
+    // Special want_config_id values, defined in firmware src/mesh/PhoneApi.h
+    const SPECIAL_NONCE_ONLY_CONFIG: u32 = 69420;
+    const SPECIAL_NONCE_ONLY_NODES: u32 = 69421;
+    let mut random_nonce = utils::generate_rand_id();
+    let mut attempt = 0;
+    while random_nonce == SPECIAL_NONCE_ONLY_CONFIG || random_nonce == SPECIAL_NONCE_ONLY_NODES {
+        random_nonce = utils::generate_rand_id();
+        attempt += 1;
+        if attempt > 5 {
+            // Very unlikely to happen for random id generator
+            panic!("meshtastic::utils::generate_rand_id generates non-random special values");
+        }
+    }
+    random_nonce
+}
+
 pub async fn connect_via_tcp(
     address: HostAddr<String>,
 ) -> anyhow::Result<(mpsc::UnboundedReceiver<FromRadio>, ConnectedStreamApi)> {
@@ -21,7 +38,7 @@ pub async fn connect_via_tcp(
     let stream_api = StreamApi::new();
     let (from_radio_receiver, connected_stream_api) = stream_api.connect(stream_handle).await;
 
-    let connected_stream_api = connected_stream_api.configure(utils::generate_rand_id()).await?;
+    let connected_stream_api = connected_stream_api.configure(generate_want_config_id()).await?;
 
     Ok((from_radio_receiver, connected_stream_api))
 }
@@ -40,7 +57,7 @@ pub async fn connect_via_ble(
     let stream_api = StreamApi::new();
     let (from_radio_receiver, connected_stream_api) = stream_api.connect(stream_handle).await;
 
-    let connected_stream_api = connected_stream_api.configure(utils::generate_rand_id()).await?;
+    let connected_stream_api = connected_stream_api.configure(generate_want_config_id()).await?;
 
     Ok((from_radio_receiver, connected_stream_api))
 }
@@ -53,7 +70,7 @@ pub async fn connect_via_serial(
     let stream_api = StreamApi::new();
     let (from_radio_receiver, connected_stream_api) = stream_api.connect(stream_handle).await;
 
-    let connected_stream_api = connected_stream_api.configure(utils::generate_rand_id()).await?;
+    let connected_stream_api = connected_stream_api.configure(generate_want_config_id()).await?;
 
     Ok((from_radio_receiver, connected_stream_api))
 }
