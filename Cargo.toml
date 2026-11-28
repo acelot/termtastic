@@ -53,6 +53,7 @@ paste = { version = "1.0" }
 ratatui = { version = "0.30.2", features = ["unstable-rendered-line-info"] }
 ratatui-textarea = { version = "0.9.4" }
 regex = { version = "1.13" }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.41.1", features = [
     "bundled",
     "hooks",

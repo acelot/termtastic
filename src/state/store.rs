@@ -102,7 +102,8 @@ impl Store {
                     state.devices = cfg.devices;
                     state.nodes_sort_by = cfg.nodes_sort_by;
                     state.nodes_filter = cfg.nodes_filter;
-                    state.ui_config = cfg.ui_config;
+                    state.app_ui_config = cfg.ui_config;
+                    state.app_general_config = cfg.general_config;
 
                     update_nodes_view(state);
                     update_terminal_title(state);
@@ -1104,9 +1105,30 @@ impl Store {
 
                 true
             }),
-            StateAction::UiConfigSet { config } => {
+            StateAction::AppUiConfigSet(config) => {
                 self.state_tx.send_modify(|state| {
-                    state.ui_config = config;
+                    state.app_ui_config = config;
+                });
+
+                true
+            }
+            StateAction::AppGeneralConfigSet(config) => {
+                self.state_tx.send_modify(|state| {
+                    state.app_general_config = config;
+                });
+
+                true
+            }
+            StateAction::UpdateAvailableVersionSet(version) => {
+                self.state_tx.send_modify(|state| {
+                    state.update_available_version = version;
+                });
+
+                true
+            }
+            StateAction::UpdateCheckTimestampSet(timestamp) => {
+                self.state_tx.send_modify(|state| {
+                    state.update_check_timestamp = Some(timestamp);
                 });
 
                 true

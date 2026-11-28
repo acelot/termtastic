@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use ratatui::prelude::*;
-use ratatui::widgets::{LineGauge, Paragraph};
 
 use crate::{
     state::State,
@@ -23,6 +22,7 @@ pub struct HeaderContext<'a> {
     pub nodes_count: usize,
     pub my_node: Option<&'a Node>,
     pub battery_level: Option<u32>,
+    pub update_available: Option<&'a str>,
 }
 
 impl<'a> From<&'a State> for HeaderContext<'a> {
@@ -46,6 +46,11 @@ impl<'a> From<&'a State> for HeaderContext<'a> {
             nodes_count: state.nodes.len(),
             my_node: state.get_my_node(),
             battery_level,
+            update_available: if !state.app_general_config.disable_update_check {
+                state.update_available_version.as_deref()
+            } else {
+                None
+            },
         }
     }
 }
@@ -62,14 +67,19 @@ impl<'a> HeaderWidget<'a> {
 
 impl Widget for HeaderWidget<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let h = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(2)]).split(area);
-
-        Paragraph::new(Line::from(vec![
-            Span::from(crate::APP_NAME).magenta().bold(),
-            Span::from(" "),
-            Span::from(crate::APP_VERSION).dark_gray(),
-        ]))
-        .render(h[0], buf);
+        let left_spans: Vec<Span<'_>> = [
+            Some(Span::from(crate::APP_NAME).magenta().bold()),
+            Some(Span::from(" ")),
+            Some(Span::from(crate::APP_VERSION).dark_gray()),
+            self.context
+                .update_available
+                .is_some()
+                .then_some(Span::from("  new version ").dark_gray().dim()),
+            self.context.update_available.map(|v| Span::from(v).dark_gray()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
 
         let db_indicator = match self.context.db_load_state {
             DbLoadState::Failed => Span::from("DB_FAIL").red(),
@@ -112,14 +122,12 @@ impl Widget for HeaderWidget<'_> {
                 Modifier::DIM
             });
 
-        match self.context.connection_state {
+        let right_spans = match self.context.connection_state {
             ConnectionState::NotConnected => {
-                Line::from(vec![Span::from("not connected").dark_gray()])
-                    .right_aligned()
-                    .render(h[1], buf);
+                vec![Span::from("not connected").dark_gray()]
             }
             ConnectionState::ProblemDetected { .. } => {
-                Line::from(vec![
+                vec![
                     Span::from(format!(
                         "reconnecting in {} sec...",
                         self.context
@@ -128,22 +136,16 @@ impl Widget for HeaderWidget<'_> {
                             .unwrap_or("?".to_owned())
                     ))
                     .red(),
-                ])
-                .right_aligned()
-                .render(h[1], buf);
+                ]
             }
             ConnectionState::Connecting => {
-                Line::from(vec![Span::from("connecting...").yellow()])
-                    .right_aligned()
-                    .render(h[1], buf);
+                vec![Span::from("connecting...").yellow()]
             }
             ConnectionState::LoadingDbData => {
-                Line::from(vec![Span::from("loading DB...").yellow()])
-                    .right_aligned()
-                    .render(h[1], buf);
+                vec![Span::from("loading DB...").yellow()]
             }
             ConnectionState::LoadingNodeConfig => {
-                Line::from(vec![
+                vec![
                     Span::from("loading nodes ").yellow(),
                     Span::from(self.context.nodes_loader_current.to_string()).yellow(),
                     Span::from("/").yellow().dim(),
@@ -154,64 +156,49 @@ impl Widget for HeaderWidget<'_> {
                     Span::from("TR").dark_gray().dim(),
                     Span::from(" "),
                     rx_indicator,
-                ])
-                .right_aligned()
-                .render(h[1], buf);
+                ]
             }
-            ConnectionState::Connected => {
-                let status_line = Line::from(vec![
-                    Span::from("online ").dark_gray(),
-                    Span::from(self.context.online_nodes.to_string()).green(),
-                    Span::from("/").dark_gray().dim(),
-                    Span::from(self.context.nodes_count.to_string()).dark_gray(),
-                    Span::from("  "),
-                    db_indicator,
-                    Span::from(" "),
-                    tr_indicator,
-                    Span::from(" "),
-                    rx_indicator,
-                ]);
-
-                let h1_h = Layout::horizontal([
-                    Constraint::Min(0),
-                    Constraint::Length(4),
-                    Constraint::Length(11),
-                    Constraint::Length(2),
-                    Constraint::Length(6),
-                    Constraint::Length(2),
-                    Constraint::Length(status_line.width() as u16),
-                ])
-                .split(h[1]);
-
+            ConnectionState::Connected => [
                 if let Some(battery_level) = self.context.battery_level {
                     if battery_level > 100 {
-                        Line::from(vec![Span::from("ϟ PWR").dark_gray()])
-                            .right_aligned()
-                            .render(h1_h[2], buf);
+                        Some(Span::from("ϟ PWR").dark_gray())
                     } else {
                         let color = battery_level.battery_level_to_color();
 
-                        Line::from(vec![Span::from(format!("{}%", battery_level)).fg(color)])
-                            .right_aligned()
-                            .render(h1_h[1], buf);
-
-                        LineGauge::default()
-                            .unfilled_symbol("\u{258C}")
-                            .unfilled_style(Style::new().dark_gray())
-                            .filled_symbol("\u{258C}")
-                            .filled_style(Style::new().fg(color))
-                            .ratio(battery_level as f64 / 100.0)
-                            .label("")
-                            .render(h1_h[2], buf);
+                        Some(Span::from(format!("BAT {}%", battery_level)).fg(color))
                     }
-                }
-
-                if let Some(my_node) = self.context.my_node {
-                    short_name_to_span(my_node, true).render(h1_h[4], buf);
-                }
-
-                status_line.render(h1_h[6], buf);
-            }
+                } else {
+                    None
+                },
+                self.context.battery_level.is_some().then_some(Span::from("  ")),
+                self.context.my_node.map(|node| short_name_to_span(node, true)),
+                self.context.my_node.is_some().then_some(Span::from("  ")),
+                Some(Span::from("online ").dark_gray()),
+                Some(Span::from(self.context.online_nodes.to_string()).green()),
+                Some(Span::from("/").dark_gray().dim()),
+                Some(Span::from(self.context.nodes_count.to_string()).dark_gray()),
+                Some(Span::from("  ")),
+                Some(db_indicator),
+                Some(Span::from(" ")),
+                Some(tr_indicator),
+                Some(Span::from(" ")),
+                Some(rx_indicator),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<Span<'_>>>(),
         };
+
+        let right_line = Line::from(right_spans);
+
+        let [left_area, _, right_area] = Layout::horizontal([
+            Constraint::Min(10),
+            Constraint::Length(1),
+            Constraint::Length(right_line.width() as u16),
+        ])
+        .areas(area);
+
+        Line::from(left_spans).render(left_area, buf);
+        right_line.right_aligned().render(right_area, buf);
     }
 }

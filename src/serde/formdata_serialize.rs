@@ -12,9 +12,9 @@ pub fn to_formdata<T: Serialize>(value: &T) -> Result<FormData, FormDataSerializ
 
 #[derive(thiserror::Error, Debug)]
 pub enum FormDataSerializerError {
-    #[error("serde error: {0}")]
+    #[error("serde error: {0:#}")]
     Serde(String),
-    #[error("unsupported type: {0}")]
+    #[error("unsupported type: {0:#}")]
     UnsupportedType(&'static str),
 }
 

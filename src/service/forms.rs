@@ -30,8 +30,8 @@ use strum::IntoEnumIterator;
 
 use crate::serde::to_formdata;
 use crate::types::{
-    Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem, FormItemKey, FormItemKind, FormValue,
-    UiConfig, UiEvent,
+    AppGeneralConfig, AppUiConfig, Channel, FormBitMaskVariant, FormData, FormEnumVariant, FormId, FormItem,
+    FormItemKey, FormItemKind, FormValue, UiEvent,
 };
 use nameof::name_of;
 
@@ -255,10 +255,22 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
     let mut forms = HashMap::new();
 
     forms.insert(
+        FormId::AppGeneral,
+        Vec::from([FormItem::new(
+            FormItemKey::Simple(name_of!(disable_update_check in AppGeneralConfig)),
+            "Disable update check",
+            Some("Disables periodic checks for a new application version."),
+            FormItemKind::Switch,
+            |v| v.to_string(),
+            |_| Ok(()),
+        )]),
+    );
+
+    forms.insert(
         FormId::AppUi,
         Vec::from([
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_top_padding_hidden in UiConfig)),
+                FormItemKey::Simple(name_of!(is_top_padding_hidden in AppUiConfig)),
                 "Window: Hide top padding",
                 None,
                 FormItemKind::Switch,
@@ -266,7 +278,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_bottom_padding_hidden in UiConfig)),
+                FormItemKey::Simple(name_of!(is_bottom_padding_hidden in AppUiConfig)),
                 "Window: Hide bottom padding",
                 None,
                 FormItemKind::Switch,
@@ -274,7 +286,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_left_padding_reduced in UiConfig)),
+                FormItemKey::Simple(name_of!(is_left_padding_reduced in AppUiConfig)),
                 "Window: Reduce left padding",
                 None,
                 FormItemKind::Switch,
@@ -282,7 +294,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |_| Ok(()),
             ),
             FormItem::new(
-                FormItemKey::Simple(name_of!(is_right_padding_reduced in UiConfig)),
+                FormItemKey::Simple(name_of!(is_right_padding_reduced in AppUiConfig)),
                 "Window: Reduce right padding",
                 None,
                 FormItemKind::Switch,

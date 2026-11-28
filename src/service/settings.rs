@@ -21,8 +21,8 @@ use tokio_graceful_shutdown::SubsystemHandle;
 use crate::serde::{from_formdata, to_formdata};
 use crate::service::FW_VERSION_GT_2_8;
 use crate::types::{
-    Channel, ConnectionState, FormData, FormId, FormValue, NodeUser, SettingsFormState, SettingsItem, Toast, UiConfig,
-    UiEvent,
+    AppGeneralConfig, AppUiConfig, Channel, ConnectionState, FormData, FormId, FormValue, NodeUser, SettingsFormState,
+    SettingsItem, Toast, UiEvent,
 };
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -79,7 +79,7 @@ impl SettingsService {
         let state = self.state_rx.borrow();
 
         match event {
-            Ok(StateAction::UiConfigSet { .. })
+            Ok(StateAction::AppUiConfigSet(_))
                 if matches!(
                     state.settings_form_state,
                     SettingsFormState::Saving { id: FormId::AppUi }
@@ -89,7 +89,19 @@ impl SettingsService {
                     .state_action_tx
                     .send(StateAction::Toast(Toast::success("setting saved")));
 
-                self.start_config_loading(&FormId::AppUi);
+                self.start_config_loading(FormId::AppUi);
+            }
+            Ok(StateAction::AppGeneralConfigSet(_))
+                if matches!(
+                    state.settings_form_state,
+                    SettingsFormState::Saving { id: FormId::AppGeneral }
+                ) =>
+            {
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::Toast(Toast::success("setting saved")));
+
+                self.start_config_loading(FormId::AppGeneral);
             }
             Ok(StateAction::NodeOwnerSet(_))
                 if matches!(
@@ -97,7 +109,7 @@ impl SettingsService {
                     SettingsFormState::Saving { id: FormId::DeviceUser }
                 ) =>
             {
-                self.start_config_loading(&FormId::DeviceUser);
+                self.start_config_loading(FormId::DeviceUser);
             }
             Ok(StateAction::DeviceCannedMessagesSet { .. })
                 if matches!(
@@ -107,7 +119,7 @@ impl SettingsService {
                     }
                 ) =>
             {
-                self.start_config_loading(&FormId::ModuleCannedMessage);
+                self.start_config_loading(FormId::ModuleCannedMessage);
             }
             Err(broadcast::error::RecvError::Lagged(n)) => {
                 tracing::warn!("broadcast receiver lagged by {} events", n);
@@ -120,7 +132,7 @@ impl SettingsService {
         match event {
             Ok(app_event) => match app_event {
                 UiEvent::SettingsFormSelected(id) => {
-                    self.start_config_loading(&id);
+                    self.start_config_loading(id);
                 }
                 UiEvent::SettingsFormCancelRequested => {
                     let _ = self.state_action_tx.send(StateAction::SettingsFormClose);
@@ -137,7 +149,7 @@ impl SettingsService {
                         .state_action_tx
                         .send(StateAction::Toast(Toast::normal("saving...")));
 
-                    if let Err(e) = self.save_config(&form_id) {
+                    if let Err(e) = self.save_config(form_id) {
                         tracing::error!("settings save failed: {}", e);
 
                         let _ = self
@@ -186,7 +198,7 @@ impl SettingsService {
                         .state_action_tx
                         .send(StateAction::Toast(Toast::success("setting saved")));
 
-                    self.start_config_loading(&form_id);
+                    self.start_config_loading(form_id);
                 }
                 MeshtasticEvent::ChannelsSaved(form_id) => {
                     let _ = self.state_action_tx.send(StateAction::ActiveChatUnset);
@@ -195,7 +207,7 @@ impl SettingsService {
                         .state_action_tx
                         .send(StateAction::Toast(Toast::success("channels saved")));
 
-                    self.start_config_loading(&form_id);
+                    self.start_config_loading(form_id);
                 }
                 _ => {}
             },
@@ -269,31 +281,30 @@ impl SettingsService {
         }
     }
 
-    fn start_config_loading(&self, id: &FormId) {
-        let _ = self
-            .state_action_tx
-            .send(StateAction::SettingsFormLoadingStart { id: *id });
+    fn start_config_loading(&self, id: FormId) {
+        let _ = self.state_action_tx.send(StateAction::SettingsFormLoadingStart { id });
 
         match self.load_config(id) {
             Ok(data) => {
                 let _ = self
                     .state_action_tx
-                    .send(StateAction::SettingsFormLoadingDone { id: *id, data });
+                    .send(StateAction::SettingsFormLoadingDone { id, data });
             }
             Err(e) => {
                 let _ = self.state_action_tx.send(StateAction::SettingsFormLoadingFail {
-                    id: *id,
+                    id,
                     error: e.to_string(),
                 });
             }
         }
     }
 
-    fn load_config(&self, id: &FormId) -> anyhow::Result<FormData> {
+    fn load_config(&self, id: FormId) -> anyhow::Result<FormData> {
         let state = self.state_rx.borrow();
 
         let mut data = match id {
-            FormId::AppUi => to_formdata(&state.ui_config)?,
+            FormId::AppGeneral => to_formdata(&state.app_general_config)?,
+            FormId::AppUi => to_formdata(&state.app_ui_config)?,
             FormId::RadioLora => to_formdata(
                 state
                     .device_config
@@ -475,23 +486,30 @@ impl SettingsService {
         Ok(data)
     }
 
-    fn save_config(&self, id: &FormId) -> anyhow::Result<()> {
+    fn save_config(&self, form_id: FormId) -> anyhow::Result<()> {
         let state = self.state_rx.borrow();
         let form_data = state.settings_form_data.as_ref().expect("should be Some");
 
         let _ = self
             .state_action_tx
-            .send(StateAction::SettingsFormSavingStart { id: *id });
+            .send(StateAction::SettingsFormSavingStart { id: form_id });
 
-        match id {
+        match form_id {
+            FormId::AppGeneral => {
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::AppGeneralConfigSet(from_formdata::<AppGeneralConfig>(
+                        form_data,
+                    )?));
+            }
             FormId::AppUi => {
-                let _ = self.state_action_tx.send(StateAction::UiConfigSet {
-                    config: from_formdata::<UiConfig>(form_data)?,
-                });
+                let _ = self
+                    .state_action_tx
+                    .send(StateAction::AppUiConfigSet(from_formdata::<AppUiConfig>(form_data)?));
             }
             FormId::RadioLora => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Lora(from_formdata::<LoRaConfig>(form_data)?),
                 });
@@ -507,63 +525,63 @@ impl SettingsService {
                 let _ = self
                     .meshtastic_command_tx
                     .send(CommandToMeshtastic::SaveChannelsConfig {
-                        form_id: *id,
+                        form_id,
                         my_node_num: state.my_node_key.expect("should be Some"),
                         channels: msh_channels,
                     });
             }
             FormId::RadioSecurity => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Security(from_formdata::<SecurityConfig>(form_data)?),
                 });
             }
             FormId::DeviceDevice => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Device(from_formdata::<DeviceConfig>(form_data)?),
                 });
             }
             FormId::DeviceUser => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveUser {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     user: from_formdata::<NodeUser>(form_data)?.into(),
                 });
             }
             FormId::DevicePosition => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Position(from_formdata::<PositionConfig>(form_data)?),
                 });
             }
             FormId::DevicePower => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Power(from_formdata::<PowerConfig>(form_data)?),
                 });
             }
             FormId::DeviceDisplay => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Display(from_formdata::<DisplayConfig>(form_data)?),
                 });
             }
             FormId::DeviceBluetooth => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Bluetooth(from_formdata::<BluetoothConfig>(form_data)?),
                 });
             }
             FormId::DeviceNetwork => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: config::PayloadVariant::Network(from_formdata::<NetworkConfig>(form_data)?),
                 });
@@ -571,21 +589,21 @@ impl SettingsService {
             FormId::DeviceAdministration => {}
             FormId::ModuleMqtt => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::Mqtt(from_formdata::<MqttConfig>(form_data)?),
                 });
             }
             FormId::ModuleSerial => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::Serial(from_formdata::<SerialConfig>(form_data)?),
                 });
             }
             FormId::ModuleExternalNotification => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::ExternalNotification(from_formdata::<
                         ExternalNotificationConfig,
@@ -594,7 +612,7 @@ impl SettingsService {
             }
             FormId::ModuleStoreAndForward => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::StoreForward(from_formdata::<StoreForwardConfig>(
                         form_data,
@@ -603,14 +621,14 @@ impl SettingsService {
             }
             FormId::ModuleRangeTest => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::RangeTest(from_formdata::<RangeTestConfig>(form_data)?),
                 });
             }
             FormId::ModuleTelemetry => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::Telemetry(from_formdata::<TelemetryConfig>(form_data)?),
                 });
@@ -624,7 +642,7 @@ impl SettingsService {
                     .clone();
 
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::CannedMessage(from_formdata::<CannedMessageConfig>(
                         &cloned_form_data,
@@ -640,7 +658,7 @@ impl SettingsService {
             }
             FormId::ModuleNeighborInfo => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::NeighborInfo(from_formdata::<NeighborInfoConfig>(
                         form_data,
@@ -649,7 +667,7 @@ impl SettingsService {
             }
             FormId::ModuleAmbientLighting => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::AmbientLighting(from_formdata::<AmbientLightingConfig>(
                         form_data,
@@ -658,7 +676,7 @@ impl SettingsService {
             }
             FormId::ModuleDetectionSensor => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::DetectionSensor(from_formdata::<DetectionSensorConfig>(
                         form_data,
@@ -667,7 +685,7 @@ impl SettingsService {
             }
             FormId::ModuleTrafficManagement => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::TrafficManagement(from_formdata::<TrafficManagementConfig>(
                         form_data,
@@ -676,14 +694,14 @@ impl SettingsService {
             }
             FormId::ModuleTak => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::Tak(from_formdata::<TakConfig>(form_data)?),
                 });
             }
             FormId::ModuleMeshBeacon => {
                 let _ = self.meshtastic_command_tx.send(CommandToMeshtastic::SaveModuleConfig {
-                    form_id: *id,
+                    form_id,
                     my_node_num: state.my_node_key.expect("should be Some"),
                     config: module_config::PayloadVariant::MeshBeacon(from_formdata::<MeshBeaconConfig>(form_data)?),
                 });
@@ -706,6 +724,7 @@ pub fn update_settings_menu(state: &mut State) {
     state.settings_menu = [
         // App
         Some(SettingsItem::group("App")),
+        Some(SettingsItem::form("General", FormId::AppGeneral)),
         Some(SettingsItem::form("UI", FormId::AppUi)),
         // Radio
         is_connected.then_some(SettingsItem::group("Radio")),

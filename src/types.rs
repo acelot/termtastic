@@ -33,7 +33,9 @@ pub struct AppConfig {
     #[serde(default)]
     pub nodes_filter: String,
     #[serde(default)]
-    pub ui_config: UiConfig,
+    pub ui_config: AppUiConfig,
+    #[serde(default)]
+    pub general_config: AppGeneralConfig,
 }
 
 impl From<&State> for AppConfig {
@@ -44,13 +46,14 @@ impl From<&State> for AppConfig {
             devices: value.devices.clone(),
             nodes_sort_by: value.nodes_sort_by,
             nodes_filter: value.nodes_filter.clone(),
-            ui_config: value.ui_config.clone(),
+            ui_config: value.app_ui_config.clone(),
+            general_config: value.app_general_config.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
-pub struct UiConfig {
+pub struct AppUiConfig {
     #[serde(default)]
     pub is_top_padding_hidden: bool,
     #[serde(default)]
@@ -59,6 +62,12 @@ pub struct UiConfig {
     pub is_left_padding_reduced: bool,
     #[serde(default)]
     pub is_right_padding_reduced: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Hash, Default)]
+pub struct AppGeneralConfig {
+    #[serde(default)]
+    pub disable_update_check: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1200,6 +1209,7 @@ pub enum FormId {
     ModuleTrafficManagement,
     ModuleTak,
     ModuleMeshBeacon,
+    AppGeneral,
     AppUi,
 }
 

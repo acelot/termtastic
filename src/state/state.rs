@@ -1,4 +1,5 @@
 use crate::types::*;
+use jiff::Timestamp;
 use meshtastic::protobufs::DeviceMetrics;
 use ordermap::{OrderMap, OrderSet};
 use semver::Version;
@@ -16,6 +17,8 @@ pub struct State {
     pub active_device: Option<Device>,
     pub active_tab: Tab,
     pub active_traceroutes: HashSet<u32>,
+    pub app_ui_config: AppUiConfig,
+    pub app_general_config: AppGeneralConfig,
     pub channels: HashMap<u32, Channel>,
     pub chats: OrderMap<Chat, ChatState>,
     pub connection_attempt: u32,
@@ -38,6 +41,7 @@ pub struct State {
     pub device_module_config: DeviceModuleConfig,
     pub devices_discovered: BTreeSet<Device>,
     pub devices: BTreeSet<Device>,
+    pub disable_update_check: bool,
     pub logs: VecDeque<LogRecord>,
     pub messages: HashMap<Uuid, Message>,
     pub messages_is_loading: bool,
@@ -74,7 +78,8 @@ pub struct State {
     pub traceroute_indicator_t: Instant,
     pub traceroute_indicator: TracerouteIndicatorState,
     pub traceroutes: HashMap<u32, Traceroute>,
-    pub ui_config: UiConfig,
+    pub update_available_version: Option<String>,
+    pub update_check_timestamp: Option<Timestamp>,
 }
 
 impl Default for State {
@@ -84,6 +89,8 @@ impl Default for State {
             active_device: None,
             active_tab: Tab::default(),
             active_traceroutes: HashSet::with_capacity(10),
+            app_ui_config: AppUiConfig::default(),
+            app_general_config: AppGeneralConfig::default(),
             channels: State::default_channels(),
             chats: OrderMap::with_capacity(8),
             connection_attempt: 0,
@@ -106,6 +113,7 @@ impl Default for State {
             device_canned_messages: None,
             devices_discovered: BTreeSet::default(),
             devices: BTreeSet::default(),
+            disable_update_check: false,
             logs: VecDeque::with_capacity(MAX_LOG_RECORDS),
             messages: HashMap::with_capacity(1000),
             messages_is_loading: false,
@@ -142,7 +150,8 @@ impl Default for State {
             traceroutes: HashMap::with_capacity(400),
             traceroute_indicator: TracerouteIndicatorState::Off,
             traceroute_indicator_t: Instant::now(),
-            ui_config: UiConfig::default(),
+            update_available_version: None,
+            update_check_timestamp: None,
         }
     }
 }

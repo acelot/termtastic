@@ -6,9 +6,9 @@ use strum::EnumProperty;
 use uuid::Uuid;
 
 use crate::types::{
-    AppConfig, Channel, Chat, ChatPosition, Device, FormData, FormId, FormItemKey, FormValue, LogRecord, Message, Node,
-    NodePosition, NodeTelemetry, NodeTelemetryTyped, NodeUser, NodesSortBy, Toast, Traceroute, TracerouteItem,
-    UiConfig,
+    AppConfig, AppGeneralConfig, AppUiConfig, Channel, Chat, ChatPosition, Device, FormData, FormId, FormItemKey,
+    FormValue, LogRecord, Message, Node, NodePosition, NodeTelemetry, NodeTelemetryTyped, NodeUser, NodesSortBy, Toast,
+    Traceroute, TracerouteItem,
 };
 
 #[derive(Debug, Clone, EnumProperty)]
@@ -135,6 +135,10 @@ pub enum StateAction {
     TabSwitchToPrevious,
     #[strum(props(rebroadcast = false))]
     Toast(Toast),
+    #[strum(props(rebroadcast = false))]
+    UpdateAvailableVersionSet(Option<String>),
+    #[strum(props(rebroadcast = false))]
+    UpdateCheckTimestampSet(Timestamp),
     TracerouteStart {
         message_id: u32,
         node_key: u32,
@@ -175,9 +179,8 @@ pub enum StateAction {
         key: FormItemKey,
         value: FormValue,
     },
-    UiConfigSet {
-        config: UiConfig,
-    },
+    AppUiConfigSet(AppUiConfig),
+    AppGeneralConfigSet(AppGeneralConfig),
 }
 
 impl StateAction {

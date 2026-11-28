@@ -154,10 +154,26 @@ impl<'a> Screen for Layout<'a> {
         }
 
         let container = Block::default().padding(Padding::new(
-            if state.ui_config.is_left_padding_reduced { 1 } else { 2 },
-            if state.ui_config.is_right_padding_reduced { 1 } else { 2 },
-            if state.ui_config.is_top_padding_hidden { 0 } else { 1 },
-            if state.ui_config.is_bottom_padding_hidden { 0 } else { 1 },
+            if state.app_ui_config.is_left_padding_reduced {
+                1
+            } else {
+                2
+            },
+            if state.app_ui_config.is_right_padding_reduced {
+                1
+            } else {
+                2
+            },
+            if state.app_ui_config.is_top_padding_hidden {
+                0
+            } else {
+                1
+            },
+            if state.app_ui_config.is_bottom_padding_hidden {
+                0
+            } else {
+                1
+            },
         ));
 
         let area = container.inner(frame.area());
@@ -182,7 +198,11 @@ impl<'a> Screen for Layout<'a> {
                         format!(
                             "{}{}",
                             t,
-                            if state.has_unread_messages() { "*" } else { Default::default() }
+                            if state.has_unread_messages() {
+                                "*"
+                            } else {
+                                Default::default()
+                            }
                         ),
                     ),
                     _ => (t as usize, t.to_string()),

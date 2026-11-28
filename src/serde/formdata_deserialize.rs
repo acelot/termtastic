@@ -11,11 +11,11 @@ pub fn from_formdata<'a, T: Deserialize<'a>>(data: &'a FormData) -> Result<T, Fo
 
 #[derive(thiserror::Error, Debug)]
 pub enum FormDataDeserializerError {
-    #[error("serde error: {0}")]
+    #[error("serde error: {0:#}")]
     Serde(String),
     #[error("invalid type: expected - {expected}, actual - {actual}")]
     InvalidType { expected: String, actual: String },
-    #[error("unsupported type: {0}")]
+    #[error("unsupported type: {0:#}")]
     UnsupportedType(&'static str),
 }
 
@@ -250,11 +250,11 @@ impl<'a> Deserializer<'a> for FormDataDeserializer<'a> {
         Err(FormDataDeserializerError::UnsupportedType("identifier"))
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("ignored_any"))
+        visitor.visit_unit()
     }
 }
 
@@ -599,11 +599,11 @@ impl<'a> Deserializer<'a> for FormValueDeserializer<'a> {
         Err(FormDataDeserializerError::UnsupportedType("identifier"))
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: Visitor<'a>,
     {
-        Err(FormDataDeserializerError::UnsupportedType("ignored_any"))
+        visitor.visit_unit()
     }
 }
 

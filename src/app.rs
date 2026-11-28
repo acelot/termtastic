@@ -6,7 +6,7 @@ use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitEx
 use tracing_unwrap::ResultExt;
 
 use crate::APP_NAME;
-use crate::service::{PersistenceService, TracerouteService};
+use crate::service::{PersistenceService, TracerouteService, UpdateService};
 use crate::{
     log2state::LogToState,
     meshtastic::MeshtasticService,
@@ -46,7 +46,7 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         state_rx.clone(),
         state_action_tx.clone(),
         stored_action_rx.resubscribe(),
-        data_dir,
+        data_dir.clone(),
     );
 
     let (meshtastic_service, meshtastic_command_tx, meshtastic_event_rx) = MeshtasticService::new();
@@ -104,6 +104,13 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         meshtastic_event_rx.resubscribe(),
     );
 
+    let update_service = UpdateService::new(
+        state_rx.clone(),
+        state_action_tx.clone(),
+        stored_action_rx.resubscribe(),
+        data_dir,
+    );
+
     ui_event_tx
         .send(UiEvent::InitializationRequested)
         .expect_or_log("InitializationRequested event should be sent");
@@ -151,6 +158,11 @@ pub async fn run(data_dir: PathBuf, config_dir: PathBuf) {
         s.start(SubsystemBuilder::new(
             "ChatService",
             async |subsys: &mut SubsystemHandle| chat_service.run(subsys).await,
+        ));
+
+        s.start(SubsystemBuilder::new(
+            "UpdateService",
+            async |subsys: &mut SubsystemHandle| update_service.run(subsys).await,
         ));
 
         s.start(SubsystemBuilder::new(

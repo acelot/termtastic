@@ -8,6 +8,7 @@ mod persistence;
 mod settings;
 mod telemetry;
 mod traceroute;
+mod update;
 
 pub use app::*;
 pub use chat::*;
@@ -19,3 +20,4 @@ pub use persistence::*;
 pub use settings::*;
 pub use telemetry::*;
 pub use traceroute::*;
+pub use update::*;
