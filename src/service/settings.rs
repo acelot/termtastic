@@ -488,7 +488,9 @@ impl SettingsService {
 
     fn save_config(&self, form_id: FormId) -> anyhow::Result<()> {
         let state = self.state_rx.borrow();
-        let form_data = state.settings_form_data.as_ref().expect("should be Some");
+        let mut form_data_clone = state.settings_form_data.as_ref().expect("should be Some").clone();
+        form_data_clone.remove(FW_VERSION_GT_2_8);
+        let form_data = &form_data_clone;
 
         let _ = self
             .state_action_tx
