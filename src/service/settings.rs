@@ -19,10 +19,9 @@ use tokio::sync::{broadcast, mpsc, watch};
 use tokio_graceful_shutdown::SubsystemHandle;
 
 use crate::serde::{from_formdata, to_formdata};
-use crate::service::FW_VERSION_GT_2_8;
 use crate::types::{
-    AppGeneralConfig, AppUiConfig, Channel, ConnectionState, FormData, FormId, FormValue, NodeUser, SettingsFormState,
-    SettingsItem, Toast, UiEvent,
+    AppGeneralConfig, AppUiConfig, Channel, ConnectionState, FormData, FormDataContext, FormId, FormValue, NodeUser,
+    SettingsFormState, SettingsItem, Toast, UiEvent,
 };
 use crate::{
     meshtastic::types::{CommandToMeshtastic, MeshtasticEvent},
@@ -302,7 +301,7 @@ impl SettingsService {
     fn load_config(&self, id: FormId) -> anyhow::Result<FormData> {
         let state = self.state_rx.borrow();
 
-        let mut data = match id {
+        let data = match id {
             FormId::AppGeneral => to_formdata(&state.app_general_config)?,
             FormId::AppUi => to_formdata(&state.app_ui_config)?,
             FormId::RadioLora => to_formdata(
@@ -471,26 +470,18 @@ impl SettingsService {
             )?)?,
         };
 
-        // inject FW version data
-        data.insert(
-            FW_VERSION_GT_2_8.to_owned(),
-            FormValue::Bool(
-                state
-                    .device_fw_version
-                    .as_ref()
-                    .map(|v| VERSION_REQ_GT_2_8.matches(v))
-                    .unwrap_or(false),
-            ),
-        );
-
-        Ok(data)
+        Ok(data.with_context(FormDataContext {
+            is_fw_version_gt_2_8: state
+                .device_fw_version
+                .as_ref()
+                .map(|v| VERSION_REQ_GT_2_8.matches(v))
+                .unwrap_or(false),
+        }))
     }
 
     fn save_config(&self, form_id: FormId) -> anyhow::Result<()> {
         let state = self.state_rx.borrow();
-        let mut form_data_clone = state.settings_form_data.as_ref().expect("should be Some").clone();
-        form_data_clone.remove(FW_VERSION_GT_2_8);
-        let form_data = &form_data_clone;
+        let form_data = state.settings_form_data.as_ref().expect("should be Some");
 
         let _ = self
             .state_action_tx

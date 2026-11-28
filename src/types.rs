@@ -9,6 +9,7 @@ use jiff::{SignedDuration, Timestamp};
 use meshtastic::protobufs::{Position, channel, config, mesh_packet::TransportMechanism, module_config, routing};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
+use std::ops::{Deref, DerefMut};
 use std::sync::LazyLock;
 use std::{
     collections::{BTreeSet, HashMap},
@@ -1272,7 +1273,48 @@ impl SettingsItem {
     }
 }
 
-pub type FormData = HashMap<String, FormValue>;
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FormDataContext {
+    pub is_fw_version_gt_2_8: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FormData {
+    data: HashMap<String, FormValue>,
+    context: FormDataContext,
+}
+
+impl FormData {
+    pub fn new() -> Self {
+        Self {
+            data: HashMap::default(),
+            context: FormDataContext::default(),
+        }
+    }
+
+    pub fn with_context(mut self, context: FormDataContext) -> Self {
+        self.context = context;
+        self
+    }
+
+    pub fn context(&self) -> &FormDataContext {
+        &self.context
+    }
+}
+
+impl Deref for FormData {
+    type Target = HashMap<String, FormValue>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for FormData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FormValue {

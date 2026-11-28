@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::fmt::Display;
 
 use serde::ser::*;
 use serde::{Serialize, Serializer};
@@ -532,7 +532,7 @@ impl<'a> Serializer for FieldSerializer<'a> {
     where
         T: ?Sized + Serialize,
     {
-        let mut temp_map = HashMap::new();
+        let mut temp_map = FormData::new();
         let temp_key = "serialized_value";
 
         let serializer = FieldSerializer {

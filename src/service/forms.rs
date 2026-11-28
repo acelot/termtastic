@@ -35,8 +35,6 @@ use crate::types::{
 };
 use nameof::name_of;
 
-pub const FW_VERSION_GT_2_8: &str = "__fw_version_gt_2.8";
-
 pub static FORMS: LazyLock<HashMap<FormId, Vec<FormItem>>> = LazyLock::new(build_forms);
 
 static DEFAULT_MAP_REPORT_SETTINGS: LazyLock<FormData> =
@@ -82,7 +80,7 @@ macro_rules! channel_form {
                     .as_nested()
                     .get(name_of!(is_enabled in Channel))
                     .expect("should exists")
-                    .as_bool() && data.get(FW_VERSION_GT_2_8).expect("should exists").as_bool();
+                    .as_bool() && data.context().is_fw_version_gt_2_8;
 
                 vec.push(
                     FormItem::new(
@@ -190,22 +188,7 @@ macro_rules! channel_form {
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(use_aead in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(use_aead in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(use_aead in Channel)),
                         concat!("  #", $x, " Use AEAD"),
                         Some(
                             "Enable authenticated encryption (AES-CCM) for this channel. All nodes on the channel \
@@ -219,22 +202,7 @@ macro_rules! channel_form {
 
                 vec.push(
                     FormItem::new(
-                        FormItemKey::Custom {
-                            getter: |data| {
-                                data.get($x)
-                                    .expect("should exists")
-                                    .as_nested()
-                                    .get(name_of!(is_muted in Channel))
-                                    .cloned()
-                                    .expect("should exists")
-                            },
-                            setter: |data, value| {
-                                data.get_mut($x)
-                                    .expect("should exists")
-                                    .as_nested_mut()
-                                    .insert(name_of!(is_muted in Channel).to_owned(), value);
-                            },
-                        },
+                        channel_simple_key!($x, name_of!(is_muted in Channel)),
                         concat!("  #", $x, " Muted"),
                         Some("Mute notifications for this channel."),
                         FormItemKind::Switch,
@@ -250,8 +218,6 @@ macro_rules! channel_form {
 }
 
 fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
-    let is_fw_version_gt_2_8 = |data: &FormData| data.get(FW_VERSION_GT_2_8).expect("should exists").as_bool();
-
     let mut forms = HashMap::new();
 
     forms.insert(
@@ -537,7 +503,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         .ok_or(anyhow::anyhow!("Must be between -100 and 100"))
                 },
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(pa_fan_disabled in LoRaConfig)),
                 "Disable PA Fan",
@@ -546,7 +512,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Custom {
                     getter: |data| {
@@ -593,7 +559,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                         })
                 },
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(fem_lna_mode in LoRaConfig)),
                 "FEM LNA Mode",
@@ -610,7 +576,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(serial_hal_only in LoRaConfig)),
                 "Serial HAL Only",
@@ -619,7 +585,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(transparent_mode in LoRaConfig)),
                 "Transparent Mode",
@@ -631,7 +597,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
         ]),
     );
 
@@ -904,7 +870,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
             FormItem::new(
                 FormItemKey::Simple(name_of!(is_managed in SecurityConfig)),
                 "Managed Device",
@@ -913,7 +879,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 |v| v.to_string(),
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
         ]),
     );
 
@@ -1113,7 +1079,7 @@ fn build_forms() -> HashMap<FormId, Vec<FormItem>> {
                 },
                 |_| Ok(()),
             )
-            .with_visibility(is_fw_version_gt_2_8),
+            .with_visibility(|data| data.context().is_fw_version_gt_2_8),
         ]),
     );
 
